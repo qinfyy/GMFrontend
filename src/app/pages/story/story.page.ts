@@ -1,22 +1,28 @@
 /**
- * 剧情推进页。覆盖 5 条命令：storyrange / kyusyoclear / kyusystory / dlcstory / dlcunlock。
+ * 剧情 / 九霄页。
+ * 服务端命令集（2026-09）:
+ *   - storyrange        普通剧情资源依赖图推进
+ *   - kyusyoTaskCompleted (ktc) 九霄任务推进到指定状态；id 可为 all
+ *   - kyusyoLevel       (kl)  设置九霄等级 1-99
+ *   - kyusyoUnlockLevel (kul) 解锁九霄出击关卡；level 可为 all
+ *   - kyusyoAchievement (ka)  完成九霄成就（探索）；id 可为 all
  */
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommandBarComponent } from '../../shared/command-bar';
 import { ResultPanelComponent } from '../../shared/result-panel';
 import { EntryPickerComponent } from '../../shared/entry-picker';
 import { pageExecutor } from '../../shared/page-executor';
 
-type StoryTab = 'storyrange' | 'kyusyoclear' | 'kyusystory' | 'dlcstory' | 'dlcunlock';
+type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
 
 @Component({
   imports: [FormsModule, CommandBarComponent, ResultPanelComponent, EntryPickerComponent],
   template: `
     <section class="page">
       <header class="page-head">
-        <h2>剧情推进</h2>
-        <p>普通剧情、九霄与逐火之蛾 DLC 的进度命令。NPC/Boss 图鉴只接受真实战斗上报，不由 GM 伪造。</p>
+        <h2>剧情 / 九霄</h2>
+        <p>普通剧情推进与九霄任务/关卡/成就命令。ZeroDLC 与旧 dlcunlock/dlcstory 已下线。</p>
       </header>
 
       <div class="tabs" role="tablist">
@@ -50,45 +56,80 @@ type StoryTab = 'storyrange' | 'kyusyoclear' | 'kyusystory' | 'dlcstory' | 'dlcu
           </div>
         }
 
-        @if (tab() === 'kyusyoclear') {
+        @if (tab() === 'ktc') {
           <div class="commuse-item align-top">
-            <div class="label">选择关卡</div>
+            <div class="label">任务 id</div>
             <div class="value">
-              <gm-entry-picker section="九霄关卡" placeholder="搜索九霄关卡…" [(value)]="levelId" />
-            </div>
-          </div>
-        }
-        @if (tab() === 'kyusystory') {
-          <div class="commuse-item align-top">
-            <div class="label">选择故事</div>
-            <div class="value">
-              <gm-entry-picker section="九霄故事" placeholder="搜索九霄故事；选「全部已读」可不填" [(value)]="storyId" />
+              <gm-entry-picker
+                section="九霄任务目录（逐火之蛾主玩法）"
+                placeholder="搜索任务（ID 或名称）；id=all 时清空"
+                [(value)]="taskId"
+                [extraOf]="missionExtra"
+              />
             </div>
           </div>
           <div class="commuse-item">
-            <div class="label">全部已读</div>
+            <div class="label">id = all</div>
             <div class="value">
               <label class="check">
-                <input type="checkbox" [(ngModel)]="kyusyoAll" />
-                <span>all=1</span>
+                <input type="checkbox" [(ngModel)]="ktcAll" />
+                <span>全部主线+支线任务；status 缺省 claimed 全完成发奖</span>
+              </label>
+            </div>
+          </div>
+          <div class="commuse-item">
+            <div class="label">目标状态</div>
+            <div class="value">
+              <select [(ngModel)]="ktcStatus">
+                <option value="claimed">claimed（默认，置可领奖并发放奖励）</option>
+                <option value="claimable">claimable（可领奖，不发奖）</option>
+                <option value="inprogress">inprogress（进行中）</option>
+                <option value="created">created（已创建未接取）</option>
+              </select>
+            </div>
+          </div>
+        }
+
+        @if (tab() === 'kl') {
+          <div class="commuse-item">
+            <div class="label">九霄等级 level</div>
+            <div class="value"><input type="number" min="1" max="99" [(ngModel)]="kyusyoLevel" placeholder="1–99（按 KyusyoData 上限）" /></div>
+          </div>
+        }
+
+        @if (tab() === 'kul') {
+          <div class="commuse-item align-top">
+            <div class="label">关卡 level</div>
+            <div class="value">
+              <gm-entry-picker
+                section="kyusyoUnlockLevel 九霄关卡目录（逐火之蛾出击）"
+                placeholder="搜索关卡（ID 或名称）；level=all 时清空"
+                [(value)]="levelId"
+                [extraOf]="levelExtra"
+              />
+            </div>
+          </div>
+          <div class="commuse-item">
+            <div class="label">前置 trigger</div>
+            <div class="value">
+              <label class="check">
+                <input type="checkbox" [(ngModel)]="kulTrigger" />
+                <span>trigger=1（默认，沿 ParentId 链解锁前置闭包）</span>
               </label>
             </div>
           </div>
         }
-        @if (tab() === 'dlcstory') {
+
+        @if (tab() === 'ka') {
           <div class="commuse-item align-top">
-            <div class="label">选择故事</div>
+            <div class="label">成就 id</div>
             <div class="value">
-              <gm-entry-picker section="逐火之蛾 DLC 故事" placeholder="搜索逐火 DLC 故事；选「全部已读」可不填" [(value)]="storyId" />
-            </div>
-          </div>
-          <div class="commuse-item">
-            <div class="label">全部已读</div>
-            <div class="value">
-              <label class="check">
-                <input type="checkbox" [(ngModel)]="dlcAll" />
-                <span>all=1</span>
-              </label>
+              <gm-entry-picker
+                section="kyusyoAchievement 九霄成就目录（逐火之蛾探索）"
+                placeholder="搜索成就（ID 或名称）；id=all 时清空"
+                [(value)]="achievementId"
+                [extraOf]="achievementExtra"
+              />
             </div>
           </div>
         }
@@ -132,94 +173,186 @@ type StoryTab = 'storyrange' | 'kyusyoclear' | 'kyusystory' | 'dlcstory' | 'dlcu
     }
     .commuse-item.align-top .label { line-height: 1.5; padding-top: 6px; }
     .commuse-item .value { flex: 1; min-width: 0; }
-    .check { display: inline-flex; align-items: center; gap: var(--space-2); line-height: 32px; font-size: var(--text-sm); color: var(--color-text-2); }
+    .commuse-item .value select { width: 100%; }
+    .check { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--color-text-2); }
   `,
 })
 export class StoryPage {
   protected readonly exec = pageExecutor();
 
   protected readonly tabDefs = [
-    { cmd: 'storyrange' as const, label: '普通剧情', hint: '沿普通剧情资源依赖图从 from 推进到 to，前置闭包自动完成，新完成关卡逐项发首通奖励。from=to 也合法。' },
-    { cmd: 'kyusyoclear' as const, label: '九霄通关', hint: '沿九霄资源依赖图完成指定关卡并解锁后继；不改等级/经验/体力/计时点。存在活动战斗会话时会被拒绝。' },
-    { cmd: 'kyusystory' as const, label: '九霄故事', hint: '把指定九霄故事或全部标记为已读，不完成关卡、不推进任务、不发奖。' },
-    { cmd: 'dlcstory' as const, label: '逐火故事', hint: '把指定逐火之蛾 DLC 故事或全部标记为已读，不改 ZeroRole/关卡/任务/奖励。' },
-    { cmd: 'dlcunlock' as const, label: '逐火全解锁', hint: '解锁逐火之蛾 DLC 全部可玩角色、专用装备、天赋、符文和关卡；不伪造通关/任务/成就/收益。' },
+    {
+      cmd: 'storyrange' as const,
+      label: '普通剧情',
+      hint: '沿普通剧情资源依赖图从 from 推进到 to；前置闭包自动完成，新完成关卡逐项发首通奖励。',
+    },
+    {
+      cmd: 'ktc' as const,
+      label: '九霄任务',
+      hint: 'kyusyoTaskCompleted：把九霄任务推进到指定状态。status 缺省 claimed（置可领奖并由服务端发奖）。',
+    },
+    {
+      cmd: 'kl' as const,
+      label: '九霄等级',
+      hint: 'kyusyoLevel：设置九霄等级 1-99，超出 KyusyoData 上限会被拒绝。',
+    },
+    {
+      cmd: 'kul' as const,
+      label: '九霄关卡解锁',
+      hint: 'kyusyoUnlockLevel：解锁指定九霄关卡。level=all 解锁全部 Type∈{1,2,3,4} 常规关卡；trigger=0 只解指定关卡。',
+    },
+    {
+      cmd: 'ka' as const,
+      label: '九霄成就',
+      hint: 'kyusyoAchievement：完成九霄成就（探索）并按 KyusyoExpoData 发奖；id=all 完成全部 95 个。',
+    },
   ];
 
   protected readonly tab = signal<StoryTab>('storyrange');
   protected uid = '';
+
+  // storyrange
   protected from: number | null = null;
   protected to: number | null = null;
+
+  // ktc
+  protected taskId = '';
+  protected ktcAll = false;
+  protected ktcStatus: 'claimed' | 'claimable' | 'inprogress' | 'created' = 'claimed';
+
+  // kl
+  protected kyusyoLevel: number | null = null;
+
+  // kul
   protected levelId = '';
-  protected storyId = '';
-  protected kyusyoAll = false;
-  protected dlcAll = false;
+  protected kulTrigger = true;
+
+  // ka
+  protected achievementId = '';
 
   protected readonly hint = computed(
     () => this.tabDefs.find(t => t.cmd === this.tab())?.hint ?? '',
   );
 
-  protected readonly isDangerous = computed(() => this.tab() === 'dlcunlock');
+  protected readonly isDangerous = computed(() => this.tab() === 'ktc' && this.ktcAll);
 
   protected readonly dangerReason = computed(() =>
-    this.isDangerous() ? '将一次性解锁全部 DLC 内容' : '',
+    this.isDangerous()
+      ? `将一次性完成全部九霄任务并发放奖励（status=${this.ktcStatus}）`
+      : '',
   );
 
   protected setTab(cmd: StoryTab): void {
     this.tab.set(cmd);
+    this.taskId = '';
     this.levelId = '';
-    this.storyId = '';
+    this.achievementId = '';
   }
 
+  protected readonly missionExtra = (e: { attrs: Record<string, string> }): string => {
+    const parts: string[] = [];
+    if (e.attrs['showtype']) parts.push(e.attrs['showtype']);
+    if (e.attrs['parents']) parts.push(`前置 ${e.attrs['parents']}`);
+    return parts.join(' · ');
+  };
+
+  protected readonly levelExtra = (e: { attrs: Record<string, string> }): string => {
+    const t = e.attrs['levelTypeForServer'];
+    const typeMap: Record<string, string> = { '1': '闯关', '2': '生存', '3': '迷宫', '4': '护送' };
+    return t ? `type=${typeMap[t] ?? t}` : '';
+  };
+
+  protected readonly achievementExtra = (e: { attrs: Record<string, string> }): string => {
+    return e.attrs['reward'] ? `奖励 ${e.attrs['reward']}` : '';
+  };
+
   protected readonly preview = computed(() => {
-    const parts = [`cmd=${this.tab()}`];
-    if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
+    const parts: string[] = [];
     switch (this.tab()) {
       case 'storyrange': {
+        parts.push('cmd=storyrange');
+        if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
         if (this.from !== null && this.from > 0) parts.push(`from=${Math.floor(this.from)}`);
         if (this.to !== null && this.to > 0) parts.push(`to=${Math.floor(this.to)}`);
         break;
       }
-      case 'kyusyoclear':
-        if (this.levelId.trim()) parts.push(`level=${encodeURIComponent(this.levelId.trim())}`);
+      case 'ktc': {
+        parts.push('cmd=ktc');
+        if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
+        if (this.ktcAll) {
+          parts.push('id=all');
+        } else if (this.taskId.trim()) {
+          parts.push(`id=${encodeURIComponent(this.taskId.trim())}`);
+        } else {
+          // 任务 id 必填
+          parts.push('id=__REQUIRED__');
+        }
+        if (this.ktcStatus !== 'claimed') parts.push(`status=${this.ktcStatus}`);
         break;
-      case 'kyusystory':
-        if (this.kyusyoAll) parts.push('all=1');
-        else if (this.storyId.trim()) parts.push(`id=${encodeURIComponent(this.storyId.trim())}`);
+      }
+      case 'kl': {
+        parts.push('cmd=kl');
+        if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
+        if (this.kyusyoLevel !== null && this.kyusyoLevel > 0) {
+          parts.push(`level=${Math.floor(this.kyusyoLevel)}`);
+        }
         break;
-      case 'dlcstory':
-        if (this.dlcAll) parts.push('all=1');
-        else if (this.storyId.trim()) parts.push(`id=${encodeURIComponent(this.storyId.trim())}`);
+      }
+      case 'kul': {
+        parts.push('cmd=kul');
+        if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
+        if (this.levelId.trim()) {
+          parts.push(`level=${encodeURIComponent(this.levelId.trim())}`);
+        } else {
+          parts.push('level=all');
+        }
+        if (!this.kulTrigger) parts.push('trigger=0');
         break;
-      case 'dlcunlock':
-        parts.push('all=1');
+      }
+      case 'ka': {
+        parts.push('cmd=ka');
+        if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
+        if (this.achievementId.trim()) {
+          parts.push(`id=${encodeURIComponent(this.achievementId.trim())}`);
+        } else {
+          parts.push('id=all');
+        }
         break;
+      }
     }
     return parts.join('&');
   });
 
   protected send(): void {
     void this.exec.run(() => {
-      const record: Record<string, string> = { cmd: this.tab() };
+      const record: Record<string, string> = {};
       if (this.uid.trim()) record['uid'] = this.uid.trim();
       switch (this.tab()) {
         case 'storyrange':
+          record['cmd'] = 'storyrange';
           if (this.from !== null && this.from > 0) record['from'] = String(Math.floor(this.from));
           if (this.to !== null && this.to > 0) record['to'] = String(Math.floor(this.to));
           break;
-        case 'kyusyoclear':
+        case 'ktc':
+          record['cmd'] = 'ktc';
+          if (this.ktcAll) record['id'] = 'all';
+          else if (this.taskId.trim()) record['id'] = this.taskId.trim();
+          if (this.ktcStatus !== 'claimed') record['status'] = this.ktcStatus;
+          break;
+        case 'kl':
+          record['cmd'] = 'kl';
+          if (this.kyusyoLevel !== null && this.kyusyoLevel > 0) record['level'] = String(Math.floor(this.kyusyoLevel));
+          break;
+        case 'kul':
+          record['cmd'] = 'kul';
           if (this.levelId.trim()) record['level'] = this.levelId.trim();
+          else record['level'] = 'all';
+          if (!this.kulTrigger) record['trigger'] = '0';
           break;
-        case 'kyusystory':
-          if (this.kyusyoAll) record['all'] = '1';
-          else if (this.storyId.trim()) record['id'] = this.storyId.trim();
-          break;
-        case 'dlcstory':
-          if (this.dlcAll) record['all'] = '1';
-          else if (this.storyId.trim()) record['id'] = this.storyId.trim();
-          break;
-        case 'dlcunlock':
-          record['all'] = '1';
+        case 'ka':
+          record['cmd'] = 'ka';
+          if (this.achievementId.trim()) record['id'] = this.achievementId.trim();
+          else record['id'] = 'all';
           break;
       }
       return record;

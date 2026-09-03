@@ -10,8 +10,14 @@ import { HandbookEntry, HandbookService } from '../../core/handbook.service';
 const KNOWN_SECTIONS = [
   'currency', 'weapon', 'costume', 'badge', 'role', 'material', 'potential',
   'role-develop', 'skin', 'partner',
-  '九霄故事', '逐火之蛾 DLC 故事', '逐火之蛾 DLC 内容目录',
-  '普通剧情、教学与其他 LevelMetaV2 资源', '九霄关卡',
+  '九霄故事（逐火之蛾主玩法）',
+  'ZeroDLC 故事（逐火之蛾 Roguelike 战斗 DLC）',
+  '九霄任务目录（逐火之蛾主玩法）',
+  'kyusyoUnlockLevel 九霄关卡目录（逐火之蛾出击）',
+  'kyusyoAchievement 九霄成就目录（逐火之蛾探索）',
+  'ZeroDLC（逐火之蛾 Roguelike 战斗 DLC）内容目录',
+  '普通剧情、教学与其他 LevelMetaV2 资源',
+  '九霄关卡',
 ] as const;
 
 @Component({

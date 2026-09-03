@@ -201,7 +201,8 @@ export class App {
     { path: '/giveall', label: '批量补齐', hint: 'giveall：按类别批量补齐物品' },
     { path: '/role', label: '角色养成', hint: 'role：设置已拥有角色的养成属性' },
     { path: '/player', label: '玩家设置', hint: 'setlevel：设置玩家等级' },
-    { path: '/story', label: '剧情推进', hint: '剧情 / 九霄 / 逐火之蛾 DLC 推进' },
+    { path: '/story', label: '剧情 / 九霄', hint: '普通剧情推进 + 九霄任务/关卡/成就' },
+    { path: '/account', label: '账号管理', hint: 'account：账号增删改 + 强制登录' },
     { path: '/help', label: '命令手册', hint: 'help 与 Handbook 分区浏览' },
   ];
   protected readonly settingsOpen = signal(false);

@@ -30,7 +30,12 @@ export const routes: Routes = [
   {
     path: 'story',
     loadComponent: () => import('./pages/story/story.page').then(m => m.StoryPage),
-    title: '剧情推进 - BH2 GM',
+    title: '剧情 / 九霄 - BH2 GM',
+  },
+  {
+    path: 'account',
+    loadComponent: () => import('./pages/account/account.page').then(m => m.AccountPage),
+    title: '账号管理 - BH2 GM',
   },
   {
     path: 'help',
