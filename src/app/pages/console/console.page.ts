@@ -28,7 +28,7 @@ interface ParamRow {
         <div class="commuse-item">
           <div class="label">命令 cmd</div>
           <div class="value">
-            <input type="text" [(ngModel)]="cmd" placeholder="如 give / setlevel / dlcunlock" list="known-cmds" />
+            <input type="text" [(ngModel)]="cmd" (ngModelChange)="bump()" placeholder="如 give / setlevel / dlcunlock" list="known-cmds" />
             <datalist id="known-cmds">
               @for (c of knownCommands(); track c) {
                 <option [value]="c"></option>
@@ -40,7 +40,7 @@ interface ParamRow {
         <div class="commuse-item">
           <div class="label">uid（可选）</div>
           <div class="value">
-            <input type="text" inputmode="numeric" [(ngModel)]="uid" placeholder="留空则不传" />
+            <input type="text" inputmode="numeric" [(ngModel)]="uid" (ngModelChange)="bump()" placeholder="留空则不传" />
           </div>
         </div>
 
@@ -50,8 +50,8 @@ interface ParamRow {
             <div class="commuse-item">
               <div class="label">参数 {{ $index + 1 }}</div>
               <div class="value param-row">
-                <input type="text" [(ngModel)]="row.key" placeholder="参数名，如 type" />
-                <input type="text" [(ngModel)]="row.value" placeholder="值" />
+                <input type="text" [(ngModel)]="row.key" (ngModelChange)="bump()" placeholder="参数名，如 type" />
+                <input type="text" [(ngModel)]="row.value" (ngModelChange)="bump()" placeholder="值" />
                 <button type="button" class="btn ghost" (click)="removeParam($index)" aria-label="删除参数">✕</button>
               </div>
             </div>
@@ -118,8 +118,12 @@ export class ConsolePage {
   protected cmd = '';
   protected uid = '';
   protected readonly params = signal<ParamRow[]>([{ key: '', value: '' }]);
+  /** 输入触发：每个表单字段的 (ngModelChange) 调用，驱动 preview 实时重算 */
+  private readonly revision = signal(0);
+  protected bump(): void { this.revision.update(n => n + 1); }
 
   protected readonly preview = computed(() => {
+    this.revision(); // 实时依赖
     const parts: string[] = [];
     if (this.cmd.trim()) parts.push(`cmd=${this.cmd.trim()}`);
     if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);

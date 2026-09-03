@@ -49,9 +49,21 @@ import { SettingsStore } from '../core/settings.store';
       color: #e5e6eb;
       border-radius: var(--radius-md);
       min-width: 0;
+      overflow-x: auto; overflow-y: hidden;
+      scrollbar-width: thin;
     }
-    .label { font-size: var(--text-xs); color: var(--color-primary-6); font-weight: var(--weight-semibold); flex-shrink: 0; }
-    .preview code { color: #e5e6eb; font-size: var(--text-xs); overflow-x: auto; white-space: nowrap; display: block; width: 100%; }
+    .label { font-size: var(--text-xs); color: #8ec0ff; font-weight: var(--weight-semibold); flex-shrink: 0; }
+    .preview code {
+      color: #e5e6eb; font-size: var(--text-xs);
+      overflow-x: auto; overflow-y: hidden; white-space: nowrap;
+      display: block; width: 100%;
+      min-width: max-content;
+      scrollbar-width: thin;
+    }
+    .preview::-webkit-scrollbar, .preview code::-webkit-scrollbar { height: 8px; }
+    .preview::-webkit-scrollbar-track, .preview code::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
+    .preview::-webkit-scrollbar-thumb, .preview code::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 4px; }
+    .preview::-webkit-scrollbar-thumb:hover, .preview code::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.45); }
 
     .actions { display: flex; justify-content: flex-end; }
     .btn {
@@ -89,6 +101,7 @@ export class CommandBarComponent {
   readonly sendLabel = computed(() => (this.sending() ? '发送中…' : '执行命令'));
 
   readonly fullUrl = computed(() => {
+    // 实时合并：baseUrl（设置项）+ preview（父组件信号输入），任一变化即重算
     const base = this.settings.baseUrl().replace(/\/$/, '');
     return base ? `${base}/api/gm?${this.preview()}` : `/api/gm?${this.preview()}`;
   });

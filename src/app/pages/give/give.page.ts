@@ -59,13 +59,13 @@ interface TypeTab {
 
         <div class="commuse-item">
           <div class="label">uid</div>
-          <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="uid" /></div>
+          <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="uid" (ngModelChange)="bump()" /></div>
         </div>
 
         @if (current().hasAmount) {
           <div class="commuse-item">
             <div class="label">数量 amount</div>
-            <div class="value"><input type="number" min="1" [(ngModel)]="amount" /></div>
+            <div class="value"><input type="number" min="1" [(ngModel)]="amount" (ngModelChange)="bump()" /></div>
           </div>
         }
 
@@ -83,39 +83,39 @@ interface TypeTab {
             <legend>装备 / 养成参数（可省略，超出上限按资源截断）</legend>
             <div class="commuse-item">
               <div class="label">等级 level</div>
-              <div class="value"><input type="number" min="1" [(ngModel)]="equip['level']" /></div>
+              <div class="value"><input type="number" min="1" [(ngModel)]="equip['level']" (ngModelChange)="bump()" /></div>
             </div>
             <div class="commuse-item">
               <div class="label">星级 star</div>
-              <div class="value"><input type="number" min="0" placeholder="上限 99" [(ngModel)]="equip['star']" /></div>
+              <div class="value"><input type="number" min="0" placeholder="上限 99" [(ngModel)]="equip['star']" (ngModelChange)="bump()" /></div>
             </div>
             <div class="commuse-item">
               <div class="label">技能 skill</div>
-              <div class="value"><input type="number" min="0" [(ngModel)]="equip['skill']" /></div>
+              <div class="value"><input type="number" min="0" [(ngModel)]="equip['skill']" (ngModelChange)="bump()" /></div>
             </div>
             <div class="commuse-item">
               <div class="label">升格 promote</div>
-              <div class="value"><input type="number" min="0" [(ngModel)]="equip['promote']" /></div>
+              <div class="value"><input type="number" min="0" [(ngModel)]="equip['promote']" (ngModelChange)="bump()" /></div>
             </div>
             <div class="commuse-item">
               <div class="label">亲密 intimacy</div>
-              <div class="value"><input type="number" min="0" [(ngModel)]="equip['intimacy']" /></div>
+              <div class="value"><input type="number" min="0" [(ngModel)]="equip['intimacy']" (ngModelChange)="bump()" /></div>
             </div>
             <div class="commuse-item">
               <div class="label">圣痕 talent</div>
-              <div class="value"><input type="number" min="0" placeholder="99=点满" [(ngModel)]="equip['talent']" /></div>
+              <div class="value"><input type="number" min="0" placeholder="99=点满" [(ngModel)]="equip['talent']" (ngModelChange)="bump()" /></div>
             </div>
             <div class="commuse-item">
               <div class="label">限解 potential</div>
-              <div class="value"><input type="number" min="0" placeholder="上限 4" [(ngModel)]="equip['potential']" /></div>
+              <div class="value"><input type="number" min="0" placeholder="上限 4" [(ngModel)]="equip['potential']" (ngModelChange)="bump()" /></div>
             </div>
             <div class="commuse-item">
               <div class="label">基础等级 baselevel</div>
-              <div class="value"><input type="number" min="1" placeholder="1–50" [(ngModel)]="equip['baselevel']" /></div>
+              <div class="value"><input type="number" min="1" placeholder="1–50" [(ngModel)]="equip['baselevel']" (ngModelChange)="bump()" /></div>
             </div>
             <div class="commuse-item">
               <div class="label">精通 masterylevel</div>
-              <div class="value"><input type="number" min="0" placeholder="50+M" [(ngModel)]="equip['masterylevel']" /></div>
+              <div class="value"><input type="number" min="0" placeholder="50+M" [(ngModel)]="equip['masterylevel']" (ngModelChange)="bump()" /></div>
             </div>
           </fieldset>
         }
@@ -201,8 +201,14 @@ export class GivePage {
     this.current.set(tab);
     this.entryId = '';
   }
+  /** 输入触发：每个表单字段 (ngModelChange) 调用，驱动 preview 实时重算 */
+  private readonly revision = signal(0);
+  protected bump(): void { this.revision.update(n => n + 1); }
+
+  
 
   protected readonly preview = computed(() => {
+    this.revision(); // 实时依赖
     const parts = ['cmd=give'];
     if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
     parts.push(`type=${this.current().type}`);

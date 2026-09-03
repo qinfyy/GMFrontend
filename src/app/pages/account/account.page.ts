@@ -40,17 +40,17 @@ type Operate = 'create' | 'settings' | 'delete' | 'forcelogin';
         @if (operate() === 'create') {
           <div class="commuse-item">
             <div class="label">用户名 username</div>
-            <div class="value"><input type="text" [(ngModel)]="username" placeholder="可省略（用 mobile 创建）" /></div>
+            <div class="value"><input type="text" [(ngModel)]="username" (ngModelChange)="bump()" placeholder="可省略（用 mobile 创建）" /></div>
           </div>
           <div class="commuse-item">
             <div class="label">密码 password</div>
             <div class="value">
-              <input type="password" [(ngModel)]="password" placeholder="提供密码时必须同时填 username" />
+              <input type="password" [(ngModel)]="password" (ngModelChange)="bump()" placeholder="提供密码时必须同时填 username" />
             </div>
           </div>
           <div class="commuse-item">
             <div class="label">手机号 mobile</div>
-            <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="mobile" placeholder="username、mobile 至少提供一个" /></div>
+            <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="mobile" (ngModelChange)="bump()" placeholder="username、mobile 至少提供一个" /></div>
           </div>
         }
 
@@ -58,22 +58,22 @@ type Operate = 'create' | 'settings' | 'delete' | 'forcelogin';
           <div class="commuse-item">
             <div class="label">query（必填）</div>
             <div class="value">
-              <input type="text" [(ngModel)]="query" placeholder="被改账号的 username 或 mobile，不支持密码查询" />
+              <input type="text" [(ngModel)]="query" (ngModelChange)="bump()" placeholder="被改账号的 username 或 mobile，不支持密码查询" />
             </div>
           </div>
           <fieldset class="commuse-block">
             <legend>新值（仅给出的字段会被修改）</legend>
             <div class="commuse-item">
               <div class="label">新用户名 newusername</div>
-              <div class="value"><input type="text" [(ngModel)]="newUsername" /></div>
+              <div class="value"><input type="text" [(ngModel)]="newUsername" (ngModelChange)="bump()" /></div>
             </div>
             <div class="commuse-item">
               <div class="label">新密码 newpassword</div>
-              <div class="value"><input type="password" [(ngModel)]="newPassword" /></div>
+              <div class="value"><input type="password" [(ngModel)]="newPassword" (ngModelChange)="bump()" /></div>
             </div>
             <div class="commuse-item">
               <div class="label">新手机号 newmobile</div>
-              <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="newMobile" /></div>
+              <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="newMobile" (ngModelChange)="bump()" /></div>
             </div>
           </fieldset>
         }
@@ -82,7 +82,7 @@ type Operate = 'create' | 'settings' | 'delete' | 'forcelogin';
           <div class="commuse-item">
             <div class="label">query（必填）</div>
             <div class="value">
-              <input type="text" [(ngModel)]="query" placeholder="被删账号的 username 或 mobile" />
+              <input type="text" [(ngModel)]="query" (ngModelChange)="bump()" placeholder="被删账号的 username 或 mobile" />
             </div>
           </div>
         }
@@ -91,7 +91,7 @@ type Operate = 'create' | 'settings' | 'delete' | 'forcelogin';
           <div class="commuse-item">
             <div class="label">uid</div>
             <div class="value">
-              <input type="text" inputmode="numeric" [(ngModel)]="forceLoginUid" placeholder="玩家 UID；填 0 清除待执行的强制登录" />
+              <input type="text" inputmode="numeric" [(ngModel)]="forceLoginUid" (ngModelChange)="bump()" placeholder="玩家 UID；填 0 清除待执行的强制登录" />
             </div>
           </div>
         }
@@ -175,8 +175,14 @@ export class AccountPage {
   protected readonly dangerReason = computed(() =>
     this.operate() === 'delete' ? '将删除该账号及其关联玩家数据' : '',
   );
+  /** 输入触发：每个表单字段 (ngModelChange) 调用，驱动 preview 实时重算 */
+  private readonly revision = signal(0);
+  protected bump(): void { this.revision.update(n => n + 1); }
+
+  
 
   protected readonly preview = computed(() => {
+    this.revision(); // 实时依赖
     const parts: string[] = ['cmd=account'];
     switch (this.operate()) {
       case 'create':

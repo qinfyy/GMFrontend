@@ -42,17 +42,17 @@ type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
       <div class="commuse">
         <div class="commuse-item">
           <div class="label">uid</div>
-          <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="uid" /></div>
+          <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="uid" (ngModelChange)="bump()" /></div>
         </div>
 
         @if (tab() === 'storyrange') {
           <div class="commuse-item">
             <div class="label">起点关卡 from</div>
-            <div class="value"><input type="number" min="1" [(ngModel)]="from" /></div>
+            <div class="value"><input type="number" min="1" [(ngModel)]="from" (ngModelChange)="bump()" /></div>
           </div>
           <div class="commuse-item">
             <div class="label">终点关卡 to</div>
-            <div class="value"><input type="number" min="1" [(ngModel)]="to" /></div>
+            <div class="value"><input type="number" min="1" [(ngModel)]="to" (ngModelChange)="bump()" /></div>
           </div>
         }
 
@@ -72,7 +72,7 @@ type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
             <div class="label">id = all</div>
             <div class="value">
               <label class="check">
-                <input type="checkbox" [(ngModel)]="ktcAll" />
+                <input type="checkbox" [(ngModel)]="ktcAll" (ngModelChange)="bump()" />
                 <span>全部主线+支线任务；status 缺省 claimed 全完成发奖</span>
               </label>
             </div>
@@ -80,7 +80,7 @@ type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
           <div class="commuse-item">
             <div class="label">目标状态</div>
             <div class="value">
-              <select [(ngModel)]="ktcStatus">
+              <select [(ngModel)]="ktcStatus" (ngModelChange)="bump()">
                 <option value="claimed">claimed（默认，置可领奖并发放奖励）</option>
                 <option value="claimable">claimable（可领奖，不发奖）</option>
                 <option value="inprogress">inprogress（进行中）</option>
@@ -93,7 +93,7 @@ type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
         @if (tab() === 'kl') {
           <div class="commuse-item">
             <div class="label">九霄等级 level</div>
-            <div class="value"><input type="number" min="1" max="99" [(ngModel)]="kyusyoLevel" placeholder="1–99（按 KyusyoData 上限）" /></div>
+            <div class="value"><input type="number" min="1" max="99" [(ngModel)]="kyusyoLevel" (ngModelChange)="bump()" placeholder="1–99（按 KyusyoData 上限）" /></div>
           </div>
         }
 
@@ -113,7 +113,7 @@ type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
             <div class="label">前置 trigger</div>
             <div class="value">
               <label class="check">
-                <input type="checkbox" [(ngModel)]="kulTrigger" />
+                <input type="checkbox" [(ngModel)]="kulTrigger" (ngModelChange)="bump()" />
                 <span>trigger=1（默认，沿 ParentId 链解锁前置闭包）</span>
               </label>
             </div>
@@ -265,8 +265,14 @@ export class StoryPage {
   protected readonly achievementExtra = (e: { attrs: Record<string, string> }): string => {
     return e.attrs['reward'] ? `奖励 ${e.attrs['reward']}` : '';
   };
+  /** 输入触发：每个表单字段 (ngModelChange) 调用，驱动 preview 实时重算 */
+  private readonly revision = signal(0);
+  protected bump(): void { this.revision.update(n => n + 1); }
+
+  
 
   protected readonly preview = computed(() => {
+    this.revision(); // 实时依赖
     const parts: string[] = [];
     switch (this.tab()) {
       case 'storyrange': {
