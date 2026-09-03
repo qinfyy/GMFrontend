@@ -37,20 +37,20 @@ type Operate = 'create' | 'settings' | 'delete' | 'forcelogin';
       }
 
       <div class="commuse">
-        @if (operate() !== 'forcelogin') {
+        @if (operate() === 'create') {
           <div class="commuse-item">
             <div class="label">用户名 username</div>
-            <div class="value"><input type="text" [(ngModel)]="username" placeholder="create 时可省略（用 mobile 创建）" /></div>
+            <div class="value"><input type="text" [(ngModel)]="username" placeholder="可省略（用 mobile 创建）" /></div>
           </div>
           <div class="commuse-item">
             <div class="label">密码 password</div>
             <div class="value">
-              <input type="password" [(ngModel)]="password" placeholder="为空时不校验；提供密码必须同时填 username" />
+              <input type="password" [(ngModel)]="password" placeholder="提供密码时必须同时填 username" />
             </div>
           </div>
           <div class="commuse-item">
             <div class="label">手机号 mobile</div>
-            <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="mobile" /></div>
+            <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="mobile" placeholder="username、mobile 至少提供一个" /></div>
           </div>
         }
 
