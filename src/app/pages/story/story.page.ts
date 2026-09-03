@@ -63,7 +63,7 @@ type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
               <gm-entry-picker
                 section="九霄任务目录（逐火之蛾主玩法）"
                 placeholder="搜索任务（ID 或名称）；id=all 时清空"
-                [(value)]="taskId"
+                [(value)]="taskId" (valueChange)="bump()"
                 [extraOf]="missionExtra"
               />
             </div>
@@ -104,7 +104,7 @@ type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
               <gm-entry-picker
                 section="kyusyoUnlockLevel 九霄关卡目录（逐火之蛾出击）"
                 placeholder="搜索关卡（ID 或名称）；level=all 时清空"
-                [(value)]="levelId"
+                [(value)]="levelId" (valueChange)="bump()"
                 [extraOf]="levelExtra"
               />
             </div>
@@ -127,7 +127,7 @@ type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
               <gm-entry-picker
                 section="kyusyoAchievement 九霄成就目录（逐火之蛾探索）"
                 placeholder="搜索成就（ID 或名称）；id=all 时清空"
-                [(value)]="achievementId"
+                [(value)]="achievementId" (valueChange)="bump()"
                 [extraOf]="achievementExtra"
               />
             </div>

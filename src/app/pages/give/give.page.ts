@@ -52,6 +52,7 @@ interface TypeTab {
               [section]="current().section"
               [placeholder]="'搜索' + current().label + '（ID 或名称）…'"
               [(value)]="entryId"
+              (valueChange)="bump()"
               [extraOf]="extraOfCurrent()"
             />
           </div>
