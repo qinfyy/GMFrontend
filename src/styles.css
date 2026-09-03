@@ -1,0 +1,191 @@
+/* 全局样式：LunarCoreToolsWeb 风格 CSS Token。
+ * 视觉：白底 + 蓝主色 + 浅灰边框 + 14px 系统无衬线；表单用「右对齐 label + 弹性 input」横排。 */
+
+:root {
+  /* 颜色：仿 Arco Design 浅色主题 */
+  --color-bg-1:           #ffffff;   /* 主背景 */
+  --color-bg-2:           #f7f8fa;   /* 次背景 / 表格斑马 */
+  --color-bg-3:           #f2f3f5;   /* 三级背景 / 禁用态 */
+  --color-bg-overlay:     #ffffff;
+  --color-bg-raised:      #ffffff;
+  --color-bg-inverted:    #1d2129;   /* 深色块（命令栏/代码） */
+  --color-text-1:         #1d2129;   /* 主文字 */
+  --color-text-2:         #4e5969;   /* 次文字 */
+  --color-text-3:         #86909c;   /* 辅助文字 */
+  --color-text-4:         #c9cdd4;   /* 弱化文字 */
+  --color-text-inverted:  #ffffff;
+  --color-text-primary:   #1d2129;
+  --color-text-secondary: #4e5969;
+  --color-text-muted:     #86909c;
+  --color-text-link:      #165DFF;
+  --color-border-1:       #e5e6eb;   /* 默认边框 */
+  --color-border-2:       #c9cdd4;   /* 强边框 */
+  --color-border-3:       #f2f3f5;   /* 极弱边框 / 分割线 */
+  --color-border-default: #e5e6eb;
+  --color-border-subtle:  #f2f3f5;
+  --color-border-strong:  #c9cdd4;
+  --color-primary-1:      #e8f3ff;   /* 极浅蓝（hover 背景） */
+  --color-primary-6:      #165DFF;   /* 主蓝（CTA / 链接） */
+  --color-primary-7:      #0E42D2;   /* 悬停态深蓝 */
+  --color-accent-orange:  #165DFF;   /* 保留旧名以兼容组件 */
+  --color-accent-warm:    #0E42D2;
+  --color-accent-blue:    #165DFF;
+  --color-accent-green:   #00B42A;
+  --color-accent-sand:    #f7f8fa;
+  --color-success:        #00B42A;
+  --color-warning:        #FF7D00;
+  --color-error:          #F53F3F;
+  --color-info:           #165DFF;
+
+  /* 字体：仿参考项目 App.vue 字体栈 */
+  --font-display:  'Avenir', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-heading:  'Avenir', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-body:     'Avenir', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono:     'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --font-display-cn: var(--font-display);
+  --font-body-cn:    var(--font-body);
+  --font-heading-cn: var(--font-heading);
+
+  /* 字号（参考项目 ~14px 为主） */
+  --text-xs:    12px;
+  --text-sm:    13px;
+  --text-base:  14px;
+  --text-md:    16px;
+  --text-lg:    18px;
+  --text-xl:    20px;
+  --text-2xl:   24px;
+  --text-3xl:   30px;
+  --text-4xl:   36px;
+  --text-5xl:   48px;
+
+  /* 字重 */
+  --weight-normal:    400;
+  --weight-medium:    500;
+  --weight-semibold:  600;
+  --weight-bold:      700;
+
+  /* 行高 */
+  --leading-tight:   1.25;
+  --leading-normal:  1.55;
+  --leading-cn-normal: 1.6;
+
+  /* 间距（4px 网格） */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+  --space-32: 128px;
+
+  /* 圆角（参考 commuse 用了 10px；arco 通用 4-8） */
+  --radius-sm:   2px;
+  --radius-md:   4px;
+  --radius-lg:   8px;
+  --radius-xl:   12px;
+  --radius-full: 999px;
+
+  /* 动效（参考未自定义，按 Arco 风格） */
+  --duration-fast:    100ms;
+  --duration-normal:  200ms;
+  --duration-slow:    300ms;
+  --ease-default:     cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out:         cubic-bezier(0, 0, 0.2, 1);
+
+  /* 分层 */
+  --z-base:    0;
+  --z-sticky:  100;
+  --z-drawer:  300;
+  --z-modal:   500;
+  --z-toast:   700;
+}
+
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+html {
+  font-family: var(--font-heading);
+  color: var(--color-text-1);
+  background: var(--color-bg-1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--color-text-1);
+  background: var(--color-bg-1);
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6, p, ul, ol, fieldset, figure { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+
+a { color: var(--color-text-link); text-decoration: none; }
+a:hover { color: var(--color-primary-7); }
+
+/* 表单控件（仿 Arco Input） */
+input, select, textarea {
+  font-family: var(--font-heading);
+  font-size: var(--text-base);
+  color: var(--color-text-1);
+  background: var(--color-bg-1);
+  border: 1px solid var(--color-border-2);
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color var(--duration-fast) var(--ease-default),
+    box-shadow var(--duration-fast) var(--ease-default);
+}
+input:hover, select:hover, textarea:hover { border-color: var(--color-primary-6); }
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  border-color: var(--color-primary-6);
+  box-shadow: 0 0 0 3px rgba(22, 93, 255, 0.15);
+}
+input[disabled], select[disabled], textarea[disabled] {
+  background: var(--color-bg-3);
+  color: var(--color-text-3);
+  cursor: not-allowed;
+}
+input[type='number'] { -moz-appearance: textfield; }
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+button {
+  font-family: var(--font-heading);
+  font-size: var(--text-base);
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+button:focus-visible { outline: none; }
+
+code, .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+
+hr { border: 0; border-top: 1px solid var(--color-border-3); margin: 0; }
+
+/* 细滚动条（中性灰） */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--color-border-2); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--color-text-3); }
+*::-webkit-scrollbar-track { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
