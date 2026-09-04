@@ -87,17 +87,13 @@ interface FilteredEntry {
 
       <hr />
 
-      <!-- Handbook 浏览（折叠） -->
-      <article class="handbook-block" [class.expanded]="handbookExpanded()">
-        <button type="button" class="block-head" (click)="toggleHandbook()"
-                [attr.aria-expanded]="handbookExpanded()">
-          <span class="chevron" aria-hidden="true">❯</span>
-          <span class="block-title">Handbook 浏览</span>
-          <span class="block-hint">点击展开 Handbook 条目搜索与浏览</span>
-        </button>
-
-        @if (handbookExpanded()) {
-          <div class="handbook-body">
+      <!-- Handbook 浏览（常开） -->
+      <article class="handbook-block">
+        <header class="block-head-static">
+          <h3 class="block-title">Handbook 浏览</h3>
+          <span class="block-hint">按 ID / 名称 / 附加信息过滤条目</span>
+        </header>
+        <div class="handbook-body">
             @if (handbook.failed()) {
               <p class="status warn">Handbook.txt 加载失败，无法浏览分区。</p>
             } @else if (!handbook.loaded()) {
@@ -189,8 +185,7 @@ interface FilteredEntry {
                 }
               </div>
             }
-          </div>
-        }
+        </div>
       </article>
     </section>
   `,
@@ -254,35 +249,20 @@ interface FilteredEntry {
     ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); }
     li { font-size: var(--text-xs); color: var(--color-text-2); line-height: 1.8; list-style: disc; }
 
-    /* Handbook 折叠块 */
+    /* Handbook 块（常开） */
     .handbook-block {
       border: 1px solid var(--color-border-1);
       border-radius: var(--radius-md);
       background: var(--color-bg-1);
       overflow: hidden;
     }
-    .handbook-block.expanded { border-color: var(--color-primary-6); }
-    .block-head {
-      width: 100%;
-      display: flex; align-items: center; gap: var(--space-3);
-      padding: 12px 16px;
-      background: transparent; border: 0;
-      text-align: left;
-      cursor: pointer;
-      transition: background var(--duration-fast) var(--ease-default);
+    .block-head-static {
+      display: flex; align-items: baseline; gap: var(--space-3);
+      padding: 12px 16px 8px;
     }
-    .block-head:hover { background: var(--color-bg-2); }
-    .block-head .chevron {
-      display: inline-block;
-      color: var(--color-text-3);
-      font-size: 12px;
-      transition: transform var(--duration-fast) var(--ease-default);
-      flex-shrink: 0;
-    }
-    .handbook-block.expanded .block-head .chevron { transform: rotate(90deg); color: var(--color-primary-6); }
-    .block-title { font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--color-primary-6); flex-shrink: 0; }
+    .block-title { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--color-primary-6); flex-shrink: 0; }
     .block-hint { font-size: var(--text-xs); color: var(--color-text-3); }
-    .handbook-body { padding: var(--space-3) var(--space-4) var(--space-4); border-top: 1px dashed var(--color-border-3); animation: slide-down var(--duration-normal) var(--ease-default); }
+    .handbook-body { padding: 0 var(--space-4) var(--space-4); }
 
     /* Handbook 内部 */
     .browser { display: flex; flex-direction: column; gap: var(--space-3); }
@@ -363,9 +343,8 @@ export class HelpPage {
   protected readonly allSectionsKey = ALL_SECTIONS;
   protected readonly MAX = MAX_RENDER;
 
-  /** 折叠状态：命令卡片（按 label 展开集合） + Handbook 块（单一状态） */
+  /** 折叠状态：命令卡片（按 label 展开集合） */
   private readonly expandedCmds = signal<Set<string>>(new Set());
-  protected readonly handbookExpanded = signal(false);
 
   protected isCmdExpanded(label: string): boolean {
     return this.expandedCmds().has(label);
@@ -378,10 +357,6 @@ export class HelpPage {
       else next.add(label);
       return next;
     });
-  }
-
-  protected toggleHandbook(): void {
-    this.handbookExpanded.update(v => !v);
   }
 
   /**
