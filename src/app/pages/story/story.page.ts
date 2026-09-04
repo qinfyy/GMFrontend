@@ -47,12 +47,39 @@ type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
 
                 @if (tab() === 'storyrange') {
                     <div class="commuse-item">
-                        <div class="label">起点关卡 from</div>
-                        <div class="value"><input type="number" min="1" [(ngModel)]="from" (ngModelChange)="bump()" /></div>
+                        <div class="label">篇章</div>
+                        <div class="value">
+                            <div class="seg-tabs">
+                                <button type="button" class="seg-tab"
+                                        [class.active]="storySection() === '传承篇'"
+                                        (click)="setStorySection('传承篇')">传承篇</button>
+                                <button type="button" class="seg-tab"
+                                        [class.active]="storySection() === '新生篇'"
+                                        (click)="setStorySection('新生篇')">新生篇</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="commuse-item">
+                    <div class="commuse-item align-top">
+                        <div class="label">起点关卡 from</div>
+                        <div class="value">
+                            <gm-entry-picker
+                                [section]="storySection()"
+                                placeholder="搜索起点（ID 或章节标题）…"
+                                [(value)]="from" (valueChange)="bump()"
+                                [extraOf]="storyLevelExtra"
+                            />
+                        </div>
+                    </div>
+                    <div class="commuse-item align-top">
                         <div class="label">终点关卡 to</div>
-                        <div class="value"><input type="number" min="1" [(ngModel)]="to" (ngModelChange)="bump()" /></div>
+                        <div class="value">
+                            <gm-entry-picker
+                                [section]="storySection()"
+                                placeholder="搜索终点（ID 或章节标题）…"
+                                [(value)]="to" (valueChange)="bump()"
+                                [extraOf]="storyLevelExtra"
+                            />
+                        </div>
                     </div>
                 }
 
@@ -175,10 +202,25 @@ type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
         .commuse-item .value { flex: 1; min-width: 0; }
         .commuse-item .value select { width: 100%; }
         .check { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--color-text-2); }
+
+        /* 篇章段控件（传承篇 / 新生篇） */
+        .seg-tabs { display: inline-flex; gap: var(--space-1); padding: 4px 0; }
+        .seg-tab {
+            background: transparent; color: var(--color-text-2);
+            padding: 6px 16px; border-radius: var(--radius-md);
+            font-size: var(--text-sm); font-weight: var(--weight-medium);
+            border: 1px solid var(--color-border-1);
+            transition: all var(--duration-fast) var(--ease-default);
+        }
+        .seg-tab:hover { color: var(--color-primary-6); border-color: var(--color-primary-6); }
+        .seg-tab.active { background: var(--color-primary-6); border-color: var(--color-primary-6); color: #fff; }
     `,
 })
 export class StoryPage {
     protected readonly exec = pageExecutor();
+
+    /** storyrange 用的篇章切换：传承篇 / 新生篇（普通剧情两个分支） */
+    protected readonly storySection = signal<'传承篇' | '新生篇'>('传承篇');
 
     protected readonly tabDefs = [
         {
@@ -212,8 +254,8 @@ export class StoryPage {
     protected uid = '';
 
     // storyrange
-    protected from: number | null = null;
-    protected to: number | null = null;
+    protected from = '';
+    protected to = '';
 
     // ktc
     protected taskId = '';
@@ -244,10 +286,24 @@ export class StoryPage {
 
     protected setTab(cmd: StoryTab): void {
         this.tab.set(cmd);
+        this.from = '';
+        this.to = '';
         this.taskId = '';
         this.levelId = '';
         this.achievementId = '';
     }
+
+    /** storyrange 篇章切换：清空 from/to（跨篇章 ID 不通用） */
+    protected setStorySection(s: '传承篇' | '新生篇'): void {
+        this.storySection.set(s);
+        this.from = '';
+        this.to = '';
+    }
+
+    /** 选择器右侧显示章节标题（如 "第一章 L1-1"） */
+    protected readonly storyLevelExtra = (e: { type: string; attrs: Record<string, string> }): string => {
+        return e.type ?? '';
+    };
 
     protected readonly missionExtra = (e: { attrs: Record<string, string> }): string => {
         const parts: string[] = [];
@@ -278,8 +334,8 @@ export class StoryPage {
             case 'storyrange': {
                 parts.push('cmd=storyrange');
                 if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
-                if (this.from !== null && this.from > 0) parts.push(`from=${Math.floor(this.from)}`);
-                if (this.to !== null && this.to > 0) parts.push(`to=${Math.floor(this.to)}`);
+                if (this.from.trim()) parts.push(`from=${encodeURIComponent(this.from.trim())}`);
+                if (this.to.trim()) parts.push(`to=${encodeURIComponent(this.to.trim())}`);
                 break;
             }
             case 'ktc': {
@@ -336,8 +392,8 @@ export class StoryPage {
             switch (this.tab()) {
                 case 'storyrange':
                     record['cmd'] = 'storyrange';
-                    if (this.from !== null && this.from > 0) record['from'] = String(Math.floor(this.from));
-                    if (this.to !== null && this.to > 0) record['to'] = String(Math.floor(this.to));
+                    if (this.from.trim()) record['from'] = this.from.trim();
+                    if (this.to.trim()) record['to'] = this.to.trim();
                     break;
                 case 'ktc':
                     record['cmd'] = 'ktc';

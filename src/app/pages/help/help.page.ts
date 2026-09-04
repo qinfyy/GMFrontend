@@ -25,7 +25,8 @@ const KNOWN_SECTIONS = [
     'kyusyoUnlockLevel 九霄关卡目录（逐火之蛾出击）',
     'kyusyoAchievement 九霄成就目录（逐火之蛾探索）',
     'ZeroDLC（逐火之蛾 Roguelike 战斗 DLC）内容目录',
-    '普通剧情、教学与其他 LevelMetaV2 资源',
+    '传承篇',
+    '新生篇',
     '九霄关卡',
 ] as const;
 

@@ -56,8 +56,16 @@ export class HandbookService {
  * 解析 Handbook 全文。
  * 规则：
  * - `[section]` 行开启新分区；
- * - 其后含制表符的行视为数据行，按 \t 切分：第 1 列类型、第 2 列 ID、第 3 列名称、其余为 key=value 尾注；
+ * - 含制表符的数据行按列解析：第 1 列作为 type（如 "currency"、"第一章 L1-1"），
+ *   第 2 列必为 ID；后续列若为 key=value 形式则入 attrs，第一个非 key=value 列
+ *   作为 name（无则用 id 兜底）；
  * - 分区内的说明文字行（不含制表符的普通文本）跳过。
+ *
+ * 支持两种行格式：
+ * 1. 传统：type <TAB> id <TAB> name <TAB> key=value ...
+ *    例：currency \t hcoin \t 水晶 \t alias=239 \t GM=...
+ * 2. 剧情/九霄关卡：chapter <TAB> id <TAB> type=N <TAB> GM=...
+ *    例：第一章 L1-1 \t 8351 \t type=1 \t GM=storyrange&...&from=8351&to=8351
  */
 function parse(text: string): Map<string, HandbookEntry[]> {
     const sections = new Map<string, HandbookEntry[]>();
@@ -77,19 +85,31 @@ function parse(text: string): Map<string, HandbookEntry[]> {
         if (current === null || !line.includes('\t')) continue;
 
         const columns = line.split('\t').map(v => v.trim());
-        if (columns.length < 3) continue;
+        if (columns.length < 2) continue;
 
+        const type = columns[0];
+        const id = columns[1];
         const attrs: Record<string, string> = {};
-        for (let i = 3; i < columns.length; i++) {
-            const eq = columns[i].indexOf('=');
-            if (eq > 0) attrs[columns[i].slice(0, eq)] = columns[i].slice(eq + 1);
+        let name: string | undefined;
+
+        for (let i = 2; i < columns.length; i++) {
+            const col = columns[i];
+            const eq = col.indexOf('=');
+            if (eq > 0) {
+                attrs[col.slice(0, eq)] = col.slice(eq + 1);
+            } else if (name === undefined) {
+                name = col;
+            } else {
+                // 多余的非属性列（如多个空格分隔的尾注）拼到 name
+                name += ' ' + col;
+            }
         }
 
         sections.get(current)!.push({
             section: current,
-            type: columns[0],
-            id: columns[1],
-            name: columns[2],
+            type,
+            id,
+            name: name ?? id,
             attrs,
         });
     }
