@@ -1,16 +1,13 @@
 /**
  * 命令手册页。优先实时调用 cmd=help；下方提供 Handbook 分区浏览。
  *
- * 搜索行为：
- * - 在所选分区内按 ID / 名称 / 类型 / 附加信息（key 与 value）过滤
- * - "全部分区"模式：跨所有分区扁平搜索
- * - 命中字符在结果中高亮
+ * UI 模式：
+ * - 命令列表：默认折叠只显示「命令名 + 别名 + ❯」，点击展开完整说明
+ * - Handbook 浏览：默认折叠只显示「Handbook 浏览 + ❯」，点击展开搜索/分区/表格
+ * - 搜索行为：所选分区内按 ID / 名称 / 类型 / 附加信息（key 与 value）过滤
+ *   「全部分区」模式跨所有分区扁平搜索
+ * - 命中字符在结果中用 <mark> 高亮
  * - 搜索框带清除按钮 + Esc 清空
- * - section tab 显示条目数
- *
- * 关键修复（2026-09-04）：
- * - 用 [value] + (input) 替代 ngModel，input 事件可靠触发 signal.set
- * - snapshotSections 改用 computed，无手动缓存；handbook.loaded() 变化即重算
  */
 import { Component, computed, inject, signal } from '@angular/core';
 import { GmApiService, GmApiError, GmCommandHelp } from '../../core/gm-api.service';
@@ -19,7 +16,6 @@ import { HandbookEntry, HandbookService } from '../../core/handbook.service';
 const ALL_SECTIONS = '全部分区';
 const MAX_RENDER = 500;
 
-/** 手册浏览页支持的分区清单（与 Handbook.txt 生成顺序一致） */
 const KNOWN_SECTIONS = [
   'currency', 'weapon', 'costume', 'badge', 'role', 'material', 'potential',
   'role-develop', 'skin', 'partner',
@@ -45,132 +41,157 @@ interface FilteredEntry {
     <section class="page">
       <header class="page-head">
         <h2>命令手册</h2>
-        <p>与服务器启动时生成的 Handbook.txt 同源。上方来自 cmd=help 实时响应，下方为本地 Handbook 分区。</p>
+        <p>与服务器启动时生成的 Handbook.txt 同源。</p>
       </header>
 
+      <!-- 加载提示 -->
+      @if (loading()) {
+        <p class="status">正在从服务器读取命令定义…</p>
+      } @else if (loadError(); as err) {
+        <div class="status warn">服务端命令定义读取失败：{{ err.message }}</div>
+      }
+
+      <!-- 命令列表（折叠） -->
       <div class="commands">
-        @if (loading()) {
-          <p class="status">正在从服务器读取命令定义…</p>
-        } @else if (loadError(); as err) {
-          <div class="status warn">服务端命令定义读取失败：{{ err.message }}</div>
-        }
-        @for (cmd of commands(); track cmd.label) {
-          <article class="cmd-card">
-            <header>
-              <h3 class="mono">{{ cmd.label }}</h3>
+        @for (cmd of commands(); track cmd.label; let i = $index) {
+          <article class="cmd-card" [class.expanded]="isCmdExpanded(cmd.label)">
+            <button type="button" class="cmd-head" (click)="toggleCmd(cmd.label)"
+                    [attr.aria-expanded]="isCmdExpanded(cmd.label)">
+              <span class="chevron" aria-hidden="true">❯</span>
+              <span class="cmd-name mono">{{ cmd.label }}</span>
               @if (cmd.aliases.length) {
                 <span class="aliases">别名：{{ cmd.aliases.join('、') }}</span>
               }
-            </header>
-            <p class="desc">{{ cmd.description }}</p>
-            @for (u of cmd.usage; track u) {
-              <code class="usage">{{ u }}</code>
-            }
-            @if (cmd.notes.length) {
-              <ul>
-                @for (n of cmd.notes; track n) {
-                  <li>{{ n }}</li>
+              <span class="desc-inline">{{ cmd.description }}</span>
+            </button>
+            @if (isCmdExpanded(cmd.label)) {
+              <div class="cmd-body">
+                @for (u of cmd.usage; track u) {
+                  <code class="usage">{{ u }}</code>
                 }
-              </ul>
+                @if (cmd.notes.length) {
+                  <ul>
+                    @for (n of cmd.notes; track n) {
+                      <li>{{ n }}</li>
+                    }
+                  </ul>
+                }
+              </div>
             }
           </article>
+        }
+        @if (commands().length === 0 && !loading() && !loadError()) {
+          <p class="status">未获取到命令定义。请检查服务器连接。</p>
         }
       </div>
 
       <hr />
 
-      <h3 class="sub">Handbook 浏览</h3>
-      @if (handbook.failed()) {
-        <p class="status warn">Handbook.txt 加载失败，无法浏览分区。</p>
-      } @else if (!handbook.loaded()) {
-        <p class="status">正在加载 Handbook…</p>
-      } @else {
-        <div class="browser">
-          <div class="commuse-item align-top">
-            <div class="label">搜索条目</div>
-            <div class="value search-row">
-              <input
-                type="search"
-                [value]="query()"
-                (input)="onQuery($any($event.target).value)"
-                (keydown.escape)="query.set('')"
-                placeholder="按 ID / 名称 / 附加信息（alias、talent 等）过滤…"
-                aria-label="搜索条目"
-              />
-              @if (query()) {
-                <button type="button" class="clear-btn" (click)="query.set('')" aria-label="清除搜索">✕</button>
-              }
-            </div>
-          </div>
+      <!-- Handbook 浏览（折叠） -->
+      <article class="handbook-block" [class.expanded]="handbookExpanded()">
+        <button type="button" class="block-head" (click)="toggleHandbook()"
+                [attr.aria-expanded]="handbookExpanded()">
+          <span class="chevron" aria-hidden="true">❯</span>
+          <span class="block-title">Handbook 浏览</span>
+          <span class="block-hint">点击展开 Handbook 条目搜索与浏览</span>
+        </button>
 
-          <div class="sections">
-            <button type="button" class="sec-tab"
-                    [class.active]="currentSection() === allSectionsKey"
-                    (click)="selectSection(allSectionsKey)">
-              {{ allSectionsKey }} <span class="count">{{ totalAll() }}</span>
-            </button>
-            @for (name of sectionNames(); track name) {
-              <button type="button" class="sec-tab"
-                      [class.active]="currentSection() === name"
-                      (click)="selectSection(name)">
-                {{ name }} <span class="count">{{ countOf(name) }}</span>
-              </button>
-            }
-          </div>
-
-          <div class="entries-head">
-            @if (query()) {
-              <span>匹配 <strong class="match">{{ totalMatched() }}</strong> 条{{ totalMatched() > MAX ? '（仅显示前 ' + MAX + ' 条）' : '' }}</span>
+        @if (handbookExpanded()) {
+          <div class="handbook-body">
+            @if (handbook.failed()) {
+              <p class="status warn">Handbook.txt 加载失败，无法浏览分区。</p>
+            } @else if (!handbook.loaded()) {
+              <p class="status">正在加载 Handbook…</p>
             } @else {
-              <span>{{ currentSection() }} · 共 {{ totalInCurrent() }} 条</span>
-            }
-            <span class="hint-inline">搜索区分大小写；空查询展示分区全部</span>
-          </div>
-
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th style="width: 90px">ID</th>
-                  <th>名称</th>
-                  <th>附加信息</th>
-                  <th style="width: 200px"></th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (item of filteredEntries(); track item.entry.section + ':' + item.entry.id) {
-                  <tr>
-                    <td class="mono">
-                      @if (currentSection() === allSectionsKey) {
-                        <div class="entry-section">{{ shortSection(item.entry.section) }}</div>
-                      }
-                      <span [innerHTML]="item.matchId"></span>
-                    </td>
-                    <td><span [innerHTML]="item.matchName"></span></td>
-                    <td class="attrs"><span [innerHTML]="item.matchAttrs"></span></td>
-                    <td>
-                      @if (item.entry.attrs['GM']; as gm) {
-                        <button type="button" class="btn tiny" (click)="copy(gm)" [title]="gm">复制 GM 模板</button>
-                      }
-                    </td>
-                  </tr>
-                } @empty {
-                  <tr><td colspan="4" class="empty">
+              <div class="browser">
+                <div class="commuse-item align-top">
+                  <div class="label">搜索条目</div>
+                  <div class="value search-row">
+                    <input
+                      type="search"
+                      [value]="query()"
+                      (input)="onQuery($any($event.target).value)"
+                      (keydown.escape)="query.set('')"
+                      placeholder="按 ID / 名称 / 附加信息（alias、talent 等）过滤…"
+                      aria-label="搜索条目"
+                    />
                     @if (query()) {
-                      无匹配条目
-                    } @else {
-                      请选择左侧分区，或在搜索框输入关键词
+                      <button type="button" class="clear-btn" (click)="query.set('')" aria-label="清除搜索">✕</button>
                     }
-                  </td></tr>
+                  </div>
+                </div>
+
+                <div class="sections">
+                  <button type="button" class="sec-tab"
+                          [class.active]="currentSection() === allSectionsKey"
+                          (click)="selectSection(allSectionsKey)">
+                    {{ allSectionsKey }} <span class="count">{{ totalAll() }}</span>
+                  </button>
+                  @for (name of sectionNames(); track name) {
+                    <button type="button" class="sec-tab"
+                            [class.active]="currentSection() === name"
+                            (click)="selectSection(name)">
+                      {{ name }} <span class="count">{{ countOf(name) }}</span>
+                    </button>
+                  }
+                </div>
+
+                <div class="entries-head">
+                  @if (query()) {
+                    <span>匹配 <strong class="match">{{ totalMatched() }}</strong> 条{{ totalMatched() > MAX ? '（仅显示前 ' + MAX + ' 条）' : '' }}</span>
+                  } @else {
+                    <span>{{ currentSection() }} · 共 {{ totalInCurrent() }} 条</span>
+                  }
+                  <span class="hint-inline">搜索区分大小写；空查询展示分区全部</span>
+                </div>
+
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style="width: 90px">ID</th>
+                        <th>名称</th>
+                        <th>附加信息</th>
+                        <th style="width: 200px"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (item of filteredEntries(); track item.entry.section + ':' + item.entry.id) {
+                        <tr>
+                          <td class="mono">
+                            @if (currentSection() === allSectionsKey) {
+                              <div class="entry-section">{{ shortSection(item.entry.section) }}</div>
+                            }
+                            <span [innerHTML]="item.matchId"></span>
+                          </td>
+                          <td><span [innerHTML]="item.matchName"></span></td>
+                          <td class="attrs"><span [innerHTML]="item.matchAttrs"></span></td>
+                          <td>
+                            @if (item.entry.attrs['GM']; as gm) {
+                              <button type="button" class="btn tiny" (click)="copy(gm)" [title]="gm">复制 GM 模板</button>
+                            }
+                          </td>
+                        </tr>
+                      } @empty {
+                        <tr><td colspan="4" class="empty">
+                          @if (query()) {
+                            无匹配条目
+                          } @else {
+                            请选择左侧分区，或在搜索框输入关键词
+                          }
+                        </td></tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                @if (copied()) {
+                  <p class="copied">已复制到剪贴板</p>
                 }
-              </tbody>
-            </table>
+              </div>
+            }
           </div>
-          @if (copied()) {
-            <p class="copied">已复制到剪贴板</p>
-          }
-        </div>
-      }
+        }
+      </article>
     </section>
   `,
   styles: `
@@ -178,20 +199,53 @@ interface FilteredEntry {
     .page-head { margin-bottom: var(--space-5); }
     .page-head h2 { margin: 0; font-size: var(--text-lg); font-weight: var(--weight-semibold); }
     .page-head p { margin: var(--space-1) 0 0; font-size: var(--text-sm); color: var(--color-text-2); }
+    .status { font-size: var(--text-sm); color: var(--color-text-3); margin: 0; }
+    .warn { color: var(--color-warning); }
 
-    .commands { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-5); }
+    hr { margin: var(--space-5) 0; border: 0; border-top: 1px solid var(--color-border-default); }
+
+    /* 命令卡片：折叠 / 展开 */
+    .commands { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-3); }
     .cmd-card {
       border: 1px solid var(--color-border-1);
-      border-radius: var(--radius-lg);
-      padding: var(--space-4) var(--space-5);
+      border-radius: var(--radius-md);
       background: var(--color-bg-1);
+      overflow: hidden;
     }
-    .cmd-card header { display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap; }
-    .cmd-card h3 { margin: 0; font-size: var(--text-md); color: var(--color-primary-6); font-weight: var(--weight-semibold); }
-    .aliases { font-size: var(--text-xs); color: var(--color-text-3); }
-    .desc { margin: var(--space-2) 0; font-size: var(--text-sm); color: var(--color-text-2); }
+    .cmd-card.expanded { border-color: var(--color-primary-6); }
+    .cmd-head {
+      width: 100%;
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: 10px 14px;
+      background: transparent; border: 0;
+      text-align: left;
+      cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-default);
+    }
+    .cmd-head:hover { background: var(--color-bg-2); }
+    .cmd-head .chevron {
+      display: inline-block;
+      color: var(--color-text-3);
+      font-size: 12px;
+      transition: transform var(--duration-fast) var(--ease-default);
+      flex-shrink: 0;
+    }
+    .cmd-card.expanded .cmd-head .chevron { transform: rotate(90deg); color: var(--color-primary-6); }
+    .cmd-name { color: var(--color-primary-6); font-weight: var(--weight-semibold); font-size: var(--text-md); flex-shrink: 0; }
+    .aliases { font-size: var(--text-xs); color: var(--color-text-3); flex-shrink: 0; }
+    .desc-inline {
+      font-size: var(--text-sm); color: var(--color-text-2);
+      flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .cmd-body {
+      padding: 0 var(--space-4) var(--space-3) var(--space-10);
+      border-top: 1px dashed var(--color-border-3);
+      animation: slide-down var(--duration-normal) var(--ease-default);
+    }
+    @keyframes slide-down { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
     .usage {
-      display: block; margin: var(--space-1) 0;
+      display: block; margin: var(--space-3) 0 var(--space-1);
       padding: 6px 10px;
       background: var(--color-bg-inverted); color: #e5e6eb;
       border-radius: var(--radius-md); overflow-x: auto; white-space: nowrap;
@@ -199,12 +253,38 @@ interface FilteredEntry {
     }
     ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); }
     li { font-size: var(--text-xs); color: var(--color-text-2); line-height: 1.8; list-style: disc; }
-    .status { font-size: var(--text-sm); color: var(--color-text-3); margin: 0; }
-    .warn { color: var(--color-warning); }
 
-    hr { margin: var(--space-5) 0; }
-    .sub { margin: 0 0 var(--space-4); font-size: var(--text-md); font-weight: var(--weight-semibold); }
+    /* Handbook 折叠块 */
+    .handbook-block {
+      border: 1px solid var(--color-border-1);
+      border-radius: var(--radius-md);
+      background: var(--color-bg-1);
+      overflow: hidden;
+    }
+    .handbook-block.expanded { border-color: var(--color-primary-6); }
+    .block-head {
+      width: 100%;
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: 12px 16px;
+      background: transparent; border: 0;
+      text-align: left;
+      cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-default);
+    }
+    .block-head:hover { background: var(--color-bg-2); }
+    .block-head .chevron {
+      display: inline-block;
+      color: var(--color-text-3);
+      font-size: 12px;
+      transition: transform var(--duration-fast) var(--ease-default);
+      flex-shrink: 0;
+    }
+    .handbook-block.expanded .block-head .chevron { transform: rotate(90deg); color: var(--color-primary-6); }
+    .block-title { font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--color-primary-6); flex-shrink: 0; }
+    .block-hint { font-size: var(--text-xs); color: var(--color-text-3); }
+    .handbook-body { padding: var(--space-3) var(--space-4) var(--space-4); border-top: 1px dashed var(--color-border-3); animation: slide-down var(--duration-normal) var(--ease-default); }
 
+    /* Handbook 内部 */
     .browser { display: flex; flex-direction: column; gap: var(--space-3); }
     .commuse-item { display: flex; align-items: center; margin: 12px 0; }
     .commuse-item.align-top { align-items: flex-start; }
@@ -278,17 +358,34 @@ export class HelpPage {
   protected readonly loadError = signal<GmApiError | null>(null);
   protected readonly commands = signal<GmCommandHelp[]>([]);
 
-  /** 搜索框用 signal + 显式 setter 绑定 input 事件（替代 ngModel，更可靠） */
   readonly query = signal('');
-  /** 当前所选分区；'全部分区' 表示跨分区搜索 */
   readonly currentSection = signal<string>(ALL_SECTIONS);
   protected readonly allSectionsKey = ALL_SECTIONS;
   protected readonly MAX = MAX_RENDER;
 
+  /** 折叠状态：命令卡片（按 label 展开集合） + Handbook 块（单一状态） */
+  private readonly expandedCmds = signal<Set<string>>(new Set());
+  protected readonly handbookExpanded = signal(false);
+
+  protected isCmdExpanded(label: string): boolean {
+    return this.expandedCmds().has(label);
+  }
+
+  protected toggleCmd(label: string): void {
+    this.expandedCmds.update(set => {
+      const next = new Set(set);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  }
+
+  protected toggleHandbook(): void {
+    this.handbookExpanded.update(v => !v);
+  }
+
   /**
-   * 跨分区扁平目录。
-   * 纯 computed，无手动缓存：handbook.loaded() 或 _sections 任一变化即重算。
-   * 这就是为什么之前用户搜不出东西——旧的 snapshotSections 在 Handbook 加载前被调用了一次并缓存了空 Map。
+   * 跨分区扁平目录。纯 computed：无手动缓存，handbook.loaded() 或 _sections 任一变化即重算。
    */
   private readonly sectionsByName = computed<Map<string, HandbookEntry[]>>(() => {
     if (!this.handbook.loaded()) return new Map();
@@ -353,7 +450,6 @@ export class HelpPage {
     return this._matchAll().length;
   }
 
-  /** 命中搜索的全部条目（未截断，用于显示总数） */
   private readonly _matchAll = computed<HandbookEntry[]>(() => {
     const q = this.query().trim().toLowerCase();
     const source = this.currentSection() === ALL_SECTIONS
@@ -371,7 +467,6 @@ export class HelpPage {
     this.query.set(value);
   }
 
-  /** 把匹配串包裹成 <mark>，先 HTML 转义防 XSS。 */
   private buildHighlighted(e: HandbookEntry): FilteredEntry {
     const q = this.query().trim();
     return {
@@ -406,7 +501,6 @@ export class HelpPage {
   }
 }
 
-/** 命中判定：ID / 名称 / 类型 / 附加信息（key 与 value）任一包含 q 即算命中 */
 function matchEntry(e: HandbookEntry, q: string): boolean {
   if (e.id.toLowerCase().includes(q)) return true;
   if (e.name.toLowerCase().includes(q)) return true;
