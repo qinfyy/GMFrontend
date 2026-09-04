@@ -88,21 +88,37 @@ function parse(text: string): Map<string, HandbookEntry[]> {
         const columns = splitColumns(line);
         if (columns.length < 2) continue;
 
-        const type = columns[0];
-        const id = columns[1];
-        const attrs: Record<string, string> = {};
-        let name: string | undefined;
+        // 传承篇/新生篇：tokens = [第X章, 关卡名, id, type=N, GM=...]
+        // 选择器期望「id  章节名」两列，所以 id = tokens[2]、name = 章节 + 关卡名
+        const isChapterRow = columns[0].startsWith('第');
 
-        for (let i = 2; i < columns.length; i++) {
-            const col = columns[i];
-            const eq = col.indexOf('=');
-            if (eq > 0) {
-                attrs[col.slice(0, eq)] = col.slice(eq + 1);
-            } else if (name === undefined) {
-                name = col;
-            } else {
-                // 多余的非属性列（如多个空格分隔的尾注）拼到 name
-                name += ' ' + col;
+        let type: string;
+        let id: string;
+        let name: string | undefined;
+        const attrs: Record<string, string> = {};
+
+        if (isChapterRow) {
+            type = 'level';
+            id = columns[2];
+            name = `${columns[0]} ${columns[1]}`;
+            for (let i = 3; i < columns.length; i++) {
+                const col = columns[i];
+                const eq = col.indexOf('=');
+                if (eq > 0) attrs[col.slice(0, eq)] = col.slice(eq + 1);
+            }
+        } else {
+            type = columns[0];
+            id = columns[1];
+            for (let i = 2; i < columns.length; i++) {
+                const col = columns[i];
+                const eq = col.indexOf('=');
+                if (eq > 0) {
+                    attrs[col.slice(0, eq)] = col.slice(eq + 1);
+                } else if (name === undefined) {
+                    name = col;
+                } else {
+                    name += ' ' + col;
+                }
             }
         }
 
@@ -119,9 +135,9 @@ function parse(text: string): Map<string, HandbookEntry[]> {
 
 /** 自动检测分隔符并切列
  * - 有 \t：tab 分隔（传统 / 九霄任务等）
- * - 无 \t 但首列以「第」开头：传承篇/新生篇，前 2 字段是「第 X 章 / 关卡名」，
- *   其余单空格分隔；输出 4 列：chapterHeading / id / type=N / GM=...
- * - 其余：单空格切
+ * - 无 \t 但首列以「第」开头且至少 4 token：传承篇/新生篇
+ *   tokens[0]=第X章 tokens[1]=关卡名 tokens[2]=ID tokens[3]=type=N tokens[4]=GM=...
+ * - 其余单空格：视为说明行（无 tab 也非第 X 章），返回空让 parse 跳过
  */
 function splitColumns(line: string): string[] {
     if (line.includes('\t')) {
@@ -129,8 +145,8 @@ function splitColumns(line: string): string[] {
     }
     const tokens = line.trim().split(/\s+/).filter(Boolean);
     if (tokens.length >= 4 && tokens[0].startsWith('第')) {
-        // 「第一章 L1-1 8351 type=1 GM=...」
-        return [tokens[0] + ' ' + tokens[1], ...tokens.slice(2)];
+        // 保留原始 tokens（type 取 chapter 句，id 取 tokens[2]，name 取 chapter + 关卡名）
+        return tokens;
     }
-    return tokens;
+    return [];
 }

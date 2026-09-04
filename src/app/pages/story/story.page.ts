@@ -66,7 +66,6 @@ type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
                                 [section]="storySection()"
                                 placeholder="搜索起点（ID 或章节标题）…"
                                 [(value)]="from" (valueChange)="bump()"
-                                [extraOf]="storyLevelExtra"
                             />
                         </div>
                     </div>
@@ -77,7 +76,6 @@ type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
                                 [section]="storySection()"
                                 placeholder="搜索终点（ID 或章节标题）…"
                                 [(value)]="to" (valueChange)="bump()"
-                                [extraOf]="storyLevelExtra"
                             />
                         </div>
                     </div>
@@ -299,11 +297,6 @@ export class StoryPage {
         this.from = '';
         this.to = '';
     }
-
-    /** 选择器右侧显示章节标题（如 "第一章 L1-1"） */
-    protected readonly storyLevelExtra = (e: { type: string; attrs: Record<string, string> }): string => {
-        return e.type ?? '';
-    };
 
     protected readonly missionExtra = (e: { attrs: Record<string, string> }): string => {
         const parts: string[] = [];
