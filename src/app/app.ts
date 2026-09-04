@@ -2,7 +2,7 @@
  * 应用骨架：白色 Header（标题 / 全局 UID / 设置）+ 左侧导航 + 内容区。
  * 视觉参考 LunarCoreToolsWeb：白底、蓝主色、14px 字体、Header 57px 高。
  */
-import { Component, inject, model, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { SettingsStore } from './core/settings.store';
@@ -23,23 +23,6 @@ interface NavItem {
         <span class="logo" aria-hidden="true">GM</span>
         <h1>BH2 GM 控制台</h1>
       </div>
-
-      <label class="uid-box">
-        <span>玩家 UID</span>
-        <input
-          type="text"
-          inputmode="numeric"
-          list="uid-history"
-          placeholder="如 1"
-          [(ngModel)]="uid"
-          (change)="rememberUid()"
-        />
-        <datalist id="uid-history">
-          @for (u of settings.recentUids(); track u) {
-            <option [value]="u"></option>
-          }
-        </datalist>
-      </label>
 
       <button type="button" class="settings-btn" (click)="settingsOpen.set(true)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -116,10 +99,6 @@ interface NavItem {
     }
     .brand h1 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
 
-    .uid-box { display: flex; align-items: center; gap: var(--space-2); }
-    .uid-box span { font-size: var(--text-sm); color: var(--color-text-2); white-space: nowrap; }
-    .uid-box input { width: 120px; }
-
     .settings-btn {
       margin-left: auto;
       display: inline-flex; align-items: center; gap: var(--space-2);
@@ -193,8 +172,6 @@ export class App {
   protected readonly settings = inject(SettingsStore);
   private readonly handbook = inject(HandbookService);
 
-  /** 各功能页共享同一个 UID：由全局输入框统一管理 */
-  readonly uid = model(this.settings.recentUids()[0] ?? '');
   protected readonly navItems: NavItem[] = [
     { path: '/console', label: '控制台', hint: '自由执行任意 GM 命令' },
     { path: '/give', label: '单件发放', hint: 'give：按 ID 发放货币/材料/装备/角色等' },
@@ -210,11 +187,6 @@ export class App {
   constructor() {
     // 启动即加载 Handbook 目录；失败不阻塞界面
     this.handbook.load();
-  }
-
-  protected rememberUid(): void {
-    const value = this.uid().trim();
-    if (value) this.settings.rememberUid(value);
   }
 
   protected closeSettings(event: Event): void {
