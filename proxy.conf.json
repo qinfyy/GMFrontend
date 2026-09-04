@@ -1,11 +1,11 @@
 {
-  "/api/gm": {
-    "target": "http://localhost:21000",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/handbook/**": {
-    "target": "http://localhost:4200",
-    "secure": false
-  }
+    "/api/gm": {
+        "target": "http://localhost:21000",
+        "secure": false,
+        "changeOrigin": true
+    },
+    "/handbook/**": {
+        "target": "http://localhost:4200",
+        "secure": false
+    }
 }

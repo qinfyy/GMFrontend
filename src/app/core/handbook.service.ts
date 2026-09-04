@@ -13,43 +13,43 @@ import { Injectable, signal } from '@angular/core';
 
 /** 一条 Handbook 数据行（已解析出 ID / 名称 / 尾注） */
 export interface HandbookEntry {
-  /** 所属分区名（用于全部分区搜索显示来源） */
-  section: string;
-  /** 行首类型标记（如 currency / weapon / role） */
-  type: string;
-  id: string;
-  name: string;
-  /** key=value 尾注，如 alias、max_level、talent、GM */
-  attrs: Record<string, string>;
+    /** 所属分区名（用于全部分区搜索显示来源） */
+    section: string;
+    /** 行首类型标记（如 currency / weapon / role） */
+    type: string;
+    id: string;
+    name: string;
+    /** key=value 尾注，如 alias、max_level、talent、GM */
+    attrs: Record<string, string>;
 }
 
 @Injectable({ providedIn: 'root' })
 export class HandbookService {
-  private readonly _sections = signal<Map<string, HandbookEntry[]>>(new Map());
-  private readonly _loaded = signal(false);
-  private readonly _failed = signal(false);
+    private readonly _sections = signal<Map<string, HandbookEntry[]>>(new Map());
+    private readonly _loaded = signal(false);
+    private readonly _failed = signal(false);
 
-  readonly loaded = this._loaded.asReadonly();
-  readonly failed = this._failed.asReadonly();
+    readonly loaded = this._loaded.asReadonly();
+    readonly failed = this._failed.asReadonly();
 
-  /** 取某个分区的全部条目；未加载或分区不存在时返回空数组 */
-  section(name: string): HandbookEntry[] {
-    return this._sections().get(name) ?? [];
-  }
-
-  /** 应用启动时调用一次；失败不阻塞 UI，降级为仅控制台模式 */
-  async load(): Promise<void> {
-    try {
-      const response = await fetch('handbook/Handbook.txt');
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const text = await response.text();
-      this._sections.set(parse(text));
-      this._loaded.set(true);
-    } catch {
-      // 解析或加载失败：保留空目录并标记失败，页面据此隐藏选择器
-      this._failed.set(true);
+    /** 取某个分区的全部条目；未加载或分区不存在时返回空数组 */
+    section(name: string): HandbookEntry[] {
+        return this._sections().get(name) ?? [];
     }
-  }
+
+    /** 应用启动时调用一次；失败不阻塞 UI，降级为仅控制台模式 */
+    async load(): Promise<void> {
+        try {
+            const response = await fetch('handbook/Handbook.txt');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const text = await response.text();
+            this._sections.set(parse(text));
+            this._loaded.set(true);
+        } catch {
+            // 解析或加载失败：保留空目录并标记失败，页面据此隐藏选择器
+            this._failed.set(true);
+        }
+    }
 }
 
 /**
@@ -60,38 +60,38 @@ export class HandbookService {
  * - 分区内的说明文字行（不含制表符的普通文本）跳过。
  */
 function parse(text: string): Map<string, HandbookEntry[]> {
-  const sections = new Map<string, HandbookEntry[]>();
-  let current: string | null = null;
+    const sections = new Map<string, HandbookEntry[]>();
+    let current: string | null = null;
 
-  for (const rawLine of text.split('\n')) {
-    const line = rawLine.replace(/\r$/, '');
-    if (!line.trim()) continue;
+    for (const rawLine of text.split('\n')) {
+        const line = rawLine.replace(/\r$/, '');
+        if (!line.trim()) continue;
 
-    const headerMatch = /^\[(.+)\]\s*$/.exec(line);
-    if (headerMatch) {
-      current = headerMatch[1];
-      if (!sections.has(current)) sections.set(current, []);
-      continue;
+        const headerMatch = /^\[(.+)\]\s*$/.exec(line);
+        if (headerMatch) {
+            current = headerMatch[1];
+            if (!sections.has(current)) sections.set(current, []);
+            continue;
+        }
+
+        if (current === null || !line.includes('\t')) continue;
+
+        const columns = line.split('\t').map(v => v.trim());
+        if (columns.length < 3) continue;
+
+        const attrs: Record<string, string> = {};
+        for (let i = 3; i < columns.length; i++) {
+            const eq = columns[i].indexOf('=');
+            if (eq > 0) attrs[columns[i].slice(0, eq)] = columns[i].slice(eq + 1);
+        }
+
+        sections.get(current)!.push({
+            section: current,
+            type: columns[0],
+            id: columns[1],
+            name: columns[2],
+            attrs,
+        });
     }
-
-    if (current === null || !line.includes('\t')) continue;
-
-    const columns = line.split('\t').map(v => v.trim());
-    if (columns.length < 3) continue;
-
-    const attrs: Record<string, string> = {};
-    for (let i = 3; i < columns.length; i++) {
-      const eq = columns[i].indexOf('=');
-      if (eq > 0) attrs[columns[i].slice(0, eq)] = columns[i].slice(eq + 1);
-    }
-
-    sections.get(current)!.push({
-      section: current,
-      type: columns[0],
-      id: columns[1],
-      name: columns[2],
-      attrs,
-    });
-  }
-  return sections;
+    return sections;
 }
