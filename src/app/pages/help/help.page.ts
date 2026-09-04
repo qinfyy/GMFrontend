@@ -2,18 +2,22 @@
  * 命令手册页。优先实时调用 cmd=help；下方提供 Handbook 分区浏览。
  *
  * 搜索行为：
- * - 在所选分区（currentSection）内按 ID / 名称 / 附加信息（attrs）过滤
- * - "全部分区"模式：跨所有分区搜索，按分区名+ID/名称/附加信息匹配
+ * - 在所选分区内按 ID / 名称 / 类型 / 附加信息（key 与 value）过滤
+ * - "全部分区"模式：跨所有分区扁平搜索
  * - 命中字符在结果中高亮
- * - 搜索框带清除按钮
+ * - 搜索框带清除按钮 + Esc 清空
  * - section tab 显示条目数
+ *
+ * 关键修复（2026-09-04）：
+ * - 用 [value] + (input) 替代 ngModel，input 事件可靠触发 signal.set
+ * - snapshotSections 改用 computed，无手动缓存；handbook.loaded() 变化即重算
  */
 import { Component, computed, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { GmApiService, GmApiError, GmCommandHelp } from '../../core/gm-api.service';
 import { HandbookEntry, HandbookService } from '../../core/handbook.service';
 
 const ALL_SECTIONS = '全部分区';
+const MAX_RENDER = 500;
 
 /** 手册浏览页支持的分区清单（与 Handbook.txt 生成顺序一致） */
 const KNOWN_SECTIONS = [
@@ -29,19 +33,14 @@ const KNOWN_SECTIONS = [
   '九霄关卡',
 ] as const;
 
-const MAX_RENDER = 500;
-
 interface FilteredEntry {
   entry: HandbookEntry;
-  /** 命中的子串（用于高亮） */
-  matchKey: string;
   matchId: string;
   matchName: string;
   matchAttrs: string;
 }
 
 @Component({
-  imports: [FormsModule],
   template: `
     <section class="page">
       <header class="page-head">
@@ -83,6 +82,8 @@ interface FilteredEntry {
       <h3 class="sub">Handbook 浏览</h3>
       @if (handbook.failed()) {
         <p class="status warn">Handbook.txt 加载失败，无法浏览分区。</p>
+      } @else if (!handbook.loaded()) {
+        <p class="status">正在加载 Handbook…</p>
       } @else {
         <div class="browser">
           <div class="commuse-item align-top">
@@ -90,8 +91,8 @@ interface FilteredEntry {
             <div class="value search-row">
               <input
                 type="search"
-                [ngModel]="query()"
-                (ngModelChange)="onQuery($event)"
+                [value]="query()"
+                (input)="onQuery($any($event.target).value)"
                 (keydown.escape)="query.set('')"
                 placeholder="按 ID / 名称 / 附加信息（alias、talent 等）过滤…"
                 aria-label="搜索条目"
@@ -119,7 +120,7 @@ interface FilteredEntry {
 
           <div class="entries-head">
             @if (query()) {
-              <span>匹配 <strong class="match">{{ totalMatched() }}</strong> 条</span>
+              <span>匹配 <strong class="match">{{ totalMatched() }}</strong> 条{{ totalMatched() > MAX ? '（仅显示前 ' + MAX + ' 条）' : '' }}</span>
             } @else {
               <span>{{ currentSection() }} · 共 {{ totalInCurrent() }} 条</span>
             }
@@ -165,9 +166,6 @@ interface FilteredEntry {
               </tbody>
             </table>
           </div>
-          @if (filteredEntries().length === MAX) {
-            <p class="more">仅显示前 {{ MAX }} 条，请输入关键词缩小范围</p>
-          }
           @if (copied()) {
             <p class="copied">已复制到剪贴板</p>
           }
@@ -245,7 +243,7 @@ interface FilteredEntry {
     .sec-tab.active .count { background: rgba(255,255,255,0.25); color: #fff; }
 
     .entries-head {
-      display: flex; align-items: baseline; gap: var(--space-3);
+      display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap;
       font-size: var(--text-xs); color: var(--color-text-3);
     }
     .entries-head .match { color: var(--color-primary-6); }
@@ -260,7 +258,6 @@ interface FilteredEntry {
     .attrs { color: var(--color-text-2); word-break: break-all; }
     .entry-section { font-size: 10px; color: var(--color-text-3); margin-bottom: 2px; }
     .empty { text-align: center; color: var(--color-text-3); padding: var(--space-4); }
-    .more { margin: 0; font-size: var(--text-xs); color: var(--color-text-3); text-align: center; }
     .btn.tiny {
       background: transparent; color: var(--color-text-2);
       padding: 2px 10px; border-radius: var(--radius-md);
@@ -270,7 +267,6 @@ interface FilteredEntry {
     }
     .btn.tiny:hover { color: var(--color-primary-6); border-color: var(--color-primary-6); background: var(--color-primary-1); }
     .copied { margin: 0; font-size: var(--text-xs); color: var(--color-success); }
-    /* 命中字符高亮 */
     :host ::ng-deep mark { background: rgba(22, 93, 255, 0.18); color: var(--color-primary-6); padding: 0 2px; border-radius: 2px; }
   `,
 })
@@ -282,28 +278,41 @@ export class HelpPage {
   protected readonly loadError = signal<GmApiError | null>(null);
   protected readonly commands = signal<GmCommandHelp[]>([]);
 
-  /** 搜索框用 signal + 显式 setter 绑定 ngModel */
+  /** 搜索框用 signal + 显式 setter 绑定 input 事件（替代 ngModel，更可靠） */
   readonly query = signal('');
   /** 当前所选分区；'全部分区' 表示跨分区搜索 */
   readonly currentSection = signal<string>(ALL_SECTIONS);
   protected readonly allSectionsKey = ALL_SECTIONS;
   protected readonly MAX = MAX_RENDER;
 
-  protected readonly sectionNames = signal<string[]>([]);
-  private readonly sectionsSnapshot = computed<Map<string, HandbookEntry[]>>(() =>
-    this.handbook.loaded() ? this.snapshotSections() : new Map(),
+  /**
+   * 跨分区扁平目录。
+   * 纯 computed，无手动缓存：handbook.loaded() 或 _sections 任一变化即重算。
+   * 这就是为什么之前用户搜不出东西——旧的 snapshotSections 在 Handbook 加载前被调用了一次并缓存了空 Map。
+   */
+  private readonly sectionsByName = computed<Map<string, HandbookEntry[]>>(() => {
+    if (!this.handbook.loaded()) return new Map();
+    const result = new Map<string, HandbookEntry[]>();
+    for (const name of KNOWN_SECTIONS) {
+      const entries = this.handbook.section(name);
+      if (entries.length) {
+        result.set(name, entries);
+      }
+    }
+    return result;
+  });
+
+  protected readonly sectionNames = computed<string[]>(() =>
+    Array.from(this.sectionsByName().keys()),
   );
-  /** 跨分区扁平数组（用于"全部分区"搜索） */
+
   private readonly allEntries = computed<HandbookEntry[]>(() => {
-    const map = this.sectionsSnapshot();
     const list: HandbookEntry[] = [];
-    for (const entries of map.values()) {
+    for (const entries of this.sectionsByName().values()) {
       for (const e of entries) list.push(e);
     }
     return list;
   });
-
-  private snapshotCache: Map<string, HandbookEntry[]> | null = null;
 
   constructor() {
     void this.refreshHelp();
@@ -323,29 +332,12 @@ export class HelpPage {
     }
   }
 
-  private snapshotSections(): Map<string, HandbookEntry[]> {
-    if (!this.snapshotCache) {
-      const names: string[] = [];
-      const cache = new Map<string, HandbookEntry[]>();
-      for (const name of KNOWN_SECTIONS) {
-        const entries = this.handbook.section(name);
-        if (entries.length) {
-          names.push(name);
-          cache.set(name, entries);
-        }
-      }
-      this.sectionNames.set(names);
-      this.snapshotCache = cache;
-    }
-    return this.snapshotCache;
-  }
-
   protected selectSection(name: string): void {
     this.currentSection.set(this.currentSection() === name ? '' : name);
   }
 
   protected countOf(name: string): number {
-    return this.sectionsSnapshot().get(name)?.length ?? 0;
+    return this.sectionsByName().get(name)?.length ?? 0;
   }
 
   protected totalAll(): number {
@@ -357,20 +349,16 @@ export class HelpPage {
     return this.countOf(this.currentSection());
   }
 
-  /** 当前过滤结果条数（未截断） */
   protected totalMatched(): number {
     return this._matchAll().length;
   }
 
-  /**
-   * 命中搜索的全部条目（在当前分区内或全部分区）。
-   * 先过滤再限制条数，给前端展示用。
-   */
+  /** 命中搜索的全部条目（未截断，用于显示总数） */
   private readonly _matchAll = computed<HandbookEntry[]>(() => {
     const q = this.query().trim().toLowerCase();
     const source = this.currentSection() === ALL_SECTIONS
       ? this.allEntries()
-      : (this.sectionsSnapshot().get(this.currentSection()) ?? []);
+      : (this.sectionsByName().get(this.currentSection()) ?? []);
     if (!q) return source;
     return source.filter(e => matchEntry(e, q));
   });
@@ -383,12 +371,11 @@ export class HelpPage {
     this.query.set(value);
   }
 
-  /** 把匹配串包裹成 <mark>，安全转义 HTML。 */
+  /** 把匹配串包裹成 <mark>，先 HTML 转义防 XSS。 */
   private buildHighlighted(e: HandbookEntry): FilteredEntry {
     const q = this.query().trim();
     return {
       entry: e,
-      matchKey: q ? highlight(q, e.type) : escapeHtml(e.type),
       matchId: q ? highlight(q, e.id) : escapeHtml(e.id),
       matchName: q ? highlight(q, e.name) : escapeHtml(e.name),
       matchAttrs: q ? highlightAttrs(q, e) : escapeHtml(this.attrsText(e)),
@@ -403,7 +390,6 @@ export class HelpPage {
   }
 
   protected shortSection(name: string): string {
-    // 截短分区名（保留前 8 个字符）以节省表格空间
     return name.length > 8 ? name.slice(0, 8) + '…' : name;
   }
 
@@ -445,7 +431,6 @@ function escapeHtml(text: string): string {
 function highlight(query: string, text: string): string {
   const escaped = escapeHtml(text);
   if (!query) return escaped;
-  // 用 indexOf 大小写不敏感地查找所有出现位置，按原文位置标记
   const re = new RegExp(escapeRegExp(query), 'gi');
   return escaped.replace(re, m => `<mark>${m}</mark>`);
 }
@@ -456,7 +441,6 @@ function highlightAttrs(query: string, e: HandbookEntry): string {
     .map(([k, v]) => `${k}=${v}`)
     .join('　');
   if (!query) return escapeHtml(text);
-  // 对 key= 也高亮
   const re = new RegExp(escapeRegExp(query), 'gi');
   return escapeHtml(text).replace(re, m => `<mark>${m}</mark>`);
 }
