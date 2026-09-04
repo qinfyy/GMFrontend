@@ -6,10 +6,16 @@
         <base href="/" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" type="image/x-icon" href="favicon.ico" />
-        <!-- 防 FOUC：在样式加载前固定底色 -->
-        <style>
-            html { background: #ece9e0; }
-        </style>
+        <!-- 防 FOUC：在样式加载前按 localStorage 应用主题，避免闪白/闪黑 -->
+        <script>
+            (function () {
+                try {
+                    var mode = localStorage.getItem('bh2-gm-theme') || 'system';
+                    var dark = mode === 'dark' || (mode === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                    if (dark) document.documentElement.dataset.theme = 'dark';
+                } catch (e) {}
+            })();
+        </script>
     </head>
     <body>
         <app-root></app-root>

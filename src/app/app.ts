@@ -1,12 +1,14 @@
 /**
- * 应用骨架：白色 Header（标题 / 全局 UID / 设置）+ 左侧导航 + 内容区。
+ * 应用骨架：白色 Header（标题 / 主题切换 / 服务器设置）+ 左侧导航 + 内容区。
  * 视觉参考 LunarCoreToolsWeb：白底、蓝主色、14px 字体、Header 57px 高。
+ * 暗色主题由 ThemeService 控制，通过 <html data-theme> 切换。
  */
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, inject, signal, viewChild } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { SettingsStore } from './core/settings.store';
 import { HandbookService } from './core/handbook.service';
+import { ThemeService, ThemeMode } from './core/theme.service';
 
 interface NavItem {
     path: string;
@@ -26,12 +28,51 @@ interface NavItem {
 
             <button type="button" class="settings-btn" (click)="settingsOpen.set(true)">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="12" cy="12" r="3" />
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                 </svg>
                 服务器设置
             </button>
+
+            <div class="theme-picker">
+                <button #themeBtn type="button" class="theme-btn" (click)="themeMenuOpen.update(v => !v)"
+                        [attr.aria-expanded]="themeMenuOpen()"
+                        [title]="'主题：' + themeLabel(theme.mode())"
+                        aria-label="切换主题">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        @switch (theme.mode()) {
+                            @case ('light') {
+                                <circle cx="12" cy="12" r="4"/>
+                                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+                            }
+                            @case ('dark') {
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                            }
+                            @default {
+                                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                                <path d="M8 21h8M12 17v4"/>
+                            }
+                        }
+                    </svg>
+                </button>
+                @if (themeMenuOpen()) {
+                    <div class="theme-menu" role="menu" #themeMenu>
+                        @for (opt of theme.options; track opt.value) {
+                            <button type="button" class="theme-item" role="menuitem"
+                                    [class.active]="theme.mode() === opt.value"
+                                    (click)="selectTheme(opt.value)">
+                                <span class="dot">{{ theme.mode() === opt.value ? '●' : '○' }}</span>
+                                <span class="meta">
+                                    <span class="lbl">{{ opt.label }}</span>
+                                    <span class="hint">{{ opt.hint }}</span>
+                                </span>
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
         </header>
 
         <div class="body">
@@ -83,7 +124,7 @@ interface NavItem {
         :host { display: flex; flex-direction: column; min-height: 100vh; }
 
         .topbar {
-            display: flex; align-items: center; gap: var(--space-6);
+            display: flex; align-items: center; gap: var(--space-3);
             height: 57px; padding: 0 var(--space-6);
             background: var(--color-bg-1);
             border-bottom: 1px solid var(--color-border-1);
@@ -107,6 +148,46 @@ interface NavItem {
             transition: color var(--duration-fast) var(--ease-default), background var(--duration-fast) var(--ease-default);
         }
         .settings-btn:hover { color: var(--color-primary-6); background: var(--color-primary-1); }
+
+        /* 主题切换按钮 + 下拉菜单 */
+        .theme-picker { position: relative; }
+        .theme-btn {
+            display: inline-flex; align-items: center; gap: var(--space-2);
+            color: var(--color-text-2);
+            padding: 6px 10px; border-radius: var(--radius-md);
+            transition: color var(--duration-fast) var(--ease-default), background var(--duration-fast) var(--ease-default);
+        }
+        .theme-btn:hover { color: var(--color-primary-6); background: var(--color-primary-1); }
+        .theme-menu {
+            position: absolute; right: 0; top: calc(100% + 4px);
+            background: var(--color-bg-1);
+            border: 1px solid var(--color-border-1);
+            border-radius: var(--radius-md);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            min-width: 220px;
+            z-index: var(--z-sticky);
+            padding: 4px;
+            animation: pop var(--duration-fast) var(--ease-default);
+        }
+        @keyframes pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        .theme-item {
+            display: flex; align-items: center; gap: var(--space-3);
+            width: 100%; padding: 8px 10px;
+            background: transparent; color: var(--color-text-1);
+            border: 0; border-radius: var(--radius-sm);
+            text-align: left;
+            transition: background var(--duration-fast) var(--ease-default);
+        }
+        .theme-item:hover { background: var(--color-bg-2); }
+        .theme-item.active { background: var(--color-primary-1); color: var(--color-primary-6); }
+        .theme-item .dot {
+            font-size: var(--text-md); line-height: 1; flex-shrink: 0;
+            color: var(--color-text-3);
+        }
+        .theme-item.active .dot { color: var(--color-primary-6); }
+        .theme-item .meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .theme-item .lbl { font-size: var(--text-sm); font-weight: var(--weight-medium); }
+        .theme-item .hint { font-size: var(--text-xs); color: var(--color-text-3); }
 
         .body { display: flex; flex: 1; min-height: 0; }
         .sidenav {
@@ -171,6 +252,7 @@ interface NavItem {
 export class App {
     protected readonly settings = inject(SettingsStore);
     private readonly handbook = inject(HandbookService);
+    protected readonly theme = inject(ThemeService);
 
     protected readonly navItems: NavItem[] = [
         { path: '/console', label: '控制台', hint: '自由执行任意 GM 命令' },
@@ -183,6 +265,10 @@ export class App {
         { path: '/help', label: '命令手册', hint: 'help 与 Handbook 分区浏览' },
     ];
     protected readonly settingsOpen = signal(false);
+    protected readonly themeMenuOpen = signal(false);
+
+    private readonly themeBtnRef = viewChild<ElementRef<HTMLElement>>('themeBtn');
+    private readonly themeMenuRef = viewChild<ElementRef<HTMLElement>>('themeMenu');
 
     constructor() {
         // 启动即加载 Handbook 目录；失败不阻塞界面
@@ -191,5 +277,25 @@ export class App {
 
     protected closeSettings(event: Event): void {
         if (event.target === event.currentTarget) this.settingsOpen.set(false);
+    }
+
+    protected selectTheme(mode: ThemeMode): void {
+        this.theme.setMode(mode);
+        this.themeMenuOpen.set(false);
+    }
+
+    protected themeLabel(mode: ThemeMode): string {
+        return this.theme.options.find(o => o.value === mode)?.label ?? mode;
+    }
+
+    /** 点击菜单外部时关闭 */
+    @HostListener('document:click', ['$event'])
+    protected onDocClick(event: MouseEvent): void {
+        if (!this.themeMenuOpen()) return;
+        const target = event.target as Node | null;
+        if (!target) return;
+        if (this.themeBtnRef()?.nativeElement.contains(target)) return;
+        if (this.themeMenuRef()?.nativeElement.contains(target)) return;
+        this.themeMenuOpen.set(false);
     }
 }
