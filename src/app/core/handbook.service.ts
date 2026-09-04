@@ -56,16 +56,17 @@ export class HandbookService {
  * 解析 Handbook 全文。
  * 规则：
  * - `[section]` 行开启新分区；
- * - 含制表符的数据行按列解析：第 1 列作为 type（如 "currency"、"第一章 L1-1"），
- *   第 2 列必为 ID；后续列若为 key=value 形式则入 attrs，第一个非 key=value 列
+ * - 数据行按所处分隔符切列后：第 1 列作为 type，第 2 列必为 ID；
+ *   后续列若为 key=value 形式则入 attrs，第一个非 key=value 列
  *   作为 name（无则用 id 兜底）；
- * - 分区内的说明文字行（不含制表符的普通文本）跳过。
+ * - 分区内的说明文字行（不含分隔符的普通文本）跳过。
  *
- * 支持两种行格式：
- * 1. 传统：type <TAB> id <TAB> name <TAB> key=value ...
+ * 同一 Handbook 内的不同分区可能用不同分隔符，handleColumns 自动检测：
+ * 1. 制表符分隔：传统区（currency / weapon / role / 九霄任务 等）
  *    例：currency \t hcoin \t 水晶 \t alias=239 \t GM=...
- * 2. 剧情/九霄关卡：chapter <TAB> id <TAB> type=N <TAB> GM=...
- *    例：第一章 L1-1 \t 8351 \t type=1 \t GM=storyrange&...&from=8351&to=8351
+ * 2. 2+ 空格 + 单空格分隔：传承篇 / 新生篇（普通剧情关卡）
+ *    例：第一章  L1-1 8351 type=1 GM=storyrange&...&from=8351&to=8351
+ *    章节标题与 id 之间用 2+ 空格；其余列用单空格。
  */
 function parse(text: string): Map<string, HandbookEntry[]> {
     const sections = new Map<string, HandbookEntry[]>();
@@ -82,9 +83,9 @@ function parse(text: string): Map<string, HandbookEntry[]> {
             continue;
         }
 
-        if (current === null || !line.includes('\t')) continue;
+        if (current === null) continue;
 
-        const columns = line.split('\t').map(v => v.trim());
+        const columns = splitColumns(line);
         if (columns.length < 2) continue;
 
         const type = columns[0];
@@ -114,4 +115,22 @@ function parse(text: string): Map<string, HandbookEntry[]> {
         });
     }
     return sections;
+}
+
+/** 自动检测分隔符并切列
+ * - 有 \t：tab 分隔（传统 / 九霄任务等）
+ * - 无 \t 但首列以「第」开头：传承篇/新生篇，前 2 字段是「第 X 章 / 关卡名」，
+ *   其余单空格分隔；输出 4 列：chapterHeading / id / type=N / GM=...
+ * - 其余：单空格切
+ */
+function splitColumns(line: string): string[] {
+    if (line.includes('\t')) {
+        return line.split('\t').map(v => v.trim());
+    }
+    const tokens = line.trim().split(/\s+/).filter(Boolean);
+    if (tokens.length >= 4 && tokens[0].startsWith('第')) {
+        // 「第一章 L1-1 8351 type=1 GM=...」
+        return [tokens[0] + ' ' + tokens[1], ...tokens.slice(2)];
+    }
+    return tokens;
 }
