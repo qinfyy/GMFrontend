@@ -88,12 +88,9 @@ interface FilteredEntry {
       <hr />
 
       <!-- Handbook 浏览（常开） -->
-      <article class="handbook-block">
-        <header class="block-head-static">
-          <h3 class="block-title">Handbook 浏览</h3>
-          <span class="block-hint">按 ID / 名称 / 附加信息过滤条目</span>
-        </header>
-        <div class="handbook-body">
+      <h3 class="sub">Handbook 浏览</h3>
+      <p class="sub-hint">按 ID / 名称 / 附加信息过滤条目</p>
+      <div class="handbook-body">
             @if (handbook.failed()) {
               <p class="status warn">Handbook.txt 加载失败，无法浏览分区。</p>
             } @else if (!handbook.loaded()) {
@@ -186,7 +183,6 @@ interface FilteredEntry {
               </div>
             }
         </div>
-      </article>
     </section>
   `,
   styles: `
@@ -249,20 +245,19 @@ interface FilteredEntry {
     ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); }
     li { font-size: var(--text-xs); color: var(--color-text-2); line-height: 1.8; list-style: disc; }
 
-    /* Handbook 块（常开） */
-    .handbook-block {
-      border: 1px solid var(--color-border-1);
-      border-radius: var(--radius-md);
-      background: var(--color-bg-1);
-      overflow: hidden;
+    /* Handbook 块（无外框，作为普通子标题） */
+    .sub {
+      margin: var(--space-4) 0 var(--space-1);
+      font-size: var(--text-md);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-1);
     }
-    .block-head-static {
-      display: flex; align-items: baseline; gap: var(--space-3);
-      padding: 12px 16px 8px;
+    .sub-hint {
+      margin: 0 0 var(--space-3);
+      font-size: var(--text-xs);
+      color: var(--color-text-3);
     }
-    .block-title { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--color-primary-6); flex-shrink: 0; }
-    .block-hint { font-size: var(--text-xs); color: var(--color-text-3); }
-    .handbook-body { padding: 0 var(--space-4) var(--space-4); }
+    .handbook-body { padding: 0; }
 
     /* Handbook 内部 */
     .browser { display: flex; flex-direction: column; gap: var(--space-3); }
