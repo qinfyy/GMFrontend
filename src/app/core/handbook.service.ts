@@ -13,6 +13,8 @@ import { Injectable, signal } from '@angular/core';
 
 /** 一条 Handbook 数据行（已解析出 ID / 名称 / 尾注） */
 export interface HandbookEntry {
+  /** 所属分区名（用于全部分区搜索显示来源） */
+  section: string;
   /** 行首类型标记（如 currency / weapon / role） */
   type: string;
   id: string;
@@ -84,6 +86,7 @@ function parse(text: string): Map<string, HandbookEntry[]> {
     }
 
     sections.get(current)!.push({
+      section: current,
       type: columns[0],
       id: columns[1],
       name: columns[2],
