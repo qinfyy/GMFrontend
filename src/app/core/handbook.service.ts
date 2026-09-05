@@ -65,7 +65,7 @@ export class HandbookService {
  * 1. 制表符分隔：传统区（currency / weapon / role / 九霄任务 等）
  *    例：currency \t hcoin \t 水晶 \t alias=239 \t GM=...
  * 2. 2+ 空格 + 单空格分隔：传承篇 / 新生篇（普通剧情关卡）
- *    例：第一章  L1-1 8351 type=1 GM=storyrange&...&from=8351&to=8351
+ *    例：第一章  L1-1 8351 type=1 GM=storycompleted&...&to=8351
  *    章节标题与 id 之间用 2+ 空格；其余列用单空格。
  */
 /**
