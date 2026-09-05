@@ -155,10 +155,21 @@ type StoryTab = 'storyrange' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
                         <div class="label">执行模式</div>
                         <div class="value">
                             <label class="check">
-                                <span>{{ nscLevelId ? 'level 模式：只完成指定关卡（任务推进到可领，奖励自领）' : '整章模式：关卡全通关 + 挑战 + 评分 + 章节任务全部完成发奖' }}</span>
+                                <span>{{ nscLevelId ? 'level 模式：只完成指定关卡（已达成的可领任务自动领取发奖）' : '整章模式：关卡全通关 + 挑战 + 评分 + 章节任务全部完成发奖' }}</span>
                             </label>
                         </div>
                     </div>
+                    @if (nscLevelId) {
+                        <div class="commuse-item">
+                            <div class="label">前置 precede</div>
+                            <div class="value">
+                                <label class="check">
+                                    <input type="checkbox" [(ngModel)]="nscPrecede" (ngModelChange)="bump()" />
+                                    <span>precede=true（默认）：自动一并完成章节内排在目标关卡之前的关卡</span>
+                                </label>
+                            </div>
+                        </div>
+                    }
                 }
 
                 @if (tab() === 'kul') {
@@ -268,7 +279,7 @@ export class StoryPage {
         {
             cmd: 'nsc' as const,
             label: '崩坏学园篇',
-            hint: 'newstorycompleted：完成崩坏学园篇整章或指定关卡（通关、挑战触发器补全、评分填满；整章模式额外完成章节任务并发奖）。',
+            hint: 'newstorycompleted：完成崩坏学园篇整章或指定关卡（通关、挑战触发器补全、评分填满；整章模式额外完成章节任务并发奖；level 模式 precede 默认连带完成前面的关卡）。',
         },
         {
             cmd: 'ktc' as const,
@@ -303,6 +314,8 @@ export class StoryPage {
     /** 章节 ID：signal，关卡 picker 的 filterOf 依赖它做联动过滤 */
     readonly nscChapterId = signal('');
     protected nscLevelId = '';
+    /** precede（默认 true）：level 模式自动一并完成章节内排在目标之前的关卡 */
+    protected nscPrecede = true;
 
     // ktc
     protected taskId = '';
@@ -416,7 +429,11 @@ export class StoryPage {
                 parts.push('cmd=nsc');
                 if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
                 if (this.nscChapterId().trim()) parts.push(`id=${encodeURIComponent(this.nscChapterId().trim())}`);
-                if (this.nscLevelId.trim()) parts.push(`level=${encodeURIComponent(this.nscLevelId.trim())}`);
+                if (this.nscLevelId.trim()) {
+                    parts.push(`level=${encodeURIComponent(this.nscLevelId.trim())}`);
+                    // precede 默认 true，只在 false 时显式传参
+                    if (!this.nscPrecede) parts.push('precede=false');
+                }
                 break;
             }
             case 'ktc': {
@@ -479,7 +496,10 @@ export class StoryPage {
                 case 'nsc':
                     record['cmd'] = 'nsc';
                     if (this.nscChapterId().trim()) record['id'] = this.nscChapterId().trim();
-                    if (this.nscLevelId.trim()) record['level'] = this.nscLevelId.trim();
+                    if (this.nscLevelId.trim()) {
+                        record['level'] = this.nscLevelId.trim();
+                        if (!this.nscPrecede) record['precede'] = 'false';
+                    }
                     break;
                 case 'ktc':
                     record['cmd'] = 'ktc';
