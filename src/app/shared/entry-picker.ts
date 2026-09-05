@@ -16,12 +16,17 @@ const MAX_RENDER = 200;
         @if (handbook.failed()) {
             <p class="missing">Handbook 加载失败，请手动填写 ID。</p>
         } @else {
-            <input
-                type="search"
-                [(ngModel)]="query"
-                [placeholder]="placeholder()"
-                aria-label="搜索条目"
-            />
+            <div class="search-row">
+                <input
+                    type="search"
+                    [(ngModel)]="query"
+                    [placeholder]="placeholder()"
+                    aria-label="搜索条目"
+                />
+                @if (value()) {
+                    <button type="button" class="clear-btn" (click)="clear()" aria-label="取消选中">✕</button>
+                }
+            </div>
             <ul class="list" role="listbox">
                 @for (entry of filtered(); track entry.id) {
                     <li>
@@ -50,7 +55,17 @@ const MAX_RENDER = 200;
     `,
     styles: `
         :host { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+        .search-row { position: relative; display: flex; align-items: center; }
         input[type='search'] { width: 100%; box-sizing: border-box; }
+        .search-row input { padding-right: 32px; }
+        .clear-btn {
+            position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+            width: 24px; height: 24px; padding: 0;
+            background: transparent; color: var(--color-text-3);
+            border: 0; border-radius: var(--radius-full);
+            font-size: var(--text-sm); line-height: 1;
+        }
+        .clear-btn:hover { background: var(--color-bg-3); color: var(--color-text-1); }
         .list {
             list-style: none; margin: 0; padding: 4px;
             max-height: 320px; overflow-y: auto;
@@ -88,6 +103,8 @@ export class EntryPickerComponent {
     readonly extraOf = input<((entry: HandbookEntry) => string) | null>(null);
     /** 可选：只显示 entry.type 等于此值的行（如 'chapter' / 'level'） */
     readonly typeFilter = input<string | null>(null);
+    /** 可选：点击已选中的条目时是否取消选中（默认 false） */
+    readonly toggleable = input(false);
     /** 可选：自定义谓词过滤（与 typeFilter 叠加），如按章节联动过滤关卡 */
     readonly filterOf = input<((entry: HandbookEntry) => boolean) | null>(null);
 
@@ -125,7 +142,17 @@ export class EntryPickerComponent {
     });
 
     protected pick(entry: HandbookEntry): void {
+        // toggleable 模式：点击已选中的条目 = 取消选中
+        if (this.toggleable() && entry.id === this.value()) {
+            this.clear();
+            return;
+        }
         this.value.set(entry.id);
+    }
+
+    /** 清空选中（✕ 按钮或再次点击已选条目触发） */
+    protected clear(): void {
+        this.value.set('');
     }
 
     protected extra(entry: HandbookEntry): string | null {

@@ -144,6 +144,7 @@ type StoryTab = 'storyrange' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
                                 section="崩坏学园篇章节目录"
                                 typeFilter="level"
                                 [filterOf]="nscLevelFilter"
+                                [toggleable]="true"
                                 [placeholder]="nscChapterId()
                                     ? '搜索关卡（仅显示所选章节的关卡）；留空 = 整章完成'
                                     : '搜索关卡（全部章节）；留空 = 整章完成；可手填逗号分隔多个'"
