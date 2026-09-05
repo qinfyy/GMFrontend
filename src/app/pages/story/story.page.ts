@@ -13,6 +13,7 @@ import { CommandBarComponent } from '../../shared/command-bar';
 import { ResultPanelComponent } from '../../shared/result-panel';
 import { EntryPickerComponent } from '../../shared/entry-picker';
 import { pageExecutor } from '../../shared/page-executor';
+import { HandbookEntry } from '../../core/handbook.service';
 
 type StoryTab = 'storyrange' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
 
@@ -130,7 +131,8 @@ type StoryTab = 'storyrange' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
                                 section="崩坏学园篇章节目录"
                                 typeFilter="chapter"
                                 placeholder="搜索章节（ID 或名称）；容器章节 Type=2 不可用"
-                                [(value)]="nscChapterId" (valueChange)="bump()"
+                                [(value)]="nscChapterId"
+                                (valueChange)="onNscChapterChange($event)"
                                 [extraOf]="nscChapterExtra"
                             />
                         </div>
@@ -141,7 +143,10 @@ type StoryTab = 'storyrange' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
                             <gm-entry-picker
                                 section="崩坏学园篇章节目录"
                                 typeFilter="level"
-                                placeholder="搜索关卡（ID 或名称）；留空 = 整章完成；可手填逗号分隔多个"
+                                [filterOf]="nscLevelFilter"
+                                [placeholder]="nscChapterId()
+                                    ? '搜索关卡（仅显示所选章节的关卡）；留空 = 整章完成'
+                                    : '搜索关卡（全部章节）；留空 = 整章完成；可手填逗号分隔多个'"
                                 [(value)]="nscLevelId" (valueChange)="bump()"
                             />
                         </div>
@@ -295,7 +300,8 @@ export class StoryPage {
     protected to = '';
 
     // nsc（newstorycompleted）
-    protected nscChapterId = '';
+    /** 章节 ID：signal，关卡 picker 的 filterOf 依赖它做联动过滤 */
+    readonly nscChapterId = signal('');
     protected nscLevelId = '';
 
     // ktc
@@ -329,7 +335,7 @@ export class StoryPage {
         this.tab.set(cmd);
         this.from = '';
         this.to = '';
-        this.nscChapterId = '';
+        this.nscChapterId.set('');
         this.nscLevelId = '';
         this.taskId = '';
         this.levelId = '';
@@ -362,6 +368,24 @@ export class StoryPage {
         return parts.join(' · ');
     };
 
+    /**
+     * 关卡 picker 联动过滤：选中章节后只显示该章节的关卡。
+     * 关卡行的 GM 模板含 id=<章节ID>&level=...，从中解析章节归属。
+     */
+    protected readonly nscLevelFilter = (e: HandbookEntry): boolean => {
+        const chapter = this.nscChapterId();
+        if (!chapter) return true;
+        const m = /(?:^|&)id=(\d+)(?:&|$)/.exec(e.attrs['GM'] ?? '');
+        return m !== null && m[1] === chapter;
+    };
+
+    /** 章节切换：清空已选关卡（跨章节的关卡 ID 不通用）并触发 preview 重算 */
+    protected onNscChapterChange(value: string): void {
+        this.nscChapterId.set(value);
+        this.nscLevelId = '';
+        this.bump();
+    }
+
     protected readonly levelExtra = (e: { attrs: Record<string, string> }): string => {
         const t = e.attrs['levelTypeForServer'];
         const typeMap: Record<string, string> = { '1': '闯关', '2': '生存', '3': '迷宫', '4': '护送' };
@@ -391,7 +415,7 @@ export class StoryPage {
             case 'nsc': {
                 parts.push('cmd=nsc');
                 if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
-                if (this.nscChapterId.trim()) parts.push(`id=${encodeURIComponent(this.nscChapterId.trim())}`);
+                if (this.nscChapterId().trim()) parts.push(`id=${encodeURIComponent(this.nscChapterId().trim())}`);
                 if (this.nscLevelId.trim()) parts.push(`level=${encodeURIComponent(this.nscLevelId.trim())}`);
                 break;
             }
@@ -454,7 +478,7 @@ export class StoryPage {
                     break;
                 case 'nsc':
                     record['cmd'] = 'nsc';
-                    if (this.nscChapterId.trim()) record['id'] = this.nscChapterId.trim();
+                    if (this.nscChapterId().trim()) record['id'] = this.nscChapterId().trim();
                     if (this.nscLevelId.trim()) record['level'] = this.nscLevelId.trim();
                     break;
                 case 'ktc':

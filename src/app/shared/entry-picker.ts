@@ -88,13 +88,18 @@ export class EntryPickerComponent {
     readonly extraOf = input<((entry: HandbookEntry) => string) | null>(null);
     /** 可选：只显示 entry.type 等于此值的行（如 'chapter' / 'level'） */
     readonly typeFilter = input<string | null>(null);
+    /** 可选：自定义谓词过滤（与 typeFilter 叠加），如按章节联动过滤关卡 */
+    readonly filterOf = input<((entry: HandbookEntry) => boolean) | null>(null);
 
     protected readonly query = signal('');
 
     private readonly entries = computed(() => {
-        const all = this.handbook.section(this.section());
+        let all = this.handbook.section(this.section());
         const tf = this.typeFilter();
-        return tf ? all.filter(e => e.type === tf) : all;
+        if (tf) all = all.filter(e => e.type === tf);
+        const fn = this.filterOf();
+        if (fn) all = all.filter(fn);
+        return all;
     });
 
     protected readonly total = computed(() => this.entries().length);
