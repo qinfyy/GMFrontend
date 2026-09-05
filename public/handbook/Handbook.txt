@@ -8879,8 +8879,7 @@ storyrange&uid=<UID>&from=<起点ID>&to=<终点ID>；from=to 推进单关，资�
 第十二章 BONUS-2 8311 type=248 GM=storyrange&uid=<UID>&from=8311&to=8311
 
 
-崩坏学园篇章节目录
-------------------
+[崩坏学园篇章节目录]
 newstorycompleted&uid=<UID>&id=<章节菜单ID>：整章完成关卡、挑战触发器、评分与章节任务（含发奖）。
 newstorycompleted&uid=<UID>&id=<章节菜单ID>&level=<关卡ID>：只完成指定关卡（可逗号分隔多个），任务推进与手打通关同款。
 type：1=主线 3=支线/番外；storyrange 无法推进本目录关卡（不属于普通剧情资源图）。
