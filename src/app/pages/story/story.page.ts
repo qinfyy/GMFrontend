@@ -128,6 +128,7 @@ type StoryTab = 'storyrange' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
                         <div class="value">
                             <gm-entry-picker
                                 section="崩坏学园篇章节目录"
+                                typeFilter="chapter"
                                 placeholder="搜索章节（ID 或名称）；容器章节 Type=2 不可用"
                                 [(value)]="nscChapterId" (valueChange)="bump()"
                                 [extraOf]="nscChapterExtra"
@@ -139,9 +140,9 @@ type StoryTab = 'storyrange' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
                         <div class="value">
                             <gm-entry-picker
                                 section="崩坏学园篇章节目录"
+                                typeFilter="level"
                                 placeholder="搜索关卡（ID 或名称）；留空 = 整章完成；可手填逗号分隔多个"
                                 [(value)]="nscLevelId" (valueChange)="bump()"
-                                [extraOf]="nscLevelExtra"
                             />
                         </div>
                     </div>
@@ -359,11 +360,6 @@ export class StoryPage {
         if (e.attrs['levels']) parts.push(`${e.attrs['levels']} 关`);
         if (e.attrs['range']) parts.push(e.attrs['range']);
         return parts.join(' · ');
-    };
-
-    /** nsc 关卡 picker 附加信息：区分 level 行（章节行不适用） */
-    protected readonly nscLevelExtra = (e: { type: string }): string => {
-        return e.type === 'chapter' ? '（章节行，勿选）' : '';
     };
 
     protected readonly levelExtra = (e: { attrs: Record<string, string> }): string => {
