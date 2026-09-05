@@ -68,25 +68,51 @@ export class HandbookService {
  *    例：第一章  L1-1 8351 type=1 GM=storyrange&...&from=8351&to=8351
  *    章节标题与 id 之间用 2+ 空格；其余列用单空格。
  */
+/**
+ * 解析 Handbook 全文。
+ * 规则：
+ * - `[section]` 括号行开启新分区；
+ * - 「XXXX目录」+ 下划线分隔行的裸标题也开启新分区
+ *   （如「崩坏学园篇章节目录 / ------------------」，无括号）；
+ * - 数据行按 splitColumns 切列（见其注释）；
+ * - 分区内的说明文字行（切不出 2 列）跳过。
+ *
+ * 支持的行格式：
+ * 1. tab 分隔：type <TAB> id <TAB> name <TAB> key=value ...
+ *    例：currency \t hcoin \t 水晶 \t alias=239 \t GM=...
+ *    例：chapter \t 2 \t 今我来思 \t type=3 \t GM=...（崩坏学园篇章节）
+ * 2. 单空格分隔（传承篇/新生篇）：第X章 关卡名 id type=N GM=...
+ */
 function parse(text: string): Map<string, HandbookEntry[]> {
     const sections = new Map<string, HandbookEntry[]>();
     let current: string | null = null;
+    let prevLine = '';
 
     for (const rawLine of text.split('\n')) {
         const line = rawLine.replace(/\r$/, '');
-        if (!line.trim()) continue;
+        if (!line.trim()) { prevLine = line; continue; }
 
         const headerMatch = /^\[(.+)\]\s*$/.exec(line);
         if (headerMatch) {
             current = headerMatch[1];
             if (!sections.has(current)) sections.set(current, []);
+            prevLine = line;
             continue;
         }
 
-        if (current === null) continue;
+        // 裸标题分区：上一行是非空普通文本（如「崩坏学园篇章节目录」），
+        // 当前行是 3+ 个连字符的下划线分隔行
+        if (/^-{3,}$/.test(line.trim()) && prevLine.trim() && !prevLine.includes('\t')) {
+            current = prevLine.trim();
+            if (!sections.has(current)) sections.set(current, []);
+            prevLine = line;
+            continue;
+        }
+
+        if (current === null) { prevLine = line; continue; }
 
         const columns = splitColumns(line);
-        if (columns.length < 2) continue;
+        if (columns.length < 2) { prevLine = line; continue; }
 
         // 传承篇/新生篇：tokens = [第X章, 关卡名, id, type=N, GM=...]
         // 选择器期望「id  章节名」两列，所以 id = tokens[2]、name = 章节 + 关卡名
@@ -129,6 +155,7 @@ function parse(text: string): Map<string, HandbookEntry[]> {
             name: name ?? id,
             attrs,
         });
+        prevLine = line;
     }
     return sections;
 }

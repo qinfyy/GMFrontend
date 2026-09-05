@@ -14,7 +14,7 @@ import { ResultPanelComponent } from '../../shared/result-panel';
 import { EntryPickerComponent } from '../../shared/entry-picker';
 import { pageExecutor } from '../../shared/page-executor';
 
-type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
+type StoryTab = 'storyrange' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
 
 @Component({
     imports: [FormsModule, CommandBarComponent, ResultPanelComponent, EntryPickerComponent],
@@ -119,6 +119,39 @@ type StoryTab = 'storyrange' | 'ktc' | 'kl' | 'kul' | 'ka';
                     <div class="commuse-item">
                         <div class="label">九霄等级 level</div>
                         <div class="value"><input type="number" min="1" max="99" [(ngModel)]="kyusyoLevel" (ngModelChange)="bump()" placeholder="1–99（按 KyusyoData 上限）" /></div>
+                    </div>
+                }
+
+                @if (tab() === 'nsc') {
+                    <div class="commuse-item align-top">
+                        <div class="label">章节 id</div>
+                        <div class="value">
+                            <gm-entry-picker
+                                section="崩坏学园篇章节目录"
+                                placeholder="搜索章节（ID 或名称）；容器章节 Type=2 不可用"
+                                [(value)]="nscChapterId" (valueChange)="bump()"
+                                [extraOf]="nscChapterExtra"
+                            />
+                        </div>
+                    </div>
+                    <div class="commuse-item align-top">
+                        <div class="label">关卡 level</div>
+                        <div class="value">
+                            <gm-entry-picker
+                                section="崩坏学园篇章节目录"
+                                placeholder="搜索关卡（ID 或名称）；留空 = 整章完成；可手填逗号分隔多个"
+                                [(value)]="nscLevelId" (valueChange)="bump()"
+                                [extraOf]="nscLevelExtra"
+                            />
+                        </div>
+                    </div>
+                    <div class="commuse-item">
+                        <div class="label">执行模式</div>
+                        <div class="value">
+                            <label class="check">
+                                <span>{{ nscLevelId ? 'level 模式：只完成指定关卡（任务推进到可领，奖励自领）' : '整章模式：关卡全通关 + 挑战 + 评分 + 章节任务全部完成发奖' }}</span>
+                            </label>
+                        </div>
                     </div>
                 }
 
@@ -227,6 +260,11 @@ export class StoryPage {
             hint: '沿普通剧情资源依赖图从 from 推进到 to；前置闭包自动完成，新完成关卡逐项发首通奖励。',
         },
         {
+            cmd: 'nsc' as const,
+            label: '崩坏学园篇',
+            hint: 'newstorycompleted：完成崩坏学园篇整章或指定关卡（通关、挑战触发器补全、评分填满；整章模式额外完成章节任务并发奖）。',
+        },
+        {
             cmd: 'ktc' as const,
             label: '九霄任务',
             hint: 'kyusyoTaskCompleted：把九霄任务推进到指定状态。status 缺省 claimed（置可领奖并由服务端发奖）。',
@@ -254,6 +292,10 @@ export class StoryPage {
     // storyrange
     protected from = '';
     protected to = '';
+
+    // nsc（newstorycompleted）
+    protected nscChapterId = '';
+    protected nscLevelId = '';
 
     // ktc
     protected taskId = '';
@@ -286,6 +328,8 @@ export class StoryPage {
         this.tab.set(cmd);
         this.from = '';
         this.to = '';
+        this.nscChapterId = '';
+        this.nscLevelId = '';
         this.taskId = '';
         this.levelId = '';
         this.achievementId = '';
@@ -303,6 +347,23 @@ export class StoryPage {
         if (e.attrs['showtype']) parts.push(e.attrs['showtype']);
         if (e.attrs['parents']) parts.push(`前置 ${e.attrs['parents']}`);
         return parts.join(' · ');
+    };
+
+    /** nsc 章节 picker 附加信息：type / 关卡数 / ID 范围 */
+    protected readonly nscChapterExtra = (e: { type: string; attrs: Record<string, string> }): string => {
+        const parts: string[] = [];
+        const t = e.attrs['type'];
+        if (t === '1') parts.push('主线');
+        else if (t === '3') parts.push('支线/番外');
+        else if (t === '2') parts.push('容器（不可用）');
+        if (e.attrs['levels']) parts.push(`${e.attrs['levels']} 关`);
+        if (e.attrs['range']) parts.push(e.attrs['range']);
+        return parts.join(' · ');
+    };
+
+    /** nsc 关卡 picker 附加信息：区分 level 行（章节行不适用） */
+    protected readonly nscLevelExtra = (e: { type: string }): string => {
+        return e.type === 'chapter' ? '（章节行，勿选）' : '';
     };
 
     protected readonly levelExtra = (e: { attrs: Record<string, string> }): string => {
@@ -329,6 +390,13 @@ export class StoryPage {
                 if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
                 if (this.from.trim()) parts.push(`from=${encodeURIComponent(this.from.trim())}`);
                 if (this.to.trim()) parts.push(`to=${encodeURIComponent(this.to.trim())}`);
+                break;
+            }
+            case 'nsc': {
+                parts.push('cmd=nsc');
+                if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
+                if (this.nscChapterId.trim()) parts.push(`id=${encodeURIComponent(this.nscChapterId.trim())}`);
+                if (this.nscLevelId.trim()) parts.push(`level=${encodeURIComponent(this.nscLevelId.trim())}`);
                 break;
             }
             case 'ktc': {
@@ -387,6 +455,11 @@ export class StoryPage {
                     record['cmd'] = 'storyrange';
                     if (this.from.trim()) record['from'] = this.from.trim();
                     if (this.to.trim()) record['to'] = this.to.trim();
+                    break;
+                case 'nsc':
+                    record['cmd'] = 'nsc';
+                    if (this.nscChapterId.trim()) record['id'] = this.nscChapterId.trim();
+                    if (this.nscLevelId.trim()) record['level'] = this.nscLevelId.trim();
                     break;
                 case 'ktc':
                     record['cmd'] = 'ktc';

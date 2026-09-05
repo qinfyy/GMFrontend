@@ -27,7 +27,7 @@ const KNOWN_SECTIONS = [
     'ZeroDLC（逐火之蛾 Roguelike 战斗 DLC）内容目录',
     '传承篇',
     '新生篇',
-    '九霄关卡',
+    '崩坏学园篇章节目录',
 ] as const;
 
 interface FilteredEntry {
