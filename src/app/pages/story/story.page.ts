@@ -1,7 +1,7 @@
 /**
  * 剧情 / 九霄页。
  * 服务端命令集（2026-09）:
- *   - storyrange        普通剧情资源依赖图推进
+ *   - storycompleted (sc) 完成普通剧情指定关卡及其全部资源前置
  *   - kyusyoTaskCompleted (ktc) 九霄任务推进到指定状态；id 可为 all
  *   - kyusyoLevel       (kl)  设置九霄等级 1-99
  *   - kyusyoUnlockLevel (kul) 解锁九霄出击关卡；level 可为 all
@@ -15,7 +15,7 @@ import { EntryPickerComponent } from '../../shared/entry-picker';
 import { pageExecutor } from '../../shared/page-executor';
 import { HandbookEntry } from '../../core/handbook.service';
 
-type StoryTab = 'storyrange' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
+type StoryTab = 'sc' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
 
 @Component({
     imports: [FormsModule, CommandBarComponent, ResultPanelComponent, EntryPickerComponent],
@@ -23,7 +23,7 @@ type StoryTab = 'storyrange' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
         <section class="page">
             <header class="page-head">
                 <h2>剧情 / 九霄</h2>
-                <p>普通剧情推进与九霄任务/关卡/成就命令。ZeroDLC 与旧 dlcunlock/dlcstory 已下线。</p>
+                <p>普通剧情 / 崩坏学园篇 / 九霄任务/等级/关卡/成就命令。</p>
             </header>
 
             <div class="tabs" role="tablist">
@@ -46,7 +46,7 @@ type StoryTab = 'storyrange' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
                     <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="uid" (ngModelChange)="bump()" /></div>
                 </div>
 
-                @if (tab() === 'storyrange') {
+                @if (tab() === 'sc') {
                     <div class="commuse-item">
                         <div class="label">篇章</div>
                         <div class="value">
@@ -61,21 +61,11 @@ type StoryTab = 'storyrange' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
                         </div>
                     </div>
                     <div class="commuse-item align-top">
-                        <div class="label">起点关卡 from</div>
-                        <div class="value">
-                            <gm-entry-picker
-                                [section]="storySection()"
-                                placeholder="搜索起点（ID 或章节标题）…"
-                                [(value)]="from" (valueChange)="bump()"
-                            />
-                        </div>
-                    </div>
-                    <div class="commuse-item align-top">
                         <div class="label">终点关卡 to</div>
                         <div class="value">
                             <gm-entry-picker
                                 [section]="storySection()"
-                                placeholder="搜索终点（ID 或章节标题）…"
+                                placeholder="搜索关卡（ID 或章节标题）…"
                                 [(value)]="to" (valueChange)="bump()"
                             />
                         </div>
@@ -268,14 +258,14 @@ type StoryTab = 'storyrange' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
 export class StoryPage {
     protected readonly exec = pageExecutor();
 
-    /** storyrange 用的篇章切换：传承篇 / 新生篇（普通剧情两个分支） */
+    /** sc（普通剧情）用的篇章切换：传承篇 / 新生篇 */
     protected readonly storySection = signal<'传承篇' | '新生篇'>('传承篇');
 
     protected readonly tabDefs = [
         {
-            cmd: 'storyrange' as const,
+            cmd: 'sc' as const,
             label: '普通剧情',
-            hint: '沿普通剧情资源依赖图从 from 推进到 to；前置闭包自动完成，新完成关卡逐项发首通奖励。',
+            hint: 'storycompleted：完成指定关卡及其全部资源前置（同章节在它之前的关卡），逐关执行确定性首通结算。',
         },
         {
             cmd: 'nsc' as const,
@@ -304,11 +294,10 @@ export class StoryPage {
         },
     ];
 
-    protected readonly tab = signal<StoryTab>('storyrange');
+    protected readonly tab = signal<StoryTab>('sc');
     protected uid = '';
 
-    // storyrange
-    protected from = '';
+    // sc（storycompleted）
     protected to = '';
 
     // nsc（newstorycompleted）
@@ -347,7 +336,6 @@ export class StoryPage {
 
     protected setTab(cmd: StoryTab): void {
         this.tab.set(cmd);
-        this.from = '';
         this.to = '';
         this.nscChapterId.set('');
         this.nscLevelId = '';
@@ -356,10 +344,9 @@ export class StoryPage {
         this.achievementId = '';
     }
 
-    /** storyrange 篇章切换：清空 from/to（跨篇章 ID 不通用） */
+    /** sc 篇章切换：清空 to（跨篇章 ID 不通用） */
     protected setStorySection(s: '传承篇' | '新生篇'): void {
         this.storySection.set(s);
-        this.from = '';
         this.to = '';
     }
 
@@ -419,10 +406,9 @@ export class StoryPage {
         this.revision(); // 实时依赖
         const parts: string[] = [];
         switch (this.tab()) {
-            case 'storyrange': {
-                parts.push('cmd=storyrange');
+            case 'sc': {
+                parts.push('cmd=sc');
                 if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
-                if (this.from.trim()) parts.push(`from=${encodeURIComponent(this.from.trim())}`);
                 if (this.to.trim()) parts.push(`to=${encodeURIComponent(this.to.trim())}`);
                 break;
             }
@@ -489,9 +475,8 @@ export class StoryPage {
             const record: Record<string, string> = {};
             if (this.uid.trim()) record['uid'] = this.uid.trim();
             switch (this.tab()) {
-                case 'storyrange':
-                    record['cmd'] = 'storyrange';
-                    if (this.from.trim()) record['from'] = this.from.trim();
+                case 'sc':
+                    record['cmd'] = 'sc';
                     if (this.to.trim()) record['to'] = this.to.trim();
                     break;
                 case 'nsc':

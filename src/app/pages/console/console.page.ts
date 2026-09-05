@@ -112,7 +112,7 @@ export class ConsolePage {
     /** 已知命令名：优先来自服务端缓存，失败时给静态清单 */
     protected readonly knownCommands = signal([
         'give', 'giveall', 'role', 'setlevel',
-        'storyrange', 'nsc', 'ktc', 'kl', 'kul', 'ka', 'account', 'help',
+        'sc', 'nsc', 'ktc', 'kl', 'kul', 'ka', 'account', 'help',
     ]);
 
     protected cmd = '';
