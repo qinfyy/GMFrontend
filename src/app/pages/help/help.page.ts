@@ -9,18 +9,15 @@
  * - 命中字符在结果中用 <mark> 高亮
  * - 搜索框带清除按钮 + Esc 清空
  */
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { GmApiService, GmApiError, GmCommandHelp } from '../../core/gm-api.service';
 import { HandbookEntry, HandbookService } from '../../core/handbook.service';
 
 const ALL_SECTIONS = '全部分区';
-const MAX_RENDER = 500;
 
 const KNOWN_SECTIONS = [
     'currency', 'weapon', 'costume', 'badge', 'role', 'material', 'potential',
     'role-develop', 'skin', 'partner',
-    '九霄故事（逐火之蛾主玩法）',
-    'ZeroDLC 故事（逐火之蛾 Roguelike 战斗 DLC）',
     '九霄任务目录（逐火之蛾主玩法）',
     'kyusyoUnlockLevel 九霄关卡目录（逐火之蛾出击）',
     'kyusyoAchievement 九霄成就目录（逐火之蛾探索）',
@@ -33,6 +30,7 @@ const KNOWN_SECTIONS = [
 interface FilteredEntry {
     entry: HandbookEntry;
     matchId: string;
+    matchType: string;
     matchName: string;
     matchAttrs: string;
 }
@@ -68,7 +66,16 @@ interface FilteredEntry {
                         @if (isCmdExpanded(cmd.label)) {
                             <div class="cmd-body">
                                 @for (u of cmd.usage; track u) {
-                                    <code class="usage">{{ u }}</code>
+                                    <div class="usage-row">
+                                        <code class="usage">{{ u }}</code>
+                                        <button type="button" class="icon-copy" (click)="copy(u)" aria-label="复制命令模板" title="复制命令模板">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <rect x="9" y="9" width="13" height="13" rx="2"/>
+                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                            </svg>
+                                        </button>
+                                    </div>
                                 }
                                 @if (cmd.notes.length) {
                                     <ul>
@@ -132,7 +139,7 @@ interface FilteredEntry {
 
                                 <div class="entries-head">
                                     @if (query()) {
-                                        <span>匹配 <strong class="match">{{ totalMatched() }}</strong> 条{{ totalMatched() > MAX ? '（仅显示前 ' + MAX + ' 条）' : '' }}</span>
+                                        <span>匹配 <strong class="match">{{ totalMatched() }}</strong> 条</span>
                                     } @else {
                                         <span>{{ currentSection() }} · 共 {{ totalInCurrent() }} 条</span>
                                     }
@@ -140,47 +147,50 @@ interface FilteredEntry {
                                 </div>
 
                                 <div class="table-wrap">
-                                    <table>
-                                        <thead>
-                                            <tr>
-                                                <th style="width: 90px">ID</th>
-                                                <th>名称</th>
-                                                <th>附加信息</th>
-                                                <th style="width: 200px"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @for (item of filteredEntries(); track item.entry.section + ':' + item.entry.id) {
-                                                <tr>
-                                                    <td class="mono">
-                                                        @if (currentSection() === allSectionsKey) {
-                                                            <div class="entry-section">{{ shortSection(item.entry.section) }}</div>
-                                                        }
-                                                        <span [innerHTML]="item.matchId"></span>
-                                                    </td>
-                                                    <td><span [innerHTML]="item.matchName"></span></td>
-                                                    <td class="attrs"><span [innerHTML]="item.matchAttrs"></span></td>
-                                                    <td>
-                                                        @if (item.entry.attrs['GM']; as gm) {
-                                                            <button type="button" class="btn tiny" (click)="copy(gm)" [title]="gm">复制 GM 模板</button>
-                                                        }
-                                                    </td>
-                                                </tr>
-                                            } @empty {
-                                                <tr><td colspan="4" class="empty">
-                                                    @if (query()) {
-                                                        无匹配条目
-                                                    } @else {
-                                                        请选择左侧分区，或在搜索框输入关键词
+                                    <!-- 表头独立于滚动体 -->
+                                    <div class="vhead row">
+                                        @if (currentSection() === allSectionsKey) {
+                                            <div class="cell col-sec">分区</div>
+                                        }
+                                        <div class="cell col-id">ID</div>
+                                        <div class="cell col-type">Type</div>
+                                        <div class="cell col-name">名称</div>
+                                        <div class="cell col-attrs">附加信息</div>
+                                        <div class="cell col-act"></div>
+                                    </div>
+                                    <div class="vbody" (scroll)="onTableScroll($event)" #vbody>
+                                        <!-- 占位元素维持总高度，滚动条比例正确 -->
+                                        <div class="virtual-spacer" [style.height.px]="totalHeight()">
+                                            @for (item of visibleEntries(); track item.entry.section + ':' + item.entry.id; let i = $index) {
+                                                <div class="row vrow" [style.transform]="'translateY(' + (visibleStart() + i) * ROW_H + 'px)'">
+                                                    @if (currentSection() === allSectionsKey) {
+                                                        <div class="cell col-sec" [title]="item.entry.section">{{ shortSection(item.entry.section) }}</div>
                                                     }
-                                                </td></tr>
+                                                    <div class="cell col-id mono"><span [innerHTML]="item.matchId"></span></div>
+                                                    <div class="cell col-type mono"><span [innerHTML]="item.matchType"></span></div>
+                                                    <div class="cell col-name"><span [innerHTML]="item.matchName"></span></div>
+                                                    <div class="cell col-attrs"><span [innerHTML]="item.matchAttrs"></span></div>
+                                                    <div class="cell col-act">
+                                                        @if (item.entry.attrs['GM']; as gm) {
+                                                            <button type="button" class="link-copy" (click)="copy(gm)" [title]="gm">复制 GM 模板</button>
+                                                        }
+                                                    </div>
+                                                </div>
                                             }
-                                        </tbody>
-                                    </table>
+                                            @if (totalMatched() === 0) {
+                                                <div class="row vrow empty-row" [style.transform]="'translateY(0px)'">
+                                                    <div class="cell empty">
+                                                        @if (query()) {
+                                                            无匹配条目
+                                                        } @else {
+                                                            请选择左侧分区，或在搜索框输入关键词
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
                                 </div>
-                                @if (copied()) {
-                                    <p class="copied">已复制到剪贴板</p>
-                                }
                             </div>
                         }
                 </div>
@@ -236,13 +246,17 @@ interface FilteredEntry {
             animation: slide-down var(--duration-normal) var(--ease-default);
         }
         @keyframes slide-down { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        .usage-row { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 var(--space-1); }
         .usage {
-            display: block; margin: var(--space-3) 0 var(--space-1);
+            display: block; flex: 1; min-width: 0;
             padding: 6px 10px;
             background: var(--color-bg-inverted); color: #e5e6eb;
             border-radius: var(--radius-md); overflow-x: auto; white-space: nowrap;
             font-family: var(--font-mono); font-size: var(--text-xs);
         }
+        /* 黑框旁的复制图标：暗色，hover 变亮 */
+        .cmd-body .icon-copy { color: var(--color-text-4); }
+        .cmd-body .icon-copy:hover { color: var(--color-primary-6); }
         ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); }
         li { font-size: var(--text-xs); color: var(--color-text-2); line-height: 1.8; list-style: disc; }
 
@@ -305,24 +319,65 @@ interface FilteredEntry {
         .entries-head .match { color: var(--color-primary-6); }
         .hint-inline { color: var(--color-text-3); }
 
-        .table-wrap { border: 1px solid var(--color-border-1); border-radius: var(--radius-md); overflow: hidden; }
-        table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); background: var(--color-bg-1); }
-        th { text-align: left; color: var(--color-text-3); font-weight: var(--weight-medium); padding: 8px 12px; border-bottom: 1px solid var(--color-border-1); background: var(--color-bg-2); }
-        td { padding: 6px 12px; border-bottom: 1px solid var(--color-border-3); vertical-align: top; }
-        tbody tr:last-child td { border-bottom: none; }
-        tbody tr:hover { background: var(--color-bg-2); }
-        .attrs { color: var(--color-text-2); word-break: break-all; }
-        .entry-section { font-size: 10px; color: var(--color-text-3); margin-bottom: 2px; }
-        .empty { text-align: center; color: var(--color-text-3); padding: var(--space-4); }
-        .btn.tiny {
-            background: transparent; color: var(--color-text-2);
-            padding: 2px 10px; border-radius: var(--radius-md);
-            border: 1px solid var(--color-border-1);
-            font-size: var(--text-xs); white-space: nowrap;
-            transition: all var(--duration-fast) var(--ease-default);
+        /* 虚拟滚动表格：固定行高 + spacer + translateY */
+        .table-wrap {
+            border: 1px solid var(--color-border-1); border-radius: var(--radius-md);
+            overflow: hidden; background: var(--color-bg-1);
         }
-        .btn.tiny:hover { color: var(--color-primary-6); border-color: var(--color-primary-6); background: var(--color-primary-1); }
-        .copied { margin: 0; font-size: var(--text-xs); color: var(--color-success); }
+        .vhead {
+            display: flex; align-items: center;
+            height: 34px;
+            background: var(--color-bg-2);
+            border-bottom: 1px solid var(--color-border-1);
+            color: var(--color-text-3); font-weight: var(--weight-medium);
+            font-size: var(--text-sm);
+            flex-shrink: 0;
+        }
+        .vbody {
+            position: relative;
+            overflow-y: auto; overflow-x: hidden;
+            max-height: min(60vh, 560px);
+        }
+        .virtual-spacer { position: relative; width: 100%; }
+        .row { display: flex; align-items: center; }
+        .vrow {
+            position: absolute; top: 0; left: 0; right: 0;
+            height: 34px;
+            font-size: var(--text-sm);
+            border-bottom: 1px solid var(--color-border-3);
+            will-change: transform;
+            background: var(--color-bg-1);
+        }
+        .vrow:hover { background: var(--color-bg-2); }
+        .cell { padding: 0 12px; overflow: hidden; display: flex; align-items: center; min-width: 0; }
+        .col-sec { flex: 0 0 120px; color: var(--color-text-3); font-size: var(--text-xs); }
+        .col-id { flex: 0 0 100px; }
+        .col-type { flex: 0 0 90px; color: var(--color-text-3); font-size: var(--text-xs); }
+        .col-name { flex: 3 1 0; }
+        .col-attrs { flex: 5 1 0; margin-left: 12px; }
+        .col-act { flex: 0 0 110px; justify-content: flex-end; padding: 0 12px; }
+        .attrs { color: var(--color-text-2); word-break: break-all; font-size: var(--text-xs); }
+        .entry-section { font-size: 10px; color: var(--color-text-3); margin-bottom: 2px; }
+        .empty-row { position: absolute; top: 0; left: 0; right: 0; height: 200px; }
+        .empty { text-align: center; color: var(--color-text-3); padding: var(--space-4); flex: 1; justify-content: center; }
+        /* Handbook 表格的复制按钮：淡灰无边框，hover 才亮 */
+        .link-copy {
+            background: transparent; border: 0; padding: 4px 6px;
+            border-radius: var(--radius-sm);
+            color: var(--color-text-4); font-size: var(--text-xs);
+            white-space: nowrap;
+            transition: color var(--duration-fast) var(--ease-default), background var(--duration-fast) var(--ease-default);
+        }
+        .link-copy:hover { color: var(--color-primary-6); background: var(--color-primary-1); }
+        /* 复制图标按钮：低调灰，hover 才亮 */
+        .icon-copy {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 26px; height: 26px; padding: 0;
+            background: transparent; border: 0; border-radius: var(--radius-sm);
+            color: var(--color-text-4);
+            transition: color var(--duration-fast) var(--ease-default), background var(--duration-fast) var(--ease-default);
+        }
+        .icon-copy:hover { color: var(--color-primary-6); background: var(--color-primary-1); }
         :host ::ng-deep mark { background: rgba(22, 93, 255, 0.18); color: var(--color-primary-6); padding: 0 2px; border-radius: 2px; }
     `,
 })
@@ -337,7 +392,17 @@ export class HelpPage {
     readonly query = signal('');
     readonly currentSection = signal<string>(ALL_SECTIONS);
     protected readonly allSectionsKey = ALL_SECTIONS;
-    protected readonly MAX = MAX_RENDER;
+
+    /**
+     * 虚拟滚动：固定行高 + spacer 占位 +
+     * translateY 绝对定位，只渲染可见窗口 ± overscan，DOM 数量恒定。
+     */
+    protected readonly ROW_H = 34;
+    private readonly OVERSCAN = 10;
+    private readonly vbodyRef = viewChild<ElementRef<HTMLElement>>('vbody');
+    private readonly scrollTop = signal(0);
+    protected readonly visibleStart = signal(0);
+    protected readonly visibleEnd = signal(0);
 
     /** 折叠状态：命令卡片（按 label 展开集合） */
     private readonly expandedCmds = signal<Set<string>>(new Set());
@@ -384,6 +449,13 @@ export class HelpPage {
 
     constructor() {
         void this.refreshHelp();
+        // Handbook 异步加载完成后重算可见窗口，避免首屏空白
+        effect(() => {
+            this.handbook.loaded();
+            this._matchAll();
+            // 微任务延迟一帧，确保 vbodyRef 已渲染
+            queueMicrotask(() => this.updateVisibleRange());
+        });
     }
 
     protected async refreshHelp(): Promise<void> {
@@ -402,6 +474,8 @@ export class HelpPage {
 
     protected selectSection(name: string): void {
         this.currentSection.set(this.currentSection() === name ? '' : name);
+        this.scrollTop.set(0);
+        this.updateVisibleRange();
     }
 
     protected countOf(name: string): number {
@@ -430,12 +504,38 @@ export class HelpPage {
         return source.filter(e => matchEntry(e, q));
     });
 
-    protected readonly filteredEntries = computed<FilteredEntry[]>(() => {
-        return this._matchAll().slice(0, MAX_RENDER).map(e => this.buildHighlighted(e));
+    /** 实际渲染的条目：可见窗口切片（虚拟滚动） */
+    protected readonly visibleEntries = computed<FilteredEntry[]>(() => {
+        const all = this._matchAll();
+        const start = Math.min(this.visibleStart(), all.length);
+        const end = Math.min(this.visibleEnd(), all.length);
+        return all.slice(start, end).map(e => this.buildHighlighted(e));
     });
+
+    /** 总高度：spacer 占位用，让滚动条比例正确 */
+    protected readonly totalHeight = computed(() => this._matchAll().length * this.ROW_H);
+
+    /** 滚动：更新 scrollTop，重算可见窗口 */
+    protected onTableScroll(event: Event): void {
+        const el = event.target as HTMLElement;
+        this.scrollTop.set(el.scrollTop);
+        this.updateVisibleRange();
+    }
+
+    private updateVisibleRange(): void {
+        const el = this.vbodyRef()?.nativeElement;
+        if (!el) return;
+        const total = this._matchAll().length;
+        const start = Math.floor(this.scrollTop() / this.ROW_H);
+        const visibleCount = Math.ceil(el.clientHeight / this.ROW_H);
+        this.visibleStart.set(Math.max(0, start - this.OVERSCAN));
+        this.visibleEnd.set(Math.min(total, start + visibleCount + this.OVERSCAN));
+    }
 
     protected onQuery(value: string): void {
         this.query.set(value);
+        this.scrollTop.set(0);
+        this.updateVisibleRange();
     }
 
     private buildHighlighted(e: HandbookEntry): FilteredEntry {
@@ -443,6 +543,8 @@ export class HelpPage {
         return {
             entry: e,
             matchId: q ? highlight(q, e.id) : escapeHtml(e.id),
+            // type 列：优先显示 type 属性（如 type=1），否则显示行首 type 标记（如 currency/level）
+            matchType: q ? highlight(q, typeText(e)) : escapeHtml(typeText(e)),
             matchName: q ? highlight(q, e.name) : escapeHtml(e.name),
             matchAttrs: q ? highlightAttrs(q, e) : escapeHtml(this.attrsText(e)),
         };
@@ -450,7 +552,7 @@ export class HelpPage {
 
     protected attrsText(entry: HandbookEntry): string {
         return Object.entries(entry.attrs)
-            .filter(([k]) => k !== 'GM')
+            .filter(([k]) => k !== 'GM' && k !== 'type')
             .map(([k, v]) => `${k}=${v}`)
             .join('　');
     }
@@ -459,13 +561,9 @@ export class HelpPage {
         return name.length > 8 ? name.slice(0, 8) + '…' : name;
     }
 
-    protected copied = signal(false);
-
     protected async copy(text: string): Promise<void> {
         try {
             await navigator.clipboard.writeText(text);
-            this.copied.set(true);
-            setTimeout(() => this.copied.set(false), 1500);
         } catch {
             // 剪贴板不可用（非安全上下文）时静默失败
         }
@@ -502,12 +600,17 @@ function highlight(query: string, text: string): string {
 
 function highlightAttrs(query: string, e: HandbookEntry): string {
     const text = Object.entries(e.attrs)
-        .filter(([k]) => k !== 'GM')
+        .filter(([k]) => k !== 'GM' && k !== 'type')
         .map(([k, v]) => `${k}=${v}`)
         .join('　');
     if (!query) return escapeHtml(text);
     const re = new RegExp(escapeRegExp(query), 'gi');
     return escapeHtml(text).replace(re, m => `<mark>${m}</mark>`);
+}
+
+/** Type 列文案：优先 type 属性值（数字），否则行首 type 标记（currency/level/chapter 等） */
+function typeText(e: HandbookEntry): string {
+    return e.attrs['type'] ?? e.type;
 }
 
 function escapeRegExp(s: string): string {

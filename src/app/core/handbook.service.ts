@@ -40,7 +40,7 @@ export class HandbookService {
     /** 应用启动时调用一次；失败不阻塞 UI，降级为仅控制台模式 */
     async load(): Promise<void> {
         try {
-            const response = await fetch('handbook/Handbook.txt');
+            const response = await fetch('Handbook.txt');
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const text = await response.text();
             this._sections.set(parse(text));
