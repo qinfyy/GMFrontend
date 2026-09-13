@@ -1,5 +1,7 @@
 BH2 GM Handbook
+生成时间：2026-09-13 20:32:34
 =================
+
 请求：GET /api/gm?content="/命令 [参数...]" 或在游戏内私聊发送 /命令
 认证：GameMaster:ApiKey 为空时不校验；非空时按 RFC 6750 传令牌，二者只能用其一。
     Authorization: Bearer <key>
