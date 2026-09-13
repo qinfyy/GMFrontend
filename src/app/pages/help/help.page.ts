@@ -11,7 +11,7 @@
  */
 import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { GmApiService, GmApiError, GmCommandHelp } from '../../core/gm-api.service';
-import { HandbookEntry, HandbookService } from '../../core/handbook.service';
+import { HandbookEntry, HandbookService, normalizeGmTemplate } from '../../core/handbook.service';
 
 const ALL_SECTIONS = '全部分区';
 
@@ -77,12 +77,14 @@ interface FilteredEntry {
                                         </button>
                                     </div>
                                 }
-                                @if (cmd.notes.length) {
+                                @if (notesOf(cmd.label).length) {
                                     <ul>
-                                        @for (n of cmd.notes; track n) {
+                                        @for (n of notesOf(cmd.label); track n) {
                                             <li>{{ n }}</li>
                                         }
                                     </ul>
+                                } @else if (isNotesLoading(cmd.label)) {
+                                    <p class="notes-loading">正在读取命令说明…</p>
                                 }
                             </div>
                         }
@@ -172,7 +174,7 @@ interface FilteredEntry {
                                                     <div class="cell col-attrs"><span [innerHTML]="item.matchAttrs"></span></div>
                                                     <div class="cell col-act">
                                                         @if (item.entry.attrs['GM']; as gm) {
-                                                            <button type="button" class="link-copy" (click)="copy(gm)" [title]="gm">复制 GM 模板</button>
+                                                            <button type="button" class="link-copy" (click)="copyCommand(gm)" [title]="commandOf(gm)">复制 GM 命令</button>
                                                         }
                                                     </div>
                                                 </div>
@@ -407,17 +409,50 @@ export class HelpPage {
     /** 折叠状态：命令卡片（按 label 展开集合） */
     private readonly expandedCmds = signal<Set<string>>(new Set());
 
+    /** /help 列表不带 notes，展开卡片时按需拉一次 /help <命令名> 并缓存 */
+    private readonly detailNotes = signal<Map<string, string[]>>(new Map());
+    private readonly detailLoading = signal<Set<string>>(new Set());
+
     protected isCmdExpanded(label: string): boolean {
         return this.expandedCmds().has(label);
     }
 
+    protected notesOf(label: string): string[] {
+        return this.detailNotes().get(label) ?? [];
+    }
+
+    protected isNotesLoading(label: string): boolean {
+        return this.detailLoading().has(label);
+    }
+
     protected toggleCmd(label: string): void {
+        const expanding = !this.expandedCmds().has(label);
         this.expandedCmds.update(set => {
             const next = new Set(set);
             if (next.has(label)) next.delete(label);
             else next.add(label);
             return next;
         });
+        if (expanding) void this.loadNotes(label);
+    }
+
+    private async loadNotes(label: string): Promise<void> {
+        if (this.detailNotes().has(label) || this.detailLoading().has(label)) return;
+        this.detailLoading.update(set => new Set(set).add(label));
+        try {
+            const detail = await this.api.fetchCommandDetail(label);
+            if (detail?.notes.length) {
+                this.detailNotes.update(map => new Map(map).set(label, detail.notes));
+            }
+        } catch {
+            // 命令列表本身已可用，单条说明拉取失败不打断页面
+        } finally {
+            this.detailLoading.update(set => {
+                const next = new Set(set);
+                next.delete(label);
+                return next;
+            });
+        }
     }
 
     /**
@@ -465,7 +500,7 @@ export class HelpPage {
             this.commands.set(await this.api.fetchHelp());
         } catch (e) {
             this.loadError.set(
-                e instanceof GmApiError ? e : new GmApiError(0, 'unknown', undefined, String(e)),
+                e instanceof GmApiError ? e : new GmApiError(0, 'unknown', String(e)),
             );
         } finally {
             this.loading.set(false);
@@ -559,6 +594,15 @@ export class HelpPage {
 
     protected shortSection(name: string): string {
         return name.length > 8 ? name.slice(0, 8) + '…' : name;
+    }
+
+    /** Handbook 里的 GM 模板归一化成可执行的命令行（兼容新旧两种写法） */
+    protected commandOf(raw: string): string {
+        return normalizeGmTemplate(raw) || raw;
+    }
+
+    protected async copyCommand(raw: string): Promise<void> {
+        await this.copy(this.commandOf(raw));
     }
 
     protected async copy(text: string): Promise<void> {

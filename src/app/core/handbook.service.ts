@@ -8,8 +8,14 @@
  *   currency  hcoin  水晶  alias=239  GM=give&uid=<UID>&type=currency&id=hcoin&amount=<数量>
  *
  * 这里把它解析成结构化目录，供各功能页做选择器数据源。
+ *
+ * 关于 GM 模板：2026-09 上游把接口改成「整条命令行放进 content」，但 Handbook 生成器
+ * 只迁移了一部分分区——skin / potential / role / 数字货币已经是 `/give skin 17001 [@uid]`
+ * 的命令行形式，currency 首行、剧情关卡、九霄任务/关卡/成就仍是旧的 `cmd&uid=..&k=v` 查询串。
+ * 因此这里提供 parseGmTemplate / normalizeGmTemplate，把两种形式统一成可执行的命令行。
  */
 import { Injectable, signal } from '@angular/core';
+import { cmdLine } from './command-line';
 
 /** 一条 Handbook 数据行（已解析出 ID / 名称 / 尾注） */
 export interface HandbookEntry {
@@ -176,4 +182,107 @@ function splitColumns(line: string): string[] {
         return tokens;
     }
     return [];
+}
+
+// ---------------------------------------------------------------------------
+// GM 模板解析与归一化
+// ---------------------------------------------------------------------------
+
+/** 命令的位置参数顺序；旧查询串里的这些 key 按顺序落成位置参数 */
+const POSITIONAL_KEYS: Record<string, string[]> = {
+    give: ['type', 'id'],
+    giveall: ['type'],
+    role: ['id'],
+    setlevel: ['level'],
+    storycompleted: ['to'],
+    newstorycompleted: ['id', 'level'],
+    kyusyotaskcompleted: ['id', 'status'],
+    kyusyolevel: ['level'],
+    kyusyounlocklevel: ['level'],
+    kyusyoachievement: ['id'],
+    account: ['operate'],
+};
+
+/** 旧查询串里的修饰符 key → 命令行前缀 */
+const MODIFIER_PREFIX: Record<string, string> = {
+    amount: 'x',
+    level: 'lv',
+    star: 'r',
+    skill: 's',
+    promote: 'p',
+    intimacy: 'i',
+    talent: 't',
+    potential: 'pt',
+    baselevel: 'bl',
+    masterylevel: 'ml',
+};
+
+export interface ParsedGmTemplate {
+    /** 命令名（小写，不含前缀斜杠） */
+    label: string;
+    /** 位置参数，按服务端解析顺序 */
+    positionals: string[];
+    /** 修饰符（已带前缀，如 lv80 / x100） */
+    modifiers: string[];
+    /** 目标玩家占位，如 <UID> */
+    uid: string;
+}
+
+/**
+ * 解析 Handbook 里的 GM 模板，同时兼容两种形式：
+ * - 新命令行：`/give skin 17001 [@uid]`、`/role 4001 t<圣痕等级> [@uid]`
+ * - 旧查询串：`give&uid=<UID>&type=currency&id=hcoin&amount=<数量>`
+ */
+export function parseGmTemplate(raw: string): ParsedGmTemplate {
+    const text = raw.trim();
+    const result: ParsedGmTemplate = { label: '', positionals: [], modifiers: [], uid: '' };
+    if (!text) return result;
+
+    // 新命令行：直接按空格切，首段是 label，其余原样保留
+    if (text.startsWith('/')) {
+        const tokens = text.slice(1).split(/\s+/).filter(Boolean);
+        if (tokens.length === 0) return result;
+        result.label = tokens[0].toLowerCase();
+        for (const token of tokens.slice(1)) {
+            if (token.startsWith('@')) result.uid = token.slice(1);
+            else result.positionals.push(token);
+        }
+        return result;
+    }
+
+    // 旧查询串：label 后跟 k=v
+    const segments = text.split('&');
+    result.label = segments[0].trim().toLowerCase();
+    const params = new Map<string, string>();
+    for (const segment of segments.slice(1)) {
+        const eq = segment.indexOf('=');
+        if (eq > 0) params.set(segment.slice(0, eq).trim().toLowerCase(), segment.slice(eq + 1).trim());
+    }
+
+    for (const key of POSITIONAL_KEYS[result.label] ?? []) {
+        const value = params.get(key);
+        if (value !== undefined) {
+            result.positionals.push(value);
+            params.delete(key);
+        }
+    }
+
+    const uid = params.get('uid');
+    if (uid !== undefined) {
+        result.uid = uid;
+        params.delete('uid');
+    }
+
+    for (const [key, value] of params) {
+        const prefix = MODIFIER_PREFIX[key];
+        result.modifiers.push(prefix ? `${prefix}${value}` : `${key}=${value}`);
+    }
+    return result;
+}
+
+/** 把任意形式的 GM 模板归一化成可执行的命令行（如 `/give currency hcoin x<数量> @<UID>`） */
+export function normalizeGmTemplate(raw: string): string {
+    const parsed = parseGmTemplate(raw);
+    if (!parsed.label) return '';
+    return cmdLine(parsed.label, [...parsed.positionals, ...parsed.modifiers], parsed.uid);
 }

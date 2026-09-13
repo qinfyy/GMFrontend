@@ -1,7 +1,6 @@
 BH2 GM Handbook
 =================
-
-请求：GET /api/gm?cmd=命令名&uid=玩家UID&参数=值
+请求：GET /api/gm?content="/命令 [参数...]" 或在游戏内私聊发送 /命令
 认证：GameMaster:ApiKey 为空时不校验；非空时按 RFC 6750 传令牌，二者只能用其一。
     Authorization: Bearer <key>
     GET /api/gm?...&access_token=<key>
@@ -9,136 +8,142 @@ BH2 GM Handbook
 命令
 ----
 give（别名：g、item）：单件发放，只接受显式 ID。
-    give&uid=<UID>&type=currency&id=hcoin|bhcoin|scoin|<Wallet CoinType>&amount=<数量>
-    give&uid=<UID>&type=material&id=<MetaId>&amount=<数量>
-    give&uid=<UID>&type=weapon|costume|badge|role&id=<MetaId>[&amount=<数量>][&装备参数]
-    give&uid=<UID>&type=potential&id=common|<RoleV2 角色 ID>&amount=<数量>
-    give&uid=<UID>&type=skin&id=<SkinID>
-    give&uid=<UID>&type=partner&id=<PosterID>
-  - amount 省略按 1 处理。
-  - 只接受显式 ID；批量补齐请使用 giveall。
+    /give <id> [x数量] [lv等级] [r星级] [p升格] [s技能] [i亲密度] [t圣痕] [pt限解度] [bl基础等级|ml精通等级] [@uid]
+    /give <type> <id> [x数量] [lv等级] [r星级] [p升格] [s技能] [i亲密度] [t圣痕] [pt限解度] [bl基础等级|ml精通等级] [@uid]
+  - 支持通过 @uid 指定目标玩家，游戏内聊天发送时默认目标为当前玩家。
+  - x数量（或 *数量）省略时按 1 处理。
+  - 单参数 ID 时自动推断类别（支持武器、服装、徽章、角色、材料、货币、皮肤、看板、限解）。
   - Wallet CoinType 必须存在于 RewardData Type=30；数字 239 与 hcoin 等价，数字 5 与 bhcoin 等价。完整货币 ID 见 Handbook 的 [currency] 分区。
-  - 在线发放 Wallet 货币会发送完整 462 ALL 快照，确保客户端钱包索引已建立或过期时也能刷新。
+  - 在线发放钱包货币会下发该货币的 462 增量；金币与友情点没有线缆 coin_type，改推包 57 快照。
   - 装备、服装、徽章和角色每份都会创建独立 UID，已拥有同 MetaId 也会照发新的一份。
-  - potential 发放 RoleV2 限解道具：id=common 是账号通用的训练组件（消耗 5 个提升任意角色 1 点限解度），id=<角色 ID> 是该角色专属的限解特装（消耗 1 个提升 1 点限解度）。合法角色 ID 见 Handbook 的 [potential] 分区。
+  - potential 发放 RoleV2 限解道具：id=common 是账号通用的训练组件，id=<角色 ID> 是该角色专属的限解特装。合法角色 ID 见 Handbook 的 [potential] 分区。
   - skin 发放角色皮肤；皮肤 ID 与适用角色见 Handbook 的 [skin] 分区，重复发放幂等。
   - 限解道具不是背包物品，而是角色潜能数据里的计数，发放后经 9809 GetRolePotentialRsp 同步；限解度上限由 RoleDuplicateData 决定（当前资源为 4）。
-  - potential 的角色 ID 必须是玩家已拥有的 RoleV2 角色，未拥有时请先执行 give&type=role&id=<角色 ID>；giveall 不支持 potential。
+  - potential 的角色 ID 必须是玩家已拥有的 RoleV2 角色，未拥有时请先执行 give role <角色 ID>；giveall 不支持 potential。
   - 装备参数只作用于本次新发放的装备，不改写已拥有的同 MetaId 装备；货币与材料传入这些参数会报错。
-  - level 等级，按该装备资源 MaxLv 截断，省略按 1。
-  - star 星级，按协议上限 99 截断，省略按 0。
-  - skill 技能等级，按每个技能各自的 (装备, 技能) 上限分别截断，省略按 0。
-  - promote 升格等级，上限对齐资源解锁档位；只对满足升格前置（稀有度不低于 5、允许人格化）的装备生效，并自动补齐人格化与亲密度前置。
-  - intimacy 亲密度，未人格化按 MaxIntimacy 截断，需要更高时自动置人格化以使用 PersonatedMaxIntimacy 上限。
+  - lv<等级> 等级，按该装备资源 MaxLv 截断，省略按 1。
+  - r<星级> 星级，按协议上限 99 截断，省略按 0。
+  - s<技能等级>（或 sk<技能等级>）技能等级，按每个技能各自的 (装备, 技能) 上限分别截断，省略按 0。
+  - p<升格等级> 升格等级，上限对齐资源解锁档位；只对满足升格前置（稀有度不低于 5、允许人格化）的装备生效，并自动补齐人格化与亲密度前置。
+  - i<亲密度> 亲密度，未人格化按 MaxIntimacy 截断，需要更高时自动置人格化以使用 PersonatedMaxIntimacy 上限。
   - 超出某件装备资源上限的取值按该装备截断而不报错，因此批量发放不会被个别装备的条件拖垮。
-  - talent 圣痕目标等级，只对有圣痕资源的角色类型1 生效：把该角色所有可解锁节点设为该等级并按各节点 MaxLevel 截断（talent=99 即全点满，talent=0 清空）。
+  - t<圣痕目标等级> 圣痕目标等级，只对有圣痕资源的角色类型1 生效：把该角色所有可解锁节点设为该等级并按各节点 MaxLevel 截断（t99 即全点满，t0 清空）。
   - 圣痕的 GM 直设不消耗也不退还圣痕点数；玩家在游戏内重置时仍按已投入等级退还等量角色圣痕点数，这是已知副作用。
-  - potential 限解度（解除限制），按 RoleDuplicateData 上限截断（当前资源为 4），不消耗限解特装与训练组件。
-  - baselevel 基础等级（1--50）与 masterylevel 精通等级（0 起，对应等级 50+M）只能给一个：两者是同一条等级线，同时给出会报错。
-  - talent、potential、baselevel、masterylevel 只作用于本次发放涉及的角色；无对应资源的角色被跳过。
+  - pt<限解度> 限解度（解除限制），按 RoleDuplicateData 上限截断（当前资源为 4），不消耗限解特装与训练组件。
+  - bl<基础等级>（1--50）与 ml<精通等级>（0 起，对应等级 50+M）只能给一个：两者是同一条等级线，同时给出会报错。
+  - t、pt、bl、ml 只作用于本次发放涉及的角色；无对应资源的角色被跳过。
 
 giveall（别名：ga）：按类别批量补齐当前资源里的物品。
-    giveall&uid=<UID>[&type=all][&装备参数]
-    giveall&uid=<UID>&type=weapon|costume|badge|role[&装备参数]
-    giveall&uid=<UID>&type=partner
-    giveall&uid=<UID>&type=skin
-    giveall&uid=<UID>&type=material&amount=<数量>
-    giveall&uid=<UID>&type=currency&amount=<数量>
+    /giveall [type] [x数量] [lv等级] [r星级] [p升格] [s技能] [i亲密度] [t圣痕] [pt限解度] [bl基础等级|ml精通等级] [@uid]
   - type 省略按 all 处理，覆盖全部可发放装备类型和 IsOpen=1 的看板。
   - 装备类别按 MetaId 去重跳过已拥有的条目，重复执行为零增量，因此不接受 amount。
-  - material 与 currency 按数量累加，没有「已拥有」的概念，必须显式指定 amount。
-  - giveall&type=currency 保持只给水晶和金币各 amount；活动 Wallet 货币请按 Handbook 的数字 CoinType 使用 give 单独发放。
-  - giveall&type=skin 按当前资源补齐全部标准角色皮肤；按 SkinID 去重，重复执行为零增量，不接受 amount 或装备参数。
+  - material 与 currency 按数量累加，没有「已拥有」的概念，必须显式指定 amount（如 x100）。
+  - giveall currency 保持只给水晶和金币各 amount；活动 Wallet 货币请按 Handbook 的数字 CoinType 使用 give 单独发放。
+  - giveall skin 按当前资源补齐全部标准角色皮肤；按 SkinID 去重，重复执行为零增量，不接受 amount 或装备参数。
   - 装备参数只作用于本次新发放的装备，不改写已拥有的同 MetaId 装备；货币与材料传入这些参数会报错。
-  - level 等级，按该装备资源 MaxLv 截断，省略按 1。
-  - star 星级，按协议上限 99 截断，省略按 0。
-  - skill 技能等级，按每个技能各自的 (装备, 技能) 上限分别截断，省略按 0。
-  - promote 升格等级，上限对齐资源解锁档位；只对满足升格前置（稀有度不低于 5、允许人格化）的装备生效，并自动补齐人格化与亲密度前置。
-  - intimacy 亲密度，未人格化按 MaxIntimacy 截断，需要更高时自动置人格化以使用 PersonatedMaxIntimacy 上限。
+  - lv<等级> 等级，按该装备资源 MaxLv 截断，省略按 1。
+  - r<星级> 星级，按协议上限 99 截断，省略按 0。
+  - s<技能等级>（或 sk<技能等级>）技能等级，按每个技能各自的 (装备, 技能) 上限分别截断，省略按 0。
+  - p<升格等级> 升格等级，上限对齐资源解锁档位；只对满足升格前置（稀有度不低于 5、允许人格化）的装备生效，并自动补齐人格化与亲密度前置。
+  - i<亲密度> 亲密度，未人格化按 MaxIntimacy 截断，需要更高时自动置人格化以使用 PersonatedMaxIntimacy 上限。
   - 超出某件装备资源上限的取值按该装备截断而不报错，因此批量发放不会被个别装备的条件拖垮。
-  - talent 圣痕目标等级，只对有圣痕资源的角色类型1 生效：把该角色所有可解锁节点设为该等级并按各节点 MaxLevel 截断（talent=99 即全点满，talent=0 清空）。
+  - t<圣痕目标等级> 圣痕目标等级，只对有圣痕资源的角色类型1 生效：把该角色所有可解锁节点设为该等级并按各节点 MaxLevel 截断（t99 即全点满，t0 清空）。
   - 圣痕的 GM 直设不消耗也不退还圣痕点数；玩家在游戏内重置时仍按已投入等级退还等量角色圣痕点数，这是已知副作用。
-  - potential 限解度（解除限制），按 RoleDuplicateData 上限截断（当前资源为 4），不消耗限解特装与训练组件。
-  - baselevel 基础等级（1--50）与 masterylevel 精通等级（0 起，对应等级 50+M）只能给一个：两者是同一条等级线，同时给出会报错。
-  - talent、potential、baselevel、masterylevel 只作用于本次发放涉及的角色；无对应资源的角色被跳过。
+  - pt<限解度> 限解度（解除限制），按 RoleDuplicateData 上限截断（当前资源为 4），不消耗限解特装与训练组件。
+  - bl<基础等级>（1--50）与 ml<精通等级>（0 起，对应等级 50+M）只能给一个：两者是同一条等级线，同时给出会报错。
+  - t、pt、bl、ml 只作用于本次发放涉及的角色；无对应资源的角色被跳过。
 
 role（别名：rolev2、setrole）：设置已拥有角色的养成属性与该角色装备实体属性。
-    role&uid=<UID>&id=<角色 MetaId>[&talent=<圣痕等级>][&potential=<限解度>]
-    role&uid=<UID>&id=<角色 MetaId>[&baselevel=<基础等级>|&masterylevel=<精通等级>]
-    role&uid=<UID>&id=<角色 MetaId>[&level=N][&star=N][&skill=N][&promote=N][&intimacy=N]
-  - 角色必须已被玩家拥有；未拥有时请先执行 give&uid=<UID>&type=role&id=<角色 MetaId>。
-  - 至少要给出一个属性参数，全部省略会报错。
-  - talent 是角色类型1 的圣痕目标等级：把该角色所有可解锁节点设为该等级，按各节点 MaxLevel 截断（talent=99 即全点满，talent=0 清空）。无圣痕资源的角色跳过该参数。
+    /role <角色 MetaId> [lv等级] [r星级] [p升格] [s技能] [i亲密度] [t圣痕] [pt限解度] [bl基础等级|ml精通等级] [@uid]
+    /role <角色 MetaId> -max [@uid]
+  - 支持通过 @uid 指定目标玩家，游戏内聊天发送时默认目标为当前玩家。
+  - 角色必须已被玩家拥有；未拥有时请先执行 /give role <角色 MetaId>。
+  - -max 标志快速将等级、星级、技能、升格、亲密度、圣痕拉满至上限，并将限解置为 4、精通等级拉满。
+  - t<圣痕目标等级> 是角色类型1 的圣痕目标等级：把该角色所有可解锁节点设为该等级，按各节点 MaxLevel 截断（t99 即全点满，t0 清空）。无圣痕资源的角色跳过该参数。
   - 圣痕的 GM 直设不消耗也不退还圣痕点数（RoleAp / CommonAp 均不变）；玩家在游戏内重置圣痕时仍按已投入等级退还等量角色圣痕点数，这是已知副作用。
-  - potential 是角色类型2 的限解度（解除限制），按 RoleDuplicateData 上限截断（当前资源为 4），不消耗限解特装与训练组件。
-  - baselevel 与 masterylevel 是同一条等级线：1--50 为基础等级，50+M 为精通等级，因此两者只能给一个，同时给出会报错。masterylevel=0 等价于等级 50。
-  - level、star、skill、promote、intimacy 原地改写该 MetaId 的全部已拥有装备实体，语义与 give 的同名参数一致，同样按每件装备的资源上限截断。
+  - pt<限解度> 是角色类型2 的限解度（解除限制），按 RoleDuplicateData 上限截断（当前资源为 4），不消耗限解特装与训练组件。
+  - bl<基础等级>（1--50）与 ml<精通等级>（0 起，对应等级 50+M）是同一条等级线，两者只能给一个，同时给出会报错。ml0 等价于等级 50。
+  - lv<等级>、r<星级>、s<技能>、p<升格>、i<亲密度> 原地改写该 MetaId 的全部已拥有装备实体，语义与 give 的同名修饰符一致，同样按每件装备的资源上限截断。
   - 超出上限的取值按资源截断而不报错；无对应资源的属性被跳过。
   - 在线玩家提交后依次收到装备 SPOP_UPDATE 同步、9809 角色潜能快照和 4417 圣痕同步。
 
 setlevel（别名：level）：设置玩家等级。
-    setlevel&uid=<UID>&level=<等级>
-  - 等级上限与升级所需经验由 PlayerGeneralLogic.SetLevel 按当前资源校验。
+    /setlevel <等级> [@uid]
+  - 支持通过 @uid 指定目标玩家，游戏内聊天发送时默认目标为当前玩家。
+  - 等级上限与升级所需经验由 PlayerProfileLogic.SetLevel 按当前资源校验。
+  - 保存成功后在线推送玩家数据 PDT_BEGIN 快照。
 
 storycompleted（别名：sc）：完成普通剧情指定关卡及其全部资源前置（同章节在它之前的关卡），并逐关执行确定性首通结算。
-    storycompleted&uid=<UID>&to=<终点关卡>
+    /storycompleted <终点关卡> [@uid]
+  - 支持通过 @uid 指定目标玩家，游戏内聊天发送时默认目标为当前玩家。
   - 终点必须属于普通剧情资源图（4404 后代）；资源前置闭包会自动完成。
   - 闭包中每个首次完成的关卡都会发放并清空首通奖励；已完成关卡不会重复发奖。
   - 已通关卡缺挑战触发器（LevelMetaV2.Triggers）时补齐，新完成关卡随结算落库。
-  - 保存成功后在线发送玩家数据、装备、材料、140、4353、10321，并用 9792 重新检查功能模块。
+  - 保存成功后在线发送玩家数据、装备、材料、140、图鉴、剧情书与 9792 功能模块。
   - NPC/Boss 图鉴只接受真实战斗 4354 上报，不由 GM 伪造。
 
 newstorycompleted（别名：nsc）：完成崩坏学园篇整章或指定关卡：关卡通关、挑战触发器补全、评分填满；整章模式额外完成全部章节任务并发放奖励。
-    newstorycompleted&uid=<UID>&id=<章节菜单ID>（整章完成）
-    newstorycompleted&uid=<UID>&id=<章节菜单ID>&level=<关卡ID>（只完成指定关卡，可逗号分隔多个）
-    newstorycompleted&uid=<UID>&id=<章节菜单ID>&level=<关卡ID>&precede=false（不自动完成目标之前的关卡）
+    /newstorycompleted <章节菜单ID> [关卡ID] [-noprecede] [@uid]
+    /nsc <章节菜单ID> [关卡ID] [-noprecede] [@uid]
+  - 支持通过 @uid 指定目标玩家，游戏内聊天发送时默认目标为当前玩家。
   - 章节菜单 ID 与关卡 ID 见 Handbook 的崩坏学园篇章节目录（每章下有逐关 level 行）；容器章节（Type=2）不可用。
   - 每个首次完成的关卡都会发放并清空首通奖励；已通关卡只补缺失的挑战触发器。
   - 整章模式：任务书内全部任务（含隐藏任务）直接置为已领并发放奖励，章节进度补满。
-  - level 模式：precede（默认 true）自动一并完成章节内排在目标关卡之前的关卡；任务推进与手打通关同款，已达成的可领任务自动置为已领并发放奖励，评分类与隐藏任务不动。
+  - level 模式：默认自动一并完成章节内排在目标关卡之前的关卡，使用 -noprecede 禁用自动前置。
   - 评分按官服主线满分口径填满（top=100、eval=4），在线即时重推 9228/225。
   - 保存成功后在线发送玩家数据、装备、材料、140、9233、9360、9228/225，并用 9792 重新检查功能模块。
   - storycompleted 无法推进本目录关卡：它们不属于普通剧情资源图。
 
 kyusyoTaskCompleted（别名：ktc）：把九霄任务推进到指定状态；缺省全完成（已领取）并由服务端发放奖励。
-    kyusyoTaskCompleted&uid=<UID>&id=<任务ID>&[status=<created|inprogress|claimable|claimed>]
-    kyusyoTaskCompleted&uid=<UID>&id=all&[status=<...>]
+    /kyusyoTaskCompleted <任务ID|all> [status] [@uid]
+    /ktc <任务ID|all> [status] [@uid]
+  - 支持通过 @uid 指定目标玩家，游戏内聊天发送时默认目标为当前玩家。
   - id 可为单个任务 ID 或 all（全部主线+支线任务）；任务 ID↔名称映射见 Handbook 九霄任务目录。
   - status 缺省为 claimed：任务置可领奖后直接走领奖路径，服务端发放水晶/材料/装备/经验等真实奖励。
   - status 为 created/inprogress/claimable 时只把任务推到该状态，不发放奖励。
-  - 保存成功后在线发送材料 ADD、装备 SPOP_ADD（若有）、4096 AvatarSync 与 4098 AvatarMissionSync ALL 快照（章节入口进度按列表第一个主线任务计算，ALL 才能让进度即时正确）。
+  - 保存成功后在线发送材料与装备完整快照、57+462 货币、4096 AvatarSync 与 4098 AvatarMissionSync ALL 快照。
 
 kyusyoLevel（别名：kl）：设置九霄等级并刷新武器解锁与槽位。
-    kyusyoLevel&uid=<UID>&level=<1-99>
+    /kyusyoLevel <等级> [-notrigger] [@uid]
+    /kl <等级> [-notrigger] [@uid]
+    /kl lv<等级> [@uid]
+  - 支持通过 @uid 指定目标玩家，游戏内聊天发送时默认目标为当前玩家。
   - 等级范围由 KyusyoData 资源表决定，超出即拒绝。
   - 等级变化会按新等级的 Weapon*/Ultimate*Unlock 列刷新专用装备解锁状态与槽位数。
+  - 默认联动触发关卡解锁，使用 -notrigger 禁用联动解锁。
   - 保存成功后在线发送 4096 AvatarSync（含 exp_level/exp_2_next_level/equip_items）。
 
 kyusyoUnlockLevel（别名：kul）：解锁指定九霄出击关卡（默认连带全部前置），或解锁全部常规关卡。
-    kyusyoUnlockLevel&uid=<UID>&level=<关卡ID|all>&[trigger=<0|1>]
+    /kyusyoUnlockLevel <关卡ID|all> [-notrigger] [@uid]
+    /kul <关卡ID|all> [-notrigger] [@uid]
+  - 支持通过 @uid 指定目标玩家，游戏内聊天发送时默认目标为当前玩家。
   - level=all 解锁全部 Type∈{1,2,3} 常规关卡；Extra 未开放区与特殊类型关不在内。
-  - trigger 缺省 1：沿 ParentId 链把前置闭包一并置为可打；trigger=0 只解锁指定关卡本身。
+  - 默认沿 ParentId 链把前置闭包一并置为可打，使用 -notrigger 只解锁指定关卡本身。
   - 保存成功后在线发送 4097 AvatarLevelSync{UPDATE}。
 
 kyusyoAchievement（别名：ka）：完成九霄成就（探索）并按 KyusyoExpoData 表发放奖励；绕过 ExpoAccept 与进度累计。
-    kyusyoAchievement&uid=<UID>&id=<ExpoID|all>
+    /kyusyoAchievement <ExpoID|all> [@uid]
+    /ka <ExpoID|all> [@uid]
+  - 支持通过 @uid 指定目标玩家，游戏内聊天发送时默认目标为当前玩家。
   - id 可为单个 ExpoID 或 all（全部 KyusyoExpoData 条目）；ID↔名称映射见 Handbook 九霄成就目录。
   - 已完成的 expo 幂等返回，不重复发奖；缺省行为与官服 ExpoGetReward 路径对齐。
-  - 保存成功后在线发送 4105 AvatarSync（经验/金币/水晶变化）+ 4111 AvatarExpoSync{UPDATE}（done_expos）。
+  - 保存成功后在线发送 4111 AvatarExpoSync 全量 + 货币增量 + 4105 AvatarSync（经验/金币/水晶变化）。
 
 account：管理 SDK 账号，或安排下一次连接强制登录指定 game 账号。
-    account&operate=create&username=<用户名>&passward=<密码>&mobile=<手机号>
-    account&operate=settings&query=<用户名|手机号>&newusername=<新用户名>&newpassward=<新密码>&newmobile=<新手机号>
-    account&operate=delete&query=<用户名|手机号>
-    account&operate=ForceLogin&uid=<玩家UID>（uid=0 清除待执行的强制登录）
-  - create 时 username、mobile 至少提供一个；提供 passward 时必须提供 username。
+    /account forcelogin <玩家UID>（0 清除待执行的强制登录）
+    /account create <用户名> <密码> [<手机号>]
+    /account settings <用户名|手机号> [u新用户名] [p新密码] [m新手机号]
+    /account delete <用户名|手机号>
+  - create 时 username、mobile 至少提供一个；提供 password 时必须提供 username。
+  - settings 使用 u/p/m 前缀传递可选新参数，如 /account settings uUser p123456 m1345721876。
   - settings/delete 的 query 只支持 username 或 mobile，不支持密码查询。
   - 账号密码为空时不校验密码；AutoCreate=false 时客户端不能自动创建账号。
   - ForceLogin 只在内存中安排下一次 Gateway 登录，不修改账号或玩家数据。
 
-help（别名：h）：列出全部 GM 命令的用法与说明。
-    help
-  - 不需要 uid。
+help（别名：h）：列出全部 GM 命令的用法与说明，或查看指定命令的详细用法。
+    /help
+    /help <命令名>
+  - 不需要 @uid。
   - 返回的说明与启动时生成的 Handbook 来自同一份命令定义。
 
 类型说明
@@ -158,130 +163,130 @@ hcoin、bhcoin 和 scoin 是玩家基础货币；数字 ID 是 RewardData Type=3
 currency	hcoin	水晶	alias=239	GM=give&uid=<UID>&type=currency&id=hcoin&amount=<数量>
 currency	bhcoin	祈之共鸣	alias=5|bhdust	GM=give&uid=<UID>&type=currency&id=bhcoin&amount=<数量>
 currency	scoin	金币	GM=give&uid=<UID>&type=currency&id=scoin&amount=<数量>
-currency	1	绯玉结晶	GM=give&uid=<UID>&type=currency&id=1&amount=<数量>
-currency	2	绯玉结晶	GM=give&uid=<UID>&type=currency&id=2&amount=<数量>
-currency	3	绯玉结晶	GM=give&uid=<UID>&type=currency&id=3&amount=<数量>
-currency	4	镜月结晶	GM=give&uid=<UID>&type=currency&id=4&amount=<数量>
-currency	5	祈之共鸣	alias=bhcoin|bhdust	GM=give&uid=<UID>&type=currency&id=5&amount=<数量>
-currency	6	社团贡献	GM=give&uid=<UID>&type=currency&id=6&amount=<数量>
-currency	7	绿晶石	GM=give&uid=<UID>&type=currency&id=7&amount=<数量>
-currency	8	婚礼体验日代币	GM=give&uid=<UID>&type=currency&id=8&amount=<数量>
-currency	9	白白	GM=give&uid=<UID>&type=currency&id=9&amount=<数量>
-currency	10	誓约十字	GM=give&uid=<UID>&type=currency&id=10&amount=<数量>
-currency	11	迷宫代币	GM=give&uid=<UID>&type=currency&id=11&amount=<数量>
-currency	12	迷雾结晶	GM=give&uid=<UID>&type=currency&id=12&amount=<数量>
-currency	13	梦魇遗物	GM=give&uid=<UID>&type=currency&id=13&amount=<数量>
-currency	14	四叶星屑	GM=give&uid=<UID>&type=currency&id=14&amount=<数量>
-currency	15	血之精晶	GM=give&uid=<UID>&type=currency&id=15&amount=<数量>
-currency	16	魔力糖果	GM=give&uid=<UID>&type=currency&id=16&amount=<数量>
-currency	17	冰原狼牙	GM=give&uid=<UID>&type=currency&id=17&amount=<数量>
-currency	18	锈蚀硬币	GM=give&uid=<UID>&type=currency&id=18&amount=<数量>
-currency	19	同构晶片	GM=give&uid=<UID>&type=currency&id=19&amount=<数量>
-currency	20	绮羽青晶	GM=give&uid=<UID>&type=currency&id=20&amount=<数量>
-currency	21	使魔爱心	GM=give&uid=<UID>&type=currency&id=21&amount=<数量>
-currency	22	绯红十字	GM=give&uid=<UID>&type=currency&id=22&amount=<数量>
-currency	23	罪恶之源	GM=give&uid=<UID>&type=currency&id=23&amount=<数量>
-currency	24	聚合芯片	GM=give&uid=<UID>&type=currency&id=24&amount=<数量>
-currency	25	绯玉结晶	GM=give&uid=<UID>&type=currency&id=25&amount=<数量>
-currency	26	通用圣痕点数	GM=give&uid=<UID>&type=currency&id=26&amount=<数量>
-currency	27	不捣鬼小魔代币	GM=give&uid=<UID>&type=currency&id=27&amount=<数量>
-currency	28	绯玉结晶	GM=give&uid=<UID>&type=currency&id=28&amount=<数量>
-currency	29	勇者纹章	GM=give&uid=<UID>&type=currency&id=29&amount=<数量>
-currency	30	核心晶片	GM=give&uid=<UID>&type=currency&id=30&amount=<数量>
-currency	31	金属结晶	GM=give&uid=<UID>&type=currency&id=31&amount=<数量>
-currency	32	追踪标记	GM=give&uid=<UID>&type=currency&id=32&amount=<数量>
-currency	33	聚合芯片	GM=give&uid=<UID>&type=currency&id=33&amount=<数量>
-currency	34	清凉夜半代币	GM=give&uid=<UID>&type=currency&id=34&amount=<数量>
-currency	35	誓约花球	GM=give&uid=<UID>&type=currency&id=35&amount=<数量>
-currency	36	基因残片	GM=give&uid=<UID>&type=currency&id=36&amount=<数量>
-currency	37	运算晶元	GM=give&uid=<UID>&type=currency&id=37&amount=<数量>
-currency	38	海底珍贝	GM=give&uid=<UID>&type=currency&id=38&amount=<数量>
-currency	39	梦想星结	GM=give&uid=<UID>&type=currency&id=39&amount=<数量>
-currency	40	苏生魔力	GM=give&uid=<UID>&type=currency&id=40&amount=<数量>
-currency	41	炎节假期代币	GM=give&uid=<UID>&type=currency&id=41&amount=<数量>
-currency	42	基因残片	GM=give&uid=<UID>&type=currency&id=42&amount=<数量>
-currency	43	碧色结晶	GM=give&uid=<UID>&type=currency&id=43&amount=<数量>
-currency	45	星梦之结	GM=give&uid=<UID>&type=currency&id=45&amount=<数量>
-currency	46	摇曳灯火	GM=give&uid=<UID>&type=currency&id=46&amount=<数量>
-currency	47	小判	GM=give&uid=<UID>&type=currency&id=47&amount=<数量>
-currency	48	游汐叶界通用币	GM=give&uid=<UID>&type=currency&id=48&amount=<数量>
-currency	49	梦之星	GM=give&uid=<UID>&type=currency&id=49&amount=<数量>
-currency	50	海滩珍贝	GM=give&uid=<UID>&type=currency&id=50&amount=<数量>
-currency	51	思绪低语	GM=give&uid=<UID>&type=currency&id=51&amount=<数量>
-currency	52	蓝色纪念币	GM=give&uid=<UID>&type=currency&id=52&amount=<数量>
-currency	53	魔法时刻	GM=give&uid=<UID>&type=currency&id=53&amount=<数量>
-currency	54	灰色纪念币	GM=give&uid=<UID>&type=currency&id=54&amount=<数量>
-currency	55	圣夜雪愿	GM=give&uid=<UID>&type=currency&id=55&amount=<数量>
-currency	56	太虚之雪	GM=give&uid=<UID>&type=currency&id=56&amount=<数量>
-currency	57	金色结晶	GM=give&uid=<UID>&type=currency&id=57&amount=<数量>
-currency	58	绯玉结晶	GM=give&uid=<UID>&type=currency&id=58&amount=<数量>
-currency	59	晶莹露滴	GM=give&uid=<UID>&type=currency&id=59&amount=<数量>
-currency	60	仲夏甜梦	GM=give&uid=<UID>&type=currency&id=60&amount=<数量>
-currency	61	心意花束	GM=give&uid=<UID>&type=currency&id=61&amount=<数量>
-currency	62	阿瓦隆能量	GM=give&uid=<UID>&type=currency&id=62&amount=<数量>
-currency	63	心意之结	GM=give&uid=<UID>&type=currency&id=63&amount=<数量>
-currency	64	握手券	GM=give&uid=<UID>&type=currency&id=64&amount=<数量>
-currency	65	世界之光代币	GM=give&uid=<UID>&type=currency&id=65&amount=<数量>
-currency	66	清凉夜半代币	GM=give&uid=<UID>&type=currency&id=66&amount=<数量>
-currency	67	甜品券	GM=give&uid=<UID>&type=currency&id=67&amount=<数量>
-currency	68	记忆晶片	GM=give&uid=<UID>&type=currency&id=68&amount=<数量>
-currency	69	成熟南瓜	GM=give&uid=<UID>&type=currency&id=69&amount=<数量>
-currency	70	樱雪初绽	GM=give&uid=<UID>&type=currency&id=70&amount=<数量>
-currency	71	群星的追忆代币	GM=give&uid=<UID>&type=currency&id=71&amount=<数量>
-currency	72	午后茶歇	GM=give&uid=<UID>&type=currency&id=72&amount=<数量>
-currency	73	好运软糖	GM=give&uid=<UID>&type=currency&id=73&amount=<数量>
-currency	75	秋日寄梦	GM=give&uid=<UID>&type=currency&id=75&amount=<数量>
-currency	76	初始之印	GM=give&uid=<UID>&type=currency&id=76&amount=<数量>
-currency	77	金喵币	GM=give&uid=<UID>&type=currency&id=77&amount=<数量>
-currency	100	友情点数	GM=give&uid=<UID>&type=currency&id=100&amount=<数量>
-currency	101	绯玉结晶	GM=give&uid=<UID>&type=currency&id=101&amount=<数量>
-currency	102	绯玉结晶	GM=give&uid=<UID>&type=currency&id=102&amount=<数量>
-currency	103	血红结晶	GM=give&uid=<UID>&type=currency&id=103&amount=<数量>
-currency	104	古龙之证	GM=give&uid=<UID>&type=currency&id=104&amount=<数量>
-currency	105	炎节假期代币	GM=give&uid=<UID>&type=currency&id=105&amount=<数量>
-currency	106	虚轴结晶	GM=give&uid=<UID>&type=currency&id=106&amount=<数量>
-currency	111	课间补给代币	GM=give&uid=<UID>&type=currency&id=111&amount=<数量>
-currency	112	翠舞隐匿代币	GM=give&uid=<UID>&type=currency&id=112&amount=<数量>
-currency	113	沁暑时光代币	GM=give&uid=<UID>&type=currency&id=113&amount=<数量>
-currency	114	浮波夏记代币	GM=give&uid=<UID>&type=currency&id=114&amount=<数量>
-currency	115	白热绮谭代币	GM=give&uid=<UID>&type=currency&id=115&amount=<数量>
-currency	116	烘焙光阴代币	GM=give&uid=<UID>&type=currency&id=116&amount=<数量>
-currency	117	历练之路代币	GM=give&uid=<UID>&type=currency&id=117&amount=<数量>
-currency	118	休诊时间代币	GM=give&uid=<UID>&type=currency&id=118&amount=<数量>
-currency	119	军火承包代币	GM=give&uid=<UID>&type=currency&id=119&amount=<数量>
-currency	120	拼装时光代币	GM=give&uid=<UID>&type=currency&id=120&amount=<数量>
-currency	135	奇迹残骸	GM=give&uid=<UID>&type=currency&id=135&amount=<数量>
-currency	136	希望光辉	GM=give&uid=<UID>&type=currency&id=136&amount=<数量>
-currency	137	群星的预言代币	GM=give&uid=<UID>&type=currency&id=137&amount=<数量>
-currency	138	群星的秘宝代币	GM=give&uid=<UID>&type=currency&id=138&amount=<数量>
-currency	196	虚拟币-Ⅲ型	GM=give&uid=<UID>&type=currency&id=196&amount=<数量>
-currency	197	虚拟币-Ⅲ型	GM=give&uid=<UID>&type=currency&id=197&amount=<数量>
-currency	198	虚拟币-Ⅱ型	GM=give&uid=<UID>&type=currency&id=198&amount=<数量>
-currency	199	虚拟币-Ⅰ型	GM=give&uid=<UID>&type=currency&id=199&amount=<数量>
-currency	200	最初降生之虹	GM=give&uid=<UID>&type=currency&id=200&amount=<数量>
-currency	201	记忆中的星云	GM=give&uid=<UID>&type=currency&id=201&amount=<数量>
-currency	202	深渊禁忌之匣	GM=give&uid=<UID>&type=currency&id=202&amount=<数量>
-currency	203	宇宙真理之泡	GM=give&uid=<UID>&type=currency&id=203&amount=<数量>
-currency	238	萌星之辉光	GM=give&uid=<UID>&type=currency&id=238&amount=<数量>
-currency	239	水晶	alias=hcoin	GM=give&uid=<UID>&type=currency&id=239&amount=<数量>
-currency	240	璨能晶片	GM=give&uid=<UID>&type=currency&id=240&amount=<数量>
-currency	241	崩坏结晶	GM=give&uid=<UID>&type=currency&id=241&amount=<数量>
-currency	242	辉光之末	GM=give&uid=<UID>&type=currency&id=242&amount=<数量>
-currency	243	翁德兰纯灵	GM=give&uid=<UID>&type=currency&id=243&amount=<数量>
-currency	244	魔女之辉光	GM=give&uid=<UID>&type=currency&id=244&amount=<数量>
-currency	245	未成熟的记忆	GM=give&uid=<UID>&type=currency&id=245&amount=<数量>
-currency	246	惊喜礼炮	GM=give&uid=<UID>&type=currency&id=246&amount=<数量>
-currency	247	吼美的心意	GM=give&uid=<UID>&type=currency&id=247&amount=<数量>
-currency	248	梦想之辉光	GM=give&uid=<UID>&type=currency&id=248&amount=<数量>
-currency	249	吼姆的希望	GM=give&uid=<UID>&type=currency&id=249&amount=<数量>
-currency	250	宙能核心	GM=give&uid=<UID>&type=currency&id=250&amount=<数量>
-currency	251	魔女之辉光	GM=give&uid=<UID>&type=currency&id=251&amount=<数量>
-currency	252	公主之辉光	GM=give&uid=<UID>&type=currency&id=252&amount=<数量>
-currency	253	公主之辉光	GM=give&uid=<UID>&type=currency&id=253&amount=<数量>
-currency	254	魔法少女之辉光	GM=give&uid=<UID>&type=currency&id=254&amount=<数量>
-currency	255	遗忘之尘	GM=give&uid=<UID>&type=currency&id=255&amount=<数量>
-currency	256	原味饭团	GM=give&uid=<UID>&type=currency&id=256&amount=<数量>
-currency	257	护身钱币	GM=give&uid=<UID>&type=currency&id=257&amount=<数量>
+currency	1	绯玉结晶	GM=/give 1 x<数量> [@uid]
+currency	2	绯玉结晶	GM=/give 2 x<数量> [@uid]
+currency	3	绯玉结晶	GM=/give 3 x<数量> [@uid]
+currency	4	镜月结晶	GM=/give 4 x<数量> [@uid]
+currency	5	祈之共鸣	alias=bhcoin|bhdust	GM=/give 5 x<数量> [@uid]
+currency	6	社团贡献	GM=/give 6 x<数量> [@uid]
+currency	7	绿晶石	GM=/give 7 x<数量> [@uid]
+currency	8	婚礼体验日代币	GM=/give 8 x<数量> [@uid]
+currency	9	白白	GM=/give 9 x<数量> [@uid]
+currency	10	誓约十字	GM=/give 10 x<数量> [@uid]
+currency	11	迷宫代币	GM=/give 11 x<数量> [@uid]
+currency	12	迷雾结晶	GM=/give 12 x<数量> [@uid]
+currency	13	梦魇遗物	GM=/give 13 x<数量> [@uid]
+currency	14	四叶星屑	GM=/give 14 x<数量> [@uid]
+currency	15	血之精晶	GM=/give 15 x<数量> [@uid]
+currency	16	魔力糖果	GM=/give 16 x<数量> [@uid]
+currency	17	冰原狼牙	GM=/give 17 x<数量> [@uid]
+currency	18	锈蚀硬币	GM=/give 18 x<数量> [@uid]
+currency	19	同构晶片	GM=/give 19 x<数量> [@uid]
+currency	20	绮羽青晶	GM=/give 20 x<数量> [@uid]
+currency	21	使魔爱心	GM=/give 21 x<数量> [@uid]
+currency	22	绯红十字	GM=/give 22 x<数量> [@uid]
+currency	23	罪恶之源	GM=/give 23 x<数量> [@uid]
+currency	24	聚合芯片	GM=/give 24 x<数量> [@uid]
+currency	25	绯玉结晶	GM=/give 25 x<数量> [@uid]
+currency	26	通用圣痕点数	GM=/give 26 x<数量> [@uid]
+currency	27	不捣鬼小魔代币	GM=/give 27 x<数量> [@uid]
+currency	28	绯玉结晶	GM=/give 28 x<数量> [@uid]
+currency	29	勇者纹章	GM=/give 29 x<数量> [@uid]
+currency	30	核心晶片	GM=/give 30 x<数量> [@uid]
+currency	31	金属结晶	GM=/give 31 x<数量> [@uid]
+currency	32	追踪标记	GM=/give 32 x<数量> [@uid]
+currency	33	聚合芯片	GM=/give 33 x<数量> [@uid]
+currency	34	清凉夜半代币	GM=/give 34 x<数量> [@uid]
+currency	35	誓约花球	GM=/give 35 x<数量> [@uid]
+currency	36	基因残片	GM=/give 36 x<数量> [@uid]
+currency	37	运算晶元	GM=/give 37 x<数量> [@uid]
+currency	38	海底珍贝	GM=/give 38 x<数量> [@uid]
+currency	39	梦想星结	GM=/give 39 x<数量> [@uid]
+currency	40	苏生魔力	GM=/give 40 x<数量> [@uid]
+currency	41	炎节假期代币	GM=/give 41 x<数量> [@uid]
+currency	42	基因残片	GM=/give 42 x<数量> [@uid]
+currency	43	碧色结晶	GM=/give 43 x<数量> [@uid]
+currency	45	星梦之结	GM=/give 45 x<数量> [@uid]
+currency	46	摇曳灯火	GM=/give 46 x<数量> [@uid]
+currency	47	小判	GM=/give 47 x<数量> [@uid]
+currency	48	游汐叶界通用币	GM=/give 48 x<数量> [@uid]
+currency	49	梦之星	GM=/give 49 x<数量> [@uid]
+currency	50	海滩珍贝	GM=/give 50 x<数量> [@uid]
+currency	51	思绪低语	GM=/give 51 x<数量> [@uid]
+currency	52	蓝色纪念币	GM=/give 52 x<数量> [@uid]
+currency	53	魔法时刻	GM=/give 53 x<数量> [@uid]
+currency	54	灰色纪念币	GM=/give 54 x<数量> [@uid]
+currency	55	圣夜雪愿	GM=/give 55 x<数量> [@uid]
+currency	56	太虚之雪	GM=/give 56 x<数量> [@uid]
+currency	57	金色结晶	GM=/give 57 x<数量> [@uid]
+currency	58	绯玉结晶	GM=/give 58 x<数量> [@uid]
+currency	59	晶莹露滴	GM=/give 59 x<数量> [@uid]
+currency	60	仲夏甜梦	GM=/give 60 x<数量> [@uid]
+currency	61	心意花束	GM=/give 61 x<数量> [@uid]
+currency	62	阿瓦隆能量	GM=/give 62 x<数量> [@uid]
+currency	63	心意之结	GM=/give 63 x<数量> [@uid]
+currency	64	握手券	GM=/give 64 x<数量> [@uid]
+currency	65	世界之光代币	GM=/give 65 x<数量> [@uid]
+currency	66	清凉夜半代币	GM=/give 66 x<数量> [@uid]
+currency	67	甜品券	GM=/give 67 x<数量> [@uid]
+currency	68	记忆晶片	GM=/give 68 x<数量> [@uid]
+currency	69	成熟南瓜	GM=/give 69 x<数量> [@uid]
+currency	70	樱雪初绽	GM=/give 70 x<数量> [@uid]
+currency	71	群星的追忆代币	GM=/give 71 x<数量> [@uid]
+currency	72	午后茶歇	GM=/give 72 x<数量> [@uid]
+currency	73	好运软糖	GM=/give 73 x<数量> [@uid]
+currency	75	秋日寄梦	GM=/give 75 x<数量> [@uid]
+currency	76	初始之印	GM=/give 76 x<数量> [@uid]
+currency	77	金喵币	GM=/give 77 x<数量> [@uid]
+currency	100	友情点数	GM=/give 100 x<数量> [@uid]
+currency	101	绯玉结晶	GM=/give 101 x<数量> [@uid]
+currency	102	绯玉结晶	GM=/give 102 x<数量> [@uid]
+currency	103	血红结晶	GM=/give 103 x<数量> [@uid]
+currency	104	古龙之证	GM=/give 104 x<数量> [@uid]
+currency	105	炎节假期代币	GM=/give 105 x<数量> [@uid]
+currency	106	虚轴结晶	GM=/give 106 x<数量> [@uid]
+currency	111	课间补给代币	GM=/give 111 x<数量> [@uid]
+currency	112	翠舞隐匿代币	GM=/give 112 x<数量> [@uid]
+currency	113	沁暑时光代币	GM=/give 113 x<数量> [@uid]
+currency	114	浮波夏记代币	GM=/give 114 x<数量> [@uid]
+currency	115	白热绮谭代币	GM=/give 115 x<数量> [@uid]
+currency	116	烘焙光阴代币	GM=/give 116 x<数量> [@uid]
+currency	117	历练之路代币	GM=/give 117 x<数量> [@uid]
+currency	118	休诊时间代币	GM=/give 118 x<数量> [@uid]
+currency	119	军火承包代币	GM=/give 119 x<数量> [@uid]
+currency	120	拼装时光代币	GM=/give 120 x<数量> [@uid]
+currency	135	奇迹残骸	GM=/give 135 x<数量> [@uid]
+currency	136	希望光辉	GM=/give 136 x<数量> [@uid]
+currency	137	群星的预言代币	GM=/give 137 x<数量> [@uid]
+currency	138	群星的秘宝代币	GM=/give 138 x<数量> [@uid]
+currency	196	虚拟币-Ⅲ型	GM=/give 196 x<数量> [@uid]
+currency	197	虚拟币-Ⅲ型	GM=/give 197 x<数量> [@uid]
+currency	198	虚拟币-Ⅱ型	GM=/give 198 x<数量> [@uid]
+currency	199	虚拟币-Ⅰ型	GM=/give 199 x<数量> [@uid]
+currency	200	最初降生之虹	GM=/give 200 x<数量> [@uid]
+currency	201	记忆中的星云	GM=/give 201 x<数量> [@uid]
+currency	202	深渊禁忌之匣	GM=/give 202 x<数量> [@uid]
+currency	203	宇宙真理之泡	GM=/give 203 x<数量> [@uid]
+currency	238	萌星之辉光	GM=/give 238 x<数量> [@uid]
+currency	239	水晶	alias=hcoin	GM=/give 239 x<数量> [@uid]
+currency	240	璨能晶片	GM=/give 240 x<数量> [@uid]
+currency	241	崩坏结晶	GM=/give 241 x<数量> [@uid]
+currency	242	辉光之末	GM=/give 242 x<数量> [@uid]
+currency	243	翁德兰纯灵	GM=/give 243 x<数量> [@uid]
+currency	244	魔女之辉光	GM=/give 244 x<数量> [@uid]
+currency	245	未成熟的记忆	GM=/give 245 x<数量> [@uid]
+currency	246	惊喜礼炮	GM=/give 246 x<数量> [@uid]
+currency	247	吼美的心意	GM=/give 247 x<数量> [@uid]
+currency	248	梦想之辉光	GM=/give 248 x<数量> [@uid]
+currency	249	吼姆的希望	GM=/give 249 x<数量> [@uid]
+currency	250	宙能核心	GM=/give 250 x<数量> [@uid]
+currency	251	魔女之辉光	GM=/give 251 x<数量> [@uid]
+currency	252	公主之辉光	GM=/give 252 x<数量> [@uid]
+currency	253	公主之辉光	GM=/give 253 x<数量> [@uid]
+currency	254	魔法少女之辉光	GM=/give 254 x<数量> [@uid]
+currency	255	遗忘之尘	GM=/give 255 x<数量> [@uid]
+currency	256	原味饭团	GM=/give 256 x<数量> [@uid]
+currency	257	护身钱币	GM=/give 257 x<数量> [@uid]
 
 [weapon]
 weapon	1	M617左轮手枪
@@ -5919,204 +5924,204 @@ material	9997	咸鱼自选箱
 [potential]
 RoleV2「特训轨迹」限解道具，不是背包物品：限解特装记在角色潜能上，训练组件记在账号上，发放后经 9809 GetRolePotentialRsp 同步。
 限解特装×1 或训练组件×5 提升 1 点限解度；限解度上限由 RoleDuplicateData 决定（当前资源为 4）。
-角色 ID 必须是玩家已拥有的 RoleV2 角色；未拥有时先执行 give&uid=<UID>&type=role&id=<角色 ID>。
-potential	common	训练组件	GM=give&uid=<UID>&type=potential&id=common&amount=<数量>
-potential	4020	卡琳	reward_item=6177	GM=give&uid=<UID>&type=potential&id=4020&amount=<数量>
-potential	4021	阿库莉亚	reward_item=6659	GM=give&uid=<UID>&type=potential&id=4021&amount=<数量>
-potential	4022	拉妮艾特	reward_item=7032	GM=give&uid=<UID>&type=potential&id=4022&amount=<数量>
-potential	4023	蒂亚拉	reward_item=7252	GM=give&uid=<UID>&type=potential&id=4023&amount=<数量>
-potential	4024	红理惠	reward_item=6842	GM=give&uid=<UID>&type=potential&id=4024&amount=<数量>
-potential	4025	布洛妮娅	reward_item=7085	GM=give&uid=<UID>&type=potential&id=4025&amount=<数量>
-potential	4026	煌嵐	reward_item=7163	GM=give&uid=<UID>&type=potential&id=4026&amount=<数量>
+角色 ID 必须是玩家已拥有的 RoleV2 角色；未拥有时先执行 /give role <角色 ID> [@uid]。
+potential	common	训练组件	GM=/give potential common x<数量> [@uid]
+potential	4020	卡琳	reward_item=6177	GM=/give potential 4020 x<数量> [@uid]
+potential	4021	阿库莉亚	reward_item=6659	GM=/give potential 4021 x<数量> [@uid]
+potential	4022	拉妮艾特	reward_item=7032	GM=/give potential 4022 x<数量> [@uid]
+potential	4023	蒂亚拉	reward_item=7252	GM=/give potential 4023 x<数量> [@uid]
+potential	4024	红理惠	reward_item=6842	GM=/give potential 4024 x<数量> [@uid]
+potential	4025	布洛妮娅	reward_item=7085	GM=/give potential 4025 x<数量> [@uid]
+potential	4026	煌嵐	reward_item=7163	GM=/give potential 4026 x<数量> [@uid]
 
 [role-develop]
 角色养成设置：role 只改写玩家已拥有角色的养成属性与该角色装备实体属性，不发放新实体。
 max_level=0 表示该角色不是角色类型2，只能用 talent；talent=no 表示该角色没有圣痕资源。
-基础等级与精通等级是同一条等级线：1--50 为基础等级，50+M 为精通等级，baselevel 与 masterylevel 只能给一个。
+基础等级与精通等级是同一条等级线：1--50 为基础等级，50+M 为精通等级，bl<基础等级> 与 ml<精通等级> 只能给一个。
 圣痕的 GM 直设不消耗也不退还圣痕点数；玩家在游戏内重置圣痕时仍按已投入等级退还等量角色圣痕点数。
-角色 ID 必须是玩家已拥有的角色；未拥有时先执行 give&uid=<UID>&type=role&id=<角色 ID>。
-role	4001	琪亚娜 卡斯兰娜	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4001&talent=<圣痕等级>
-role	4002	雷电芽衣	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4002&talent=<圣痕等级>
-role	4003	布洛妮娅 扎伊切克	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4003&talent=<圣痕等级>
-role	4004	无量塔 姬子	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4004&talent=<圣痕等级>
-role	4005	德丽莎 阿波卡利斯	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4005&talent=<圣痕等级>
-role	4006	希儿 芙乐艾	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4006&talent=<圣痕等级>
-role	4007	杏 玛尔	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4007&talent=<圣痕等级>
-role	4008	蓬莱寺九霄	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4008&talent=<圣痕等级>
-role	4009	伊瑟琳	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4009&talent=<圣痕等级>
-role	4010	符华	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4010&talent=<圣痕等级>
-role	4011	无色辉火	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4011&talent=<圣痕等级>
-role	4012	西琳	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4012&talent=<圣痕等级>
-role	4013	丽塔·洛丝薇瑟	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4013&talent=<圣痕等级>
-role	4014	宁蒂	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4014&talent=<圣痕等级>
-role	4015	迦娜	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4015&talent=<圣痕等级>
-role	4016	芙兰	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4016&talent=<圣痕等级>
-role	4017	菲米莉丝	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4017&talent=<圣痕等级>
-role	4018	诗音	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4018&talent=<圣痕等级>
-role	4019	琪亚娜&芽衣	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4019&talent=<圣痕等级>
-role	4020	卡琳	max_level=58	max_mastery=8	max_potential=4	talent=no	GM=role&uid=<UID>&id=4020&potential=<限解度>&baselevel=<基础等级>
-role	4021	阿库莉亚	max_level=58	max_mastery=8	max_potential=4	talent=no	GM=role&uid=<UID>&id=4021&potential=<限解度>&baselevel=<基础等级>
-role	4022	拉妮艾特	max_level=58	max_mastery=8	max_potential=4	talent=no	GM=role&uid=<UID>&id=4022&potential=<限解度>&baselevel=<基础等级>
-role	4023	蒂亚拉	max_level=58	max_mastery=8	max_potential=4	talent=no	GM=role&uid=<UID>&id=4023&potential=<限解度>&baselevel=<基础等级>
-role	4024	红理惠	max_level=58	max_mastery=8	max_potential=4	talent=no	GM=role&uid=<UID>&id=4024&potential=<限解度>&baselevel=<基础等级>
-role	4025	布洛妮娅	max_level=58	max_mastery=8	max_potential=4	talent=no	GM=role&uid=<UID>&id=4025&potential=<限解度>&baselevel=<基础等级>
-role	4026	煌嵐	max_level=58	max_mastery=8	max_potential=4	talent=no	GM=role&uid=<UID>&id=4026&potential=<限解度>&baselevel=<基础等级>
-role	4103	4103	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=role&uid=<UID>&id=4103&talent=<圣痕等级>
+角色 ID 必须是玩家已拥有的角色；未拥有时先执行 /give role <角色 ID> [@uid]。
+role	4001	琪亚娜 卡斯兰娜	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4001 t<圣痕等级> [@uid]
+role	4002	雷电芽衣	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4002 t<圣痕等级> [@uid]
+role	4003	布洛妮娅 扎伊切克	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4003 t<圣痕等级> [@uid]
+role	4004	无量塔 姬子	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4004 t<圣痕等级> [@uid]
+role	4005	德丽莎 阿波卡利斯	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4005 t<圣痕等级> [@uid]
+role	4006	希儿 芙乐艾	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4006 t<圣痕等级> [@uid]
+role	4007	杏 玛尔	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4007 t<圣痕等级> [@uid]
+role	4008	蓬莱寺九霄	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4008 t<圣痕等级> [@uid]
+role	4009	伊瑟琳	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4009 t<圣痕等级> [@uid]
+role	4010	符华	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4010 t<圣痕等级> [@uid]
+role	4011	无色辉火	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4011 t<圣痕等级> [@uid]
+role	4012	西琳	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4012 t<圣痕等级> [@uid]
+role	4013	丽塔·洛丝薇瑟	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4013 t<圣痕等级> [@uid]
+role	4014	宁蒂	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4014 t<圣痕等级> [@uid]
+role	4015	迦娜	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4015 t<圣痕等级> [@uid]
+role	4016	芙兰	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4016 t<圣痕等级> [@uid]
+role	4017	菲米莉丝	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4017 t<圣痕等级> [@uid]
+role	4018	诗音	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4018 t<圣痕等级> [@uid]
+role	4019	琪亚娜&芽衣	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4019 t<圣痕等级> [@uid]
+role	4020	卡琳	max_level=58	max_mastery=8	max_potential=4	talent=no	GM=/role 4020 pt<限解度> bl<基础等级> [@uid]
+role	4021	阿库莉亚	max_level=58	max_mastery=8	max_potential=4	talent=no	GM=/role 4021 pt<限解度> bl<基础等级> [@uid]
+role	4022	拉妮艾特	max_level=58	max_mastery=8	max_potential=4	talent=no	GM=/role 4022 pt<限解度> bl<基础等级> [@uid]
+role	4023	蒂亚拉	max_level=58	max_mastery=8	max_potential=4	talent=no	GM=/role 4023 pt<限解度> bl<基础等级> [@uid]
+role	4024	红理惠	max_level=58	max_mastery=8	max_potential=4	talent=no	GM=/role 4024 pt<限解度> bl<基础等级> [@uid]
+role	4025	布洛妮娅	max_level=58	max_mastery=8	max_potential=4	talent=no	GM=/role 4025 pt<限解度> bl<基础等级> [@uid]
+role	4026	煌嵐	max_level=58	max_mastery=8	max_potential=4	talent=no	GM=/role 4026 pt<限解度> bl<基础等级> [@uid]
+role	4103	4103	max_level=0	max_mastery=0	max_potential=0	talent=yes	GM=/role 4103 t<圣痕等级> [@uid]
 
 [skin]
-标准角色皮肤目录；多角色皮肤会列出全部适用角色，单个使用 give&type=skin&id=<SkinID>，批量使用 giveall&type=skin。
-skin	17001	琪亚娜·卡斯兰娜	roles=4001	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17001
-skin	17002	雷电芽衣	roles=4002	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17002
-skin	17003	布洛妮娅·扎伊切克	roles=4003	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17003
-skin	17004	无量塔姬子	roles=4004	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17004
-skin	17005	德丽莎	roles=4005	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17005
-skin	17006	希儿·芙乐艾	roles=4006	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17006
-skin	17007	杏·玛尔	roles=4007	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17007
-skin	17008	蓬莱寺九霄	roles=4008	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17008
-skin	17009	博士	roles=4009	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17009
-skin	17010	符华	roles=4010	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17010
-skin	17011	无色辉火	roles=4011	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17011
-skin	17012	西琳	roles=4012	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17012
-skin	17013	丽塔·洛丝薇瑟	roles=4013	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17013
-skin	17014	宁蒂	roles=4014	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17014
-skin	17015	迦娜	roles=4015	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17015
-skin	17016	芙兰	roles=4016	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17016
-skin	17017	菲米莉丝	roles=4017	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17017
-skin	17018	诗音	roles=4018	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17018
-skin	17019	琪亚娜&芽衣	roles=4019	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17019
-skin	17020	卡琳·梅莉德	roles=4020	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17020
-skin	17021	阿库莉亚·赫萝普特	roles=4021	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17021
-skin	17022	拉妮艾特·戈尔迪乌斯	roles=4022	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17022
-skin	17023	蒂亚拉·星灯	roles=4023	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17023
-skin	17024	红理惠	roles=4024	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17024
-skin	17025	布洛妮娅【银狼归来】	roles=4025	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17025
-skin	17026	煌嵐	roles=4026	init_unlock=True	set_default=True	show=1	GM=give&uid=<UID>&type=skin&id=17026
-skin	17101	琪亚娜·卡斯兰娜（经典）	roles=4001	init_unlock=True	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17101
-skin	17102	琪亚娜·忆梦长廊	roles=4001	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17102
-skin	17103	芽衣·柴郡猫	roles=4002	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17103
-skin	17104	布洛妮娅·黑核侵蚀	roles=4003	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17104
-skin	17105	琪亚娜·月光骑士	roles=4001	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17105
-skin	17106	姬子·华灯初上	roles=4004	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17106
-skin	17107	德丽莎·祈恩永愿	roles=4005	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17107
-skin	17108	九霄·逐火之蛾	roles=4008	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17108
-skin	17109	崩坏娘	roles=4001,4002,4003	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17109
-skin	17110	希儿·深海幻影	roles=4006	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17110
-skin	17111	时崎狂三·梦魇	roles=4007	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17111
-skin	17112	五河琴里·炎魔	roles=4008	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17112
-skin	17113	八重樱·狐眷	roles=4002,4005	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17113
-skin	17114	杏·本愿	roles=4007	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17114
-skin	17115	妮普褆努·主角光环	roles=4004	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17115
-skin	17116	诺瓦露·傲娇女神	roles=4002	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17116
-skin	17117	无色辉火·笼中蝶	roles=4011	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17117
-skin	17118	卡莲·第六夜想曲	roles=4001	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17118
-skin	17119	德丽莎·月下初拥	roles=4005	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17119
-skin	17120	伊瑟琳·花栗鼠	roles=4009	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17120
-skin	17121	符华·千祥云集	roles=4010	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17121
-skin	17122	芽衣·美少女泡面	roles=4002	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17122
-skin	17123	江之岛盾子	roles=4003	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17123
-skin	17124	䌷·樱色花火	roles=4006	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17124
-skin	17125	姬子·森林屿鹿	roles=4004	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17125
-skin	17126	布兰·无口女神	roles=4006	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17126
-skin	17127	贝露·重度玩家	roles=4009	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17127
-skin	17128	伊瑟琳•青花鱼号	roles=4009	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17128
-skin	17129	爱城华恋	roles=4010	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17129
-skin	17130	大场奈奈	roles=4005	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17130
-skin	17131	九霄·血裔真祖	roles=4008	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17131
-skin	17132	宁蒂·喵喵潜水装	roles=4014	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17132
-skin	17133	丽塔·圣夜的贵安	roles=4013	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17133
-skin	17134	布洛妮娅·天使重构	roles=4003	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17134
-skin	17135	芽衣·纯净永恒	roles=4002	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17135
-skin	17136	琪亚娜·踏翼乘光	roles=4001	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17136
-skin	17137	缪娜·治愈放送	roles=4007,4011	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17137
-skin	17138	伊瑟琳·全金属教师	roles=4009	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17138
-skin	17139	芙兰·暗影	roles=4016	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17139
-skin	17140	八重樱·奈落鬼斩	roles=4002,4005	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17140
-skin	17141	绀紫之心	roles=4012	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17141
-skin	17142	宁蒂·夏暮游鲤	roles=4014	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17142
-skin	17143	迦娜·祭司	roles=4015	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17143
-skin	17144	迦娜·伽蓝	roles=4015	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17144
-skin	17145	菲米莉丝·小恶魔	roles=4017	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17145
-skin	17146	塞西莉亚·月神舞步	roles=4001,4005	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17146
-skin	17147	鸢一折纸·天使	roles=4001,4005,4011	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17147
-skin	17148	七罪·魔女	roles=4001,4006,4013	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17148
-skin	17149	布洛妮娅·奇境茶会	roles=4003	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17149
-skin	17150	识之律者	roles=4010	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17150
-skin	17151	北辰芽衣·逆乱妖刀	roles=4002	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17151
-skin	17152	伊登·金色秘藏	roles=4016	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17152
-skin	17153	圆环之理	roles=4012,4013,4014,4019	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17153
-skin	17154	叛逆的恶魔	roles=4002,4004,4015,4019	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17154
-skin	17155	希儿·山鲁佐德	roles=4006	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17155
-skin	17156	希儿·山努亚王	roles=4006	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17156
-skin	17157	时雨绮罗·奇迹的彩音	roles=4008,4012,4016	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17157
-skin	17159	诗音·天狐	roles=4018	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17159
-skin	17160	卡莲·扬旗覆世	roles=4001,4005	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17160
-skin	17161	雪泉·冰之冷笑	roles=4003,4009,4012	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17161
-skin	17162	雪不归·无缺女王	roles=4007,4008,4015	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17162
-skin	17163	妮普吉雅·女神候补生	roles=4001,4012,4017	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17163
-skin	17164	托托莉·旅羁时光	roles=4002,4007,4014	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17164
-skin	17165	希露·绒绒日常	roles=4005,4016	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17165
-skin	17166	普西芬妮·时之演绎	roles=4004,4011	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17166
-skin	17167	海特儿·魔女的前夜	roles=4003,4007,4018	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17167
-skin	17168	西琳·雪愿纷飞	roles=4012	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17168
-skin	17169	爱莉希雅	roles=4005,4008,4014	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17169
-skin	17170	帕朵菲莉丝	roles=4002,4003	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17170
-skin	17171	芙兰·年华金礼	roles=4016	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17171
-skin	17172	菲米莉丝·多用无人机	roles=4017	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17172
-skin	17173	阿尔忒弥斯·叮可贝尔	roles=4006,4018	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17173
-skin	17174	纹章·彼得潘	roles=4009,4015	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17174
-skin	17175	伊瑟琳·喵呜女仆	roles=4009	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17175
-skin	17176	琪亚娜·誓约之花	roles=4001	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17176
-skin	17177	琪亚娜·誓约之花	roles=4001	init_unlock=False	set_default=False	show=0	GM=give&uid=<UID>&type=skin&id=17177
-skin	17178	宁蒂·世界之光	roles=4014	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17178
-skin	17179	红贽·绯染Bloody	roles=4007,4011	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17179
-skin	17180	卡琳·黑星升华	roles=4020	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17180
-skin	17181	纯子&爱	roles=4019	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17181
-skin	17182	废怯·红叶Magical	roles=4010,4017	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17182
-skin	17183	圣夜奇行	roles=4003,4006,4007,4014	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17183
-skin	17184	西琳·祥龙逐霄	roles=4012	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17184
-skin	17185	琪亚娜·致今日的我	roles=4001	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17185
-skin	17186	灵依飞车	roles=4001,4002,4003,4004,4005,4006,4007,4008,4009,4010,4011,4012,4013,4014,4015,4016,4017,4018,4019	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17186
-skin	17187	诗音·酣憨乐狐	roles=4018	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17187
-skin	17188	阿库莉亚·白王司穹	roles=4021	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17188
-skin	17189	柯罗伊·永觅之音	roles=4004,4016	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17189
-skin	17190	耀夜姬·光辉之夜	roles=4013,4015	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17190
-skin	17191	琪亚娜&芽衣·“兔占欲”	roles=4019	init_unlock=False	set_default=False	show=0	GM=give&uid=<UID>&type=skin&id=17191
-skin	17192	魔法少女☆伊莉雅	roles=4006,4012,4016	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17192
-skin	17193	魔法少女☆美游	roles=4003,4011,4014	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17193
-skin	17194	卡琳·异度脱兔	roles=4020	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17194
-skin	17195	阿库莉亚·暗网黑猫	roles=4021	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17195
-skin	17196	红理惠·日落奇境	roles=4024	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17196
-skin	17197	千早爱音	roles=4019	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17197
-skin	17198	长崎爽世	roles=4014,4015,4016	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17198
-skin	17199	温蒂·风之律者	roles=4002,4007,4012	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17199
-skin	17200	卡琳·咖啡厅豪杰	roles=4020	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17200
-skin	17201	琪亚娜&芽衣·揉成团	roles=4019	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17201
-skin	17202	拉妮艾特·豪门贵胄	roles=4022	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17202
-skin	17203	爱莉希雅·人之律者	roles=4019	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17203
-skin	17204	格蕾修·夏梦如绘	roles=4009,4012,4018	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17204
-skin	17205	绀紫之心·爱意魔法	roles=4014,4016,4017	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17205
-skin	17206	圣黑之心·幽色诱惑	roles=4006,4024	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17206
-skin	17207	布洛妮娅·白鹭立雪	roles=4025	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17207
-skin	17208	菲米莉丝·笼中雀鸣	roles=4017	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17208
-skin	17209	杏·恶魔小丑	roles=4007	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17209
-skin	17212	煌嵐·裂空女巫	roles=4026	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17212
-skin	17213	蒂亚拉·朋克精神	roles=4023	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17213
-skin	17988	阿库莉亚·赫萝普特	roles=4021	init_unlock=False	set_default=False	show=0	GM=give&uid=<UID>&type=skin&id=17988
-skin	17989	卡琳·梅莉德	roles=4020	init_unlock=False	set_default=False	show=0	GM=give&uid=<UID>&type=skin&id=17989
-skin	17990	卡琳·梅莉德	roles=4020	init_unlock=False	set_default=False	show=0	GM=give&uid=<UID>&type=skin&id=17990
-skin	17991	琪亚娜·卡斯兰娜	roles=4001	init_unlock=True	set_default=True	show=0	GM=give&uid=<UID>&type=skin&id=17991
-skin	17992	卡莲·扬旗覆世	roles=4001,4005	init_unlock=False	set_default=False	show=0	GM=give&uid=<UID>&type=skin&id=17992
-skin	17993	雷电芽衣	roles=4002	init_unlock=False	set_default=False	show=0	GM=give&uid=<UID>&type=skin&id=17993
-skin	17994	菲米莉丝	roles=4017	init_unlock=False	set_default=False	show=0	GM=give&uid=<UID>&type=skin&id=17994
-skin	17995	菲米莉丝	roles=4107	init_unlock=False	set_default=False	show=0	GM=give&uid=<UID>&type=skin&id=17995
-skin	17996	布洛妮娅·天使重构	roles=4106	init_unlock=False	set_default=False	show=0	GM=give&uid=<UID>&type=skin&id=17996
-skin	17997	德丽莎·祈恩永愿	roles=4105	init_unlock=False	set_default=False	show=0	GM=give&uid=<UID>&type=skin&id=17997
-skin	17998	德丽莎·祈恩永愿	roles=4104	init_unlock=False	set_default=False	show=0	GM=give&uid=<UID>&type=skin&id=17998
-skin	17999	德丽莎·祈恩永愿	roles=4103	init_unlock=False	set_default=False	show=0	GM=give&uid=<UID>&type=skin&id=17999
-skin	17158	雷电芽衣（新生篇）	roles=4002	init_unlock=False	set_default=False	show=1	GM=give&uid=<UID>&type=skin&id=17158
+标准角色皮肤目录；多角色皮肤会列出全部适用角色，单个使用 /give skin <SkinID> [@uid]，批量使用 /giveall skin [@uid]。
+skin	17001	琪亚娜·卡斯兰娜	roles=4001	init_unlock=True	set_default=True	show=1	GM=/give skin 17001 [@uid]
+skin	17002	雷电芽衣	roles=4002	init_unlock=True	set_default=True	show=1	GM=/give skin 17002 [@uid]
+skin	17003	布洛妮娅·扎伊切克	roles=4003	init_unlock=True	set_default=True	show=1	GM=/give skin 17003 [@uid]
+skin	17004	无量塔姬子	roles=4004	init_unlock=True	set_default=True	show=1	GM=/give skin 17004 [@uid]
+skin	17005	德丽莎	roles=4005	init_unlock=True	set_default=True	show=1	GM=/give skin 17005 [@uid]
+skin	17006	希儿·芙乐艾	roles=4006	init_unlock=True	set_default=True	show=1	GM=/give skin 17006 [@uid]
+skin	17007	杏·玛尔	roles=4007	init_unlock=True	set_default=True	show=1	GM=/give skin 17007 [@uid]
+skin	17008	蓬莱寺九霄	roles=4008	init_unlock=True	set_default=True	show=1	GM=/give skin 17008 [@uid]
+skin	17009	博士	roles=4009	init_unlock=True	set_default=True	show=1	GM=/give skin 17009 [@uid]
+skin	17010	符华	roles=4010	init_unlock=True	set_default=True	show=1	GM=/give skin 17010 [@uid]
+skin	17011	无色辉火	roles=4011	init_unlock=True	set_default=True	show=1	GM=/give skin 17011 [@uid]
+skin	17012	西琳	roles=4012	init_unlock=True	set_default=True	show=1	GM=/give skin 17012 [@uid]
+skin	17013	丽塔·洛丝薇瑟	roles=4013	init_unlock=True	set_default=True	show=1	GM=/give skin 17013 [@uid]
+skin	17014	宁蒂	roles=4014	init_unlock=True	set_default=True	show=1	GM=/give skin 17014 [@uid]
+skin	17015	迦娜	roles=4015	init_unlock=True	set_default=True	show=1	GM=/give skin 17015 [@uid]
+skin	17016	芙兰	roles=4016	init_unlock=True	set_default=True	show=1	GM=/give skin 17016 [@uid]
+skin	17017	菲米莉丝	roles=4017	init_unlock=True	set_default=True	show=1	GM=/give skin 17017 [@uid]
+skin	17018	诗音	roles=4018	init_unlock=True	set_default=True	show=1	GM=/give skin 17018 [@uid]
+skin	17019	琪亚娜&芽衣	roles=4019	init_unlock=True	set_default=True	show=1	GM=/give skin 17019 [@uid]
+skin	17020	卡琳·梅莉德	roles=4020	init_unlock=True	set_default=True	show=1	GM=/give skin 17020 [@uid]
+skin	17021	阿库莉亚·赫萝普特	roles=4021	init_unlock=True	set_default=True	show=1	GM=/give skin 17021 [@uid]
+skin	17022	拉妮艾特·戈尔迪乌斯	roles=4022	init_unlock=True	set_default=True	show=1	GM=/give skin 17022 [@uid]
+skin	17023	蒂亚拉·星灯	roles=4023	init_unlock=True	set_default=True	show=1	GM=/give skin 17023 [@uid]
+skin	17024	红理惠	roles=4024	init_unlock=True	set_default=True	show=1	GM=/give skin 17024 [@uid]
+skin	17025	布洛妮娅【银狼归来】	roles=4025	init_unlock=True	set_default=True	show=1	GM=/give skin 17025 [@uid]
+skin	17026	煌嵐	roles=4026	init_unlock=True	set_default=True	show=1	GM=/give skin 17026 [@uid]
+skin	17101	琪亚娜·卡斯兰娜（经典）	roles=4001	init_unlock=True	set_default=False	show=1	GM=/give skin 17101 [@uid]
+skin	17102	琪亚娜·忆梦长廊	roles=4001	init_unlock=False	set_default=False	show=1	GM=/give skin 17102 [@uid]
+skin	17103	芽衣·柴郡猫	roles=4002	init_unlock=False	set_default=False	show=1	GM=/give skin 17103 [@uid]
+skin	17104	布洛妮娅·黑核侵蚀	roles=4003	init_unlock=False	set_default=False	show=1	GM=/give skin 17104 [@uid]
+skin	17105	琪亚娜·月光骑士	roles=4001	init_unlock=False	set_default=False	show=1	GM=/give skin 17105 [@uid]
+skin	17106	姬子·华灯初上	roles=4004	init_unlock=False	set_default=False	show=1	GM=/give skin 17106 [@uid]
+skin	17107	德丽莎·祈恩永愿	roles=4005	init_unlock=False	set_default=False	show=1	GM=/give skin 17107 [@uid]
+skin	17108	九霄·逐火之蛾	roles=4008	init_unlock=False	set_default=False	show=1	GM=/give skin 17108 [@uid]
+skin	17109	崩坏娘	roles=4001,4002,4003	init_unlock=False	set_default=False	show=1	GM=/give skin 17109 [@uid]
+skin	17110	希儿·深海幻影	roles=4006	init_unlock=False	set_default=False	show=1	GM=/give skin 17110 [@uid]
+skin	17111	时崎狂三·梦魇	roles=4007	init_unlock=False	set_default=False	show=1	GM=/give skin 17111 [@uid]
+skin	17112	五河琴里·炎魔	roles=4008	init_unlock=False	set_default=False	show=1	GM=/give skin 17112 [@uid]
+skin	17113	八重樱·狐眷	roles=4002,4005	init_unlock=False	set_default=False	show=1	GM=/give skin 17113 [@uid]
+skin	17114	杏·本愿	roles=4007	init_unlock=False	set_default=False	show=1	GM=/give skin 17114 [@uid]
+skin	17115	妮普褆努·主角光环	roles=4004	init_unlock=False	set_default=False	show=1	GM=/give skin 17115 [@uid]
+skin	17116	诺瓦露·傲娇女神	roles=4002	init_unlock=False	set_default=False	show=1	GM=/give skin 17116 [@uid]
+skin	17117	无色辉火·笼中蝶	roles=4011	init_unlock=False	set_default=False	show=1	GM=/give skin 17117 [@uid]
+skin	17118	卡莲·第六夜想曲	roles=4001	init_unlock=False	set_default=False	show=1	GM=/give skin 17118 [@uid]
+skin	17119	德丽莎·月下初拥	roles=4005	init_unlock=False	set_default=False	show=1	GM=/give skin 17119 [@uid]
+skin	17120	伊瑟琳·花栗鼠	roles=4009	init_unlock=False	set_default=False	show=1	GM=/give skin 17120 [@uid]
+skin	17121	符华·千祥云集	roles=4010	init_unlock=False	set_default=False	show=1	GM=/give skin 17121 [@uid]
+skin	17122	芽衣·美少女泡面	roles=4002	init_unlock=False	set_default=False	show=1	GM=/give skin 17122 [@uid]
+skin	17123	江之岛盾子	roles=4003	init_unlock=False	set_default=False	show=1	GM=/give skin 17123 [@uid]
+skin	17124	䌷·樱色花火	roles=4006	init_unlock=False	set_default=False	show=1	GM=/give skin 17124 [@uid]
+skin	17125	姬子·森林屿鹿	roles=4004	init_unlock=False	set_default=False	show=1	GM=/give skin 17125 [@uid]
+skin	17126	布兰·无口女神	roles=4006	init_unlock=False	set_default=False	show=1	GM=/give skin 17126 [@uid]
+skin	17127	贝露·重度玩家	roles=4009	init_unlock=False	set_default=False	show=1	GM=/give skin 17127 [@uid]
+skin	17128	伊瑟琳•青花鱼号	roles=4009	init_unlock=False	set_default=False	show=1	GM=/give skin 17128 [@uid]
+skin	17129	爱城华恋	roles=4010	init_unlock=False	set_default=False	show=1	GM=/give skin 17129 [@uid]
+skin	17130	大场奈奈	roles=4005	init_unlock=False	set_default=False	show=1	GM=/give skin 17130 [@uid]
+skin	17131	九霄·血裔真祖	roles=4008	init_unlock=False	set_default=False	show=1	GM=/give skin 17131 [@uid]
+skin	17132	宁蒂·喵喵潜水装	roles=4014	init_unlock=False	set_default=False	show=1	GM=/give skin 17132 [@uid]
+skin	17133	丽塔·圣夜的贵安	roles=4013	init_unlock=False	set_default=False	show=1	GM=/give skin 17133 [@uid]
+skin	17134	布洛妮娅·天使重构	roles=4003	init_unlock=False	set_default=False	show=1	GM=/give skin 17134 [@uid]
+skin	17135	芽衣·纯净永恒	roles=4002	init_unlock=False	set_default=False	show=1	GM=/give skin 17135 [@uid]
+skin	17136	琪亚娜·踏翼乘光	roles=4001	init_unlock=False	set_default=False	show=1	GM=/give skin 17136 [@uid]
+skin	17137	缪娜·治愈放送	roles=4007,4011	init_unlock=False	set_default=False	show=1	GM=/give skin 17137 [@uid]
+skin	17138	伊瑟琳·全金属教师	roles=4009	init_unlock=False	set_default=False	show=1	GM=/give skin 17138 [@uid]
+skin	17139	芙兰·暗影	roles=4016	init_unlock=False	set_default=False	show=1	GM=/give skin 17139 [@uid]
+skin	17140	八重樱·奈落鬼斩	roles=4002,4005	init_unlock=False	set_default=False	show=1	GM=/give skin 17140 [@uid]
+skin	17141	绀紫之心	roles=4012	init_unlock=False	set_default=False	show=1	GM=/give skin 17141 [@uid]
+skin	17142	宁蒂·夏暮游鲤	roles=4014	init_unlock=False	set_default=False	show=1	GM=/give skin 17142 [@uid]
+skin	17143	迦娜·祭司	roles=4015	init_unlock=False	set_default=False	show=1	GM=/give skin 17143 [@uid]
+skin	17144	迦娜·伽蓝	roles=4015	init_unlock=False	set_default=False	show=1	GM=/give skin 17144 [@uid]
+skin	17145	菲米莉丝·小恶魔	roles=4017	init_unlock=False	set_default=False	show=1	GM=/give skin 17145 [@uid]
+skin	17146	塞西莉亚·月神舞步	roles=4001,4005	init_unlock=False	set_default=False	show=1	GM=/give skin 17146 [@uid]
+skin	17147	鸢一折纸·天使	roles=4001,4005,4011	init_unlock=False	set_default=False	show=1	GM=/give skin 17147 [@uid]
+skin	17148	七罪·魔女	roles=4001,4006,4013	init_unlock=False	set_default=False	show=1	GM=/give skin 17148 [@uid]
+skin	17149	布洛妮娅·奇境茶会	roles=4003	init_unlock=False	set_default=False	show=1	GM=/give skin 17149 [@uid]
+skin	17150	识之律者	roles=4010	init_unlock=False	set_default=False	show=1	GM=/give skin 17150 [@uid]
+skin	17151	北辰芽衣·逆乱妖刀	roles=4002	init_unlock=False	set_default=False	show=1	GM=/give skin 17151 [@uid]
+skin	17152	伊登·金色秘藏	roles=4016	init_unlock=False	set_default=False	show=1	GM=/give skin 17152 [@uid]
+skin	17153	圆环之理	roles=4012,4013,4014,4019	init_unlock=False	set_default=False	show=1	GM=/give skin 17153 [@uid]
+skin	17154	叛逆的恶魔	roles=4002,4004,4015,4019	init_unlock=False	set_default=False	show=1	GM=/give skin 17154 [@uid]
+skin	17155	希儿·山鲁佐德	roles=4006	init_unlock=False	set_default=False	show=1	GM=/give skin 17155 [@uid]
+skin	17156	希儿·山努亚王	roles=4006	init_unlock=False	set_default=False	show=1	GM=/give skin 17156 [@uid]
+skin	17157	时雨绮罗·奇迹的彩音	roles=4008,4012,4016	init_unlock=False	set_default=False	show=1	GM=/give skin 17157 [@uid]
+skin	17159	诗音·天狐	roles=4018	init_unlock=False	set_default=False	show=1	GM=/give skin 17159 [@uid]
+skin	17160	卡莲·扬旗覆世	roles=4001,4005	init_unlock=False	set_default=False	show=1	GM=/give skin 17160 [@uid]
+skin	17161	雪泉·冰之冷笑	roles=4003,4009,4012	init_unlock=False	set_default=False	show=1	GM=/give skin 17161 [@uid]
+skin	17162	雪不归·无缺女王	roles=4007,4008,4015	init_unlock=False	set_default=False	show=1	GM=/give skin 17162 [@uid]
+skin	17163	妮普吉雅·女神候补生	roles=4001,4012,4017	init_unlock=False	set_default=False	show=1	GM=/give skin 17163 [@uid]
+skin	17164	托托莉·旅羁时光	roles=4002,4007,4014	init_unlock=False	set_default=False	show=1	GM=/give skin 17164 [@uid]
+skin	17165	希露·绒绒日常	roles=4005,4016	init_unlock=False	set_default=False	show=1	GM=/give skin 17165 [@uid]
+skin	17166	普西芬妮·时之演绎	roles=4004,4011	init_unlock=False	set_default=False	show=1	GM=/give skin 17166 [@uid]
+skin	17167	海特儿·魔女的前夜	roles=4003,4007,4018	init_unlock=False	set_default=False	show=1	GM=/give skin 17167 [@uid]
+skin	17168	西琳·雪愿纷飞	roles=4012	init_unlock=False	set_default=False	show=1	GM=/give skin 17168 [@uid]
+skin	17169	爱莉希雅	roles=4005,4008,4014	init_unlock=False	set_default=False	show=1	GM=/give skin 17169 [@uid]
+skin	17170	帕朵菲莉丝	roles=4002,4003	init_unlock=False	set_default=False	show=1	GM=/give skin 17170 [@uid]
+skin	17171	芙兰·年华金礼	roles=4016	init_unlock=False	set_default=False	show=1	GM=/give skin 17171 [@uid]
+skin	17172	菲米莉丝·多用无人机	roles=4017	init_unlock=False	set_default=False	show=1	GM=/give skin 17172 [@uid]
+skin	17173	阿尔忒弥斯·叮可贝尔	roles=4006,4018	init_unlock=False	set_default=False	show=1	GM=/give skin 17173 [@uid]
+skin	17174	纹章·彼得潘	roles=4009,4015	init_unlock=False	set_default=False	show=1	GM=/give skin 17174 [@uid]
+skin	17175	伊瑟琳·喵呜女仆	roles=4009	init_unlock=False	set_default=False	show=1	GM=/give skin 17175 [@uid]
+skin	17176	琪亚娜·誓约之花	roles=4001	init_unlock=False	set_default=False	show=1	GM=/give skin 17176 [@uid]
+skin	17177	琪亚娜·誓约之花	roles=4001	init_unlock=False	set_default=False	show=0	GM=/give skin 17177 [@uid]
+skin	17178	宁蒂·世界之光	roles=4014	init_unlock=False	set_default=False	show=1	GM=/give skin 17178 [@uid]
+skin	17179	红贽·绯染Bloody	roles=4007,4011	init_unlock=False	set_default=False	show=1	GM=/give skin 17179 [@uid]
+skin	17180	卡琳·黑星升华	roles=4020	init_unlock=False	set_default=False	show=1	GM=/give skin 17180 [@uid]
+skin	17181	纯子&爱	roles=4019	init_unlock=False	set_default=False	show=1	GM=/give skin 17181 [@uid]
+skin	17182	废怯·红叶Magical	roles=4010,4017	init_unlock=False	set_default=False	show=1	GM=/give skin 17182 [@uid]
+skin	17183	圣夜奇行	roles=4003,4006,4007,4014	init_unlock=False	set_default=False	show=1	GM=/give skin 17183 [@uid]
+skin	17184	西琳·祥龙逐霄	roles=4012	init_unlock=False	set_default=False	show=1	GM=/give skin 17184 [@uid]
+skin	17185	琪亚娜·致今日的我	roles=4001	init_unlock=False	set_default=False	show=1	GM=/give skin 17185 [@uid]
+skin	17186	灵依飞车	roles=4001,4002,4003,4004,4005,4006,4007,4008,4009,4010,4011,4012,4013,4014,4015,4016,4017,4018,4019	init_unlock=False	set_default=False	show=1	GM=/give skin 17186 [@uid]
+skin	17187	诗音·酣憨乐狐	roles=4018	init_unlock=False	set_default=False	show=1	GM=/give skin 17187 [@uid]
+skin	17188	阿库莉亚·白王司穹	roles=4021	init_unlock=False	set_default=False	show=1	GM=/give skin 17188 [@uid]
+skin	17189	柯罗伊·永觅之音	roles=4004,4016	init_unlock=False	set_default=False	show=1	GM=/give skin 17189 [@uid]
+skin	17190	耀夜姬·光辉之夜	roles=4013,4015	init_unlock=False	set_default=False	show=1	GM=/give skin 17190 [@uid]
+skin	17191	琪亚娜&芽衣·“兔占欲”	roles=4019	init_unlock=False	set_default=False	show=0	GM=/give skin 17191 [@uid]
+skin	17192	魔法少女☆伊莉雅	roles=4006,4012,4016	init_unlock=False	set_default=False	show=1	GM=/give skin 17192 [@uid]
+skin	17193	魔法少女☆美游	roles=4003,4011,4014	init_unlock=False	set_default=False	show=1	GM=/give skin 17193 [@uid]
+skin	17194	卡琳·异度脱兔	roles=4020	init_unlock=False	set_default=False	show=1	GM=/give skin 17194 [@uid]
+skin	17195	阿库莉亚·暗网黑猫	roles=4021	init_unlock=False	set_default=False	show=1	GM=/give skin 17195 [@uid]
+skin	17196	红理惠·日落奇境	roles=4024	init_unlock=False	set_default=False	show=1	GM=/give skin 17196 [@uid]
+skin	17197	千早爱音	roles=4019	init_unlock=False	set_default=False	show=1	GM=/give skin 17197 [@uid]
+skin	17198	长崎爽世	roles=4014,4015,4016	init_unlock=False	set_default=False	show=1	GM=/give skin 17198 [@uid]
+skin	17199	温蒂·风之律者	roles=4002,4007,4012	init_unlock=False	set_default=False	show=1	GM=/give skin 17199 [@uid]
+skin	17200	卡琳·咖啡厅豪杰	roles=4020	init_unlock=False	set_default=False	show=1	GM=/give skin 17200 [@uid]
+skin	17201	琪亚娜&芽衣·揉成团	roles=4019	init_unlock=False	set_default=False	show=1	GM=/give skin 17201 [@uid]
+skin	17202	拉妮艾特·豪门贵胄	roles=4022	init_unlock=False	set_default=False	show=1	GM=/give skin 17202 [@uid]
+skin	17203	爱莉希雅·人之律者	roles=4019	init_unlock=False	set_default=False	show=1	GM=/give skin 17203 [@uid]
+skin	17204	格蕾修·夏梦如绘	roles=4009,4012,4018	init_unlock=False	set_default=False	show=1	GM=/give skin 17204 [@uid]
+skin	17205	绀紫之心·爱意魔法	roles=4014,4016,4017	init_unlock=False	set_default=False	show=1	GM=/give skin 17205 [@uid]
+skin	17206	圣黑之心·幽色诱惑	roles=4006,4024	init_unlock=False	set_default=False	show=1	GM=/give skin 17206 [@uid]
+skin	17207	布洛妮娅·白鹭立雪	roles=4025	init_unlock=False	set_default=False	show=1	GM=/give skin 17207 [@uid]
+skin	17208	菲米莉丝·笼中雀鸣	roles=4017	init_unlock=False	set_default=False	show=1	GM=/give skin 17208 [@uid]
+skin	17209	杏·恶魔小丑	roles=4007	init_unlock=False	set_default=False	show=1	GM=/give skin 17209 [@uid]
+skin	17212	煌嵐·裂空女巫	roles=4026	init_unlock=False	set_default=False	show=1	GM=/give skin 17212 [@uid]
+skin	17213	蒂亚拉·朋克精神	roles=4023	init_unlock=False	set_default=False	show=1	GM=/give skin 17213 [@uid]
+skin	17988	阿库莉亚·赫萝普特	roles=4021	init_unlock=False	set_default=False	show=0	GM=/give skin 17988 [@uid]
+skin	17989	卡琳·梅莉德	roles=4020	init_unlock=False	set_default=False	show=0	GM=/give skin 17989 [@uid]
+skin	17990	卡琳·梅莉德	roles=4020	init_unlock=False	set_default=False	show=0	GM=/give skin 17990 [@uid]
+skin	17991	琪亚娜·卡斯兰娜	roles=4001	init_unlock=True	set_default=True	show=0	GM=/give skin 17991 [@uid]
+skin	17992	卡莲·扬旗覆世	roles=4001,4005	init_unlock=False	set_default=False	show=0	GM=/give skin 17992 [@uid]
+skin	17993	雷电芽衣	roles=4002	init_unlock=False	set_default=False	show=0	GM=/give skin 17993 [@uid]
+skin	17994	菲米莉丝	roles=4017	init_unlock=False	set_default=False	show=0	GM=/give skin 17994 [@uid]
+skin	17995	菲米莉丝	roles=4107	init_unlock=False	set_default=False	show=0	GM=/give skin 17995 [@uid]
+skin	17996	布洛妮娅·天使重构	roles=4106	init_unlock=False	set_default=False	show=0	GM=/give skin 17996 [@uid]
+skin	17997	德丽莎·祈恩永愿	roles=4105	init_unlock=False	set_default=False	show=0	GM=/give skin 17997 [@uid]
+skin	17998	德丽莎·祈恩永愿	roles=4104	init_unlock=False	set_default=False	show=0	GM=/give skin 17998 [@uid]
+skin	17999	德丽莎·祈恩永愿	roles=4103	init_unlock=False	set_default=False	show=0	GM=/give skin 17999 [@uid]
+skin	17158	雷电芽衣（新生篇）	roles=4002	init_unlock=False	set_default=False	show=1	GM=/give skin 17158 [@uid]
 
 [partner]
-开放看板总数：1154；giveall&type=all 默认包含本分区。
+开放看板总数：1154；/giveall all 默认包含本分区。
 partner	1	琪亚娜·卡斯兰娜	type=1	max_intimacy=0	dynamic=True
 partner	2	犹大誓约	type=2	max_intimacy=99	dynamic=True
 partner	3	卢西恩密藏	type=2	max_intimacy=99	dynamic=False

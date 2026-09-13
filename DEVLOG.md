@@ -1,5 +1,30 @@
 # DEVLOG
 
+## 2026-09-13 19:55
+
+- **动作**：跟进上游 `/help` 格式调整 + 命令栏交互调整。
+- **变更**：
+  - `command-bar` 预览框去掉 `GET` 前缀，右侧按钮由「复制 URL」改为「复制命令」（直接复制命令行本身，便于粘进控制台或游戏内聊天框）；移除随之失效的 `GmApiService.urlFor`
+  - 重新同步 `public/Handbook.txt`（上游 19:48 重新生成，8679 行）
+  - 更新 CLAUDE.md 的 help 解析说明
+- **上游变化**：`OtherCommands.ExecuteHelp` 去掉用法与 notes 的缩进（`      /usage` → `/usage`、`  注:` → `注:`）；`GameMasterService` 把 `GmCommandResJson.Success` 改名为 `Ok`（命令注册表仍 12 条）。
+- **验证**：`yarn build` 通过；对运行中的服务器实测 `/help` 解析出 12 条命令、别名与用法条数全对，`/help ktc` 得 2 用法 + 5 notes，失败外壳 `{success:false,errorDescription,messages:[]}` 正确。解析器统一用 `^\s*`，缩进有无都不受影响。
+
+## 2026-09-13 19:10
+
+- **动作**：适配上游 BH2 私服 GM 协议大重构（查询参数 → LunarCore 风格命令行）。
+- **变更**：
+  - 新增 `src/app/core/command-line.ts`：`cmdLine/arg/mod/xAmount/flag` 命令行构造助手
+  - 重写 `core/gm-api.service.ts`：`execute(content)` 走 `?content=` 查询参数；响应归一化为 `messages[]`；`/help` 改为文本解析（`parseHelpText`，先按换行摊平再逐行识别）；三种响应外壳容错
+  - `shared/`：page-executor 改为 `run(() => string)` 并抽取 `@uid` 记忆；command-bar 预览命令行 + 复制请求 URL；result-panel 逐条渲染 messages
+  - 8 个页面全部改为构造命令行：位置参数 + `x数量/lv/r/s/p/i/t/pt/bl/ml` 前缀修饰符 + `-flag` + `@uid`
+  - console 页改为自由命令行输入 + 服务端 `/help` 命令速查（点击填入）
+  - role 页新增 `-max` 一键拉满；story 页 `trigger` 语义改为 `-notrigger`；give/giveall 的 partner/skin 去掉数量（服务端只接受单份）
+  - `core/handbook.service.ts`：新增 `parseGmTemplate` / `normalizeGmTemplate`，兼容上游新旧混用的 GM 模板
+  - 同步 `public/Handbook.txt`（8679 行）；更新 CLAUDE.md / STATE.md / FEATURES.md
+- **验证**：`yarn build` 通过（需系统 Node 24，受管 Node 22.22.2 被 Angular CLI 拒绝）；对真实服务器实测成功外壳与 4 条错误路径，`/help` 解析出 12 条命令且 label/别名/用法/notes 全对。
+- **动机**：上游提交 `60016bc refactor(gm): 重构 GM 系统为 LunarCore 风格命令行与前缀修饰符传参`，旧的结构化参数接口全部下线。
+
 ## 2026-09-03 16:00
 
 - **动作**：同步上游 BH2 私服 GM 模块 2026-09 大改（11 条命令，剧情/九霄/账号三分）。

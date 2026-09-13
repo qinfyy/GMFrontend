@@ -98,7 +98,7 @@ interface NavItem {
             <div class="overlay" (click)="closeSettings($event)">
                 <aside class="drawer" role="dialog" aria-modal="true" aria-label="服务器设置" (click)="$event.stopPropagation()">
                     <h2>服务器设置</h2>
-                    <p class="desc">留空服务器地址时，开发模式下通过本地代理访问 localhost:21000。</p>
+                    <p class="desc">留空服务器地址时，开发模式下通过本地代理访问 localhost:21000。请求形如 GET /api/gm?content=&lt;命令行&gt;。</p>
 
                     <label>
                         <span>服务器地址</span>
@@ -113,7 +113,7 @@ interface NavItem {
                                      [ngModel]="settings.apiKey()"
                                      (ngModelChange)="settings.update({ apiKey: $event })" />
                     </label>
-                    <p class="desc">ApiKey 非空时以 Authorization: Bearer 头发送。</p>
+                    <p class="desc">ApiKey 非空时以 Authorization: Bearer 头发送；服务端也支持 access_token 查询参数。</p>
 
                     <button type="button" class="btn primary" (click)="settingsOpen.set(false)">完成</button>
                 </aside>

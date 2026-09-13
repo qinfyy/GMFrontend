@@ -1,19 +1,29 @@
 /**
  * 剧情 / 九霄页。
  * 服务端命令集（2026-09）:
- *   - storycompleted (sc) 完成普通剧情指定关卡及其全部资源前置
- *   - kyusyoTaskCompleted (ktc) 九霄任务推进到指定状态；id 可为 all
- *   - kyusyoLevel       (kl)  设置九霄等级 1-99
- *   - kyusyoUnlockLevel (kul) 解锁九霄出击关卡；level 可为 all
- *   - kyusyoAchievement (ka)  完成九霄成就（探索）；id 可为 all
+ *   - storycompleted (sc)        完成普通剧情指定关卡及其全部资源前置
+ *   - newstorycompleted (nsc)    完成崩坏学园篇整章或指定关卡
+ *   - kyusyoTaskCompleted (ktc)  九霄任务推进到指定状态；id 可为 all
+ *   - kyusyoLevel (kl)           设置九霄等级（范围由 KyusyoData 资源表决定）
+ *   - kyusyoUnlockLevel (kul)    解锁九霄出击关卡；level 可为 all
+ *   - kyusyoAchievement (ka)     完成九霄成就（探索）；id 可为 all
+ *
+ * 命令行（2026-09 起统一为 LunarCore 风格，位置参数 + 前缀修饰符 + -flag + @uid）:
+ *   /storycompleted <终点关卡> [@uid]
+ *   /newstorycompleted <章节菜单ID> [关卡ID] [-noprecede] [@uid]
+ *   /kyusyoTaskCompleted <任务ID|all> [status] [@uid]
+ *   /kyusyoLevel <等级> [-notrigger] [@uid]
+ *   /kyusyoUnlockLevel <关卡ID|all> [-notrigger] [@uid]
+ *   /kyusyoAchievement <ExpoID|all> [@uid]
  */
-import { Component, computed, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommandBarComponent } from '../../shared/command-bar';
 import { ResultPanelComponent } from '../../shared/result-panel';
 import { EntryPickerComponent } from '../../shared/entry-picker';
 import { pageExecutor } from '../../shared/page-executor';
-import { HandbookEntry } from '../../core/handbook.service';
+import { HandbookEntry, parseGmTemplate } from '../../core/handbook.service';
+import { CmdPart, arg, cmdLine, flag } from '../../core/command-line';
 
 type StoryTab = 'sc' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
 
@@ -23,7 +33,7 @@ type StoryTab = 'sc' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
         <section class="page">
             <header class="page-head">
                 <h2>剧情 / 九霄</h2>
-                <p>普通剧情 / 崩坏学园篇 / 九霄任务/等级/关卡/成就命令。</p>
+                <p>普通剧情 / 崩坏学园篇 / 九霄任务·等级·关卡·成就命令。</p>
             </header>
 
             <div class="tabs" role="tablist">
@@ -43,7 +53,7 @@ type StoryTab = 'sc' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
             <div class="commuse">
                 <div class="commuse-item">
                     <div class="label">uid</div>
-                    <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="uid" (ngModelChange)="bump()" /></div>
+                    <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="uid" /></div>
                 </div>
 
                 @if (tab() === 'sc') {
@@ -61,25 +71,72 @@ type StoryTab = 'sc' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
                         </div>
                     </div>
                     <div class="commuse-item align-top">
-                        <div class="label">终点关卡 to</div>
+                        <div class="label">终点关卡</div>
                         <div class="value">
                             <gm-entry-picker
                                 [section]="storySection()"
                                 placeholder="搜索关卡（ID 或章节标题）…"
-                                [(value)]="to" (valueChange)="bump()"
+                                [(value)]="to"
                             />
                         </div>
                     </div>
                 }
 
+                @if (tab() === 'nsc') {
+                    <div class="commuse-item align-top">
+                        <div class="label">章节 ID</div>
+                        <div class="value">
+                            <gm-entry-picker
+                                section="崩坏学园篇章节目录"
+                                typeFilter="chapter"
+                                placeholder="搜索章节（ID 或名称）；容器章节 Type=2 不可用"
+                                [(value)]="nscChapterId"
+                                [extraOf]="nscChapterExtra"
+                            />
+                        </div>
+                    </div>
+                    <div class="commuse-item align-top">
+                        <div class="label">关卡 ID</div>
+                        <div class="value">
+                            <gm-entry-picker
+                                section="崩坏学园篇章节目录"
+                                typeFilter="level"
+                                [filterOf]="nscLevelFilter"
+                                [toggleable]="true"
+                                [placeholder]="nscChapterId()
+                                    ? '搜索关卡（仅显示所选章节的关卡）；留空 = 整章完成'
+                                    : '搜索关卡（全部章节）；留空 = 整章完成'"
+                                [(value)]="nscLevelId"
+                            />
+                        </div>
+                    </div>
+                    <div class="commuse-item">
+                        <div class="label">执行模式</div>
+                        <div class="value">
+                            <span class="mode">{{ nscLevelId ? 'level 模式：只完成指定关卡（已达成的可领任务自动领取发奖）' : '整章模式：关卡全通关 + 挑战 + 评分 + 章节任务全部完成发奖' }}</span>
+                        </div>
+                    </div>
+                    @if (nscLevelId) {
+                        <div class="commuse-item">
+                            <div class="label">自动前置</div>
+                            <div class="value">
+                                <label class="check">
+                                    <input type="checkbox" [(ngModel)]="nscPrecede" />
+                                    <span>自动一并完成章节内排在目标关卡之前的关卡（取消勾选则追加 -noprecede）</span>
+                                </label>
+                            </div>
+                        </div>
+                    }
+                }
+
                 @if (tab() === 'ktc') {
                     <div class="commuse-item align-top">
-                        <div class="label">任务 id</div>
+                        <div class="label">任务 ID</div>
                         <div class="value">
                             <gm-entry-picker
                                 section="九霄任务目录（逐火之蛾主玩法）"
-                                placeholder="搜索任务（ID 或名称）；id=all 时清空"
-                                [(value)]="taskId" (valueChange)="bump()"
+                                placeholder="搜索任务（ID 或名称）；勾选下方 all 时忽略"
+                                [(value)]="taskId"
                                 [extraOf]="missionExtra"
                             />
                         </div>
@@ -88,7 +145,7 @@ type StoryTab = 'sc' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
                         <div class="label">id = all</div>
                         <div class="value">
                             <label class="check">
-                                <input type="checkbox" [(ngModel)]="ktcAll" (ngModelChange)="bump()" />
+                                <input type="checkbox" [(ngModel)]="ktcAll" />
                                 <span>全部主线+支线任务；status 缺省 claimed 全完成发奖</span>
                             </label>
                         </div>
@@ -96,7 +153,7 @@ type StoryTab = 'sc' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
                     <div class="commuse-item">
                         <div class="label">目标状态</div>
                         <div class="value">
-                            <select [(ngModel)]="ktcStatus" (ngModelChange)="bump()">
+                            <select [(ngModel)]="ktcStatus">
                                 <option value="claimed">claimed（默认，置可领奖并发放奖励）</option>
                                 <option value="claimable">claimable（可领奖，不发奖）</option>
                                 <option value="inprogress">inprogress（进行中）</option>
@@ -108,79 +165,38 @@ type StoryTab = 'sc' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
 
                 @if (tab() === 'kl') {
                     <div class="commuse-item">
-                        <div class="label">九霄等级 level</div>
-                        <div class="value"><input type="number" min="1" max="99" [(ngModel)]="kyusyoLevel" (ngModelChange)="bump()" placeholder="1–99（按 KyusyoData 上限）" /></div>
-                    </div>
-                }
-
-                @if (tab() === 'nsc') {
-                    <div class="commuse-item align-top">
-                        <div class="label">章节 id</div>
-                        <div class="value">
-                            <gm-entry-picker
-                                section="崩坏学园篇章节目录"
-                                typeFilter="chapter"
-                                placeholder="搜索章节（ID 或名称）；容器章节 Type=2 不可用"
-                                [(value)]="nscChapterId"
-                                (valueChange)="onNscChapterChange($event)"
-                                [extraOf]="nscChapterExtra"
-                            />
-                        </div>
-                    </div>
-                    <div class="commuse-item align-top">
-                        <div class="label">关卡 level</div>
-                        <div class="value">
-                            <gm-entry-picker
-                                section="崩坏学园篇章节目录"
-                                typeFilter="level"
-                                [filterOf]="nscLevelFilter"
-                                [toggleable]="true"
-                                [placeholder]="nscChapterId()
-                                    ? '搜索关卡（仅显示所选章节的关卡）；留空 = 整章完成'
-                                    : '搜索关卡（全部章节）；留空 = 整章完成；可手填逗号分隔多个'"
-                                [(value)]="nscLevelId" (valueChange)="bump()"
-                            />
-                        </div>
+                        <div class="label">九霄等级</div>
+                        <div class="value"><input type="number" min="1" [(ngModel)]="kyusyoLevel" placeholder="按 KyusyoData 资源表上限" /></div>
                     </div>
                     <div class="commuse-item">
-                        <div class="label">执行模式</div>
+                        <div class="label">联动解锁</div>
                         <div class="value">
                             <label class="check">
-                                <span>{{ nscLevelId ? 'level 模式：只完成指定关卡（已达成的可领任务自动领取发奖）' : '整章模式：关卡全通关 + 挑战 + 评分 + 章节任务全部完成发奖' }}</span>
+                                <input type="checkbox" [(ngModel)]="klTrigger" />
+                                <span>按新等级刷新武器解锁与槽位并联动触发关卡解锁（取消勾选则追加 -notrigger）</span>
                             </label>
                         </div>
                     </div>
-                    @if (nscLevelId) {
-                        <div class="commuse-item">
-                            <div class="label">前置 precede</div>
-                            <div class="value">
-                                <label class="check">
-                                    <input type="checkbox" [(ngModel)]="nscPrecede" (ngModelChange)="bump()" />
-                                    <span>precede=true（默认）：自动一并完成章节内排在目标关卡之前的关卡</span>
-                                </label>
-                            </div>
-                        </div>
-                    }
                 }
 
                 @if (tab() === 'kul') {
                     <div class="commuse-item align-top">
-                        <div class="label">关卡 level</div>
+                        <div class="label">关卡 ID</div>
                         <div class="value">
                             <gm-entry-picker
                                 section="kyusyoUnlockLevel 九霄关卡目录（逐火之蛾出击）"
-                                placeholder="搜索关卡（ID 或名称）；level=all 时清空"
-                                [(value)]="levelId" (valueChange)="bump()"
+                                placeholder="搜索关卡（ID 或名称）；留空 = all"
+                                [(value)]="levelId"
                                 [extraOf]="levelExtra"
                             />
                         </div>
                     </div>
                     <div class="commuse-item">
-                        <div class="label">前置 trigger</div>
+                        <div class="label">前置闭包</div>
                         <div class="value">
                             <label class="check">
-                                <input type="checkbox" [(ngModel)]="kulTrigger" (ngModelChange)="bump()" />
-                                <span>trigger=1（默认，沿 ParentId 链解锁前置闭包）</span>
+                                <input type="checkbox" [(ngModel)]="kulTrigger" />
+                                <span>沿 ParentId 链把前置一并置为可打（取消勾选则追加 -notrigger）</span>
                             </label>
                         </div>
                     </div>
@@ -188,12 +204,12 @@ type StoryTab = 'sc' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
 
                 @if (tab() === 'ka') {
                     <div class="commuse-item align-top">
-                        <div class="label">成就 id</div>
+                        <div class="label">成就 ID</div>
                         <div class="value">
                             <gm-entry-picker
                                 section="kyusyoAchievement 九霄成就目录（逐火之蛾探索）"
-                                placeholder="搜索成就（ID 或名称）；id=all 时清空"
-                                [(value)]="achievementId" (valueChange)="bump()"
+                                placeholder="搜索成就（ID 或名称）；留空 = all"
+                                [(value)]="achievementId"
                                 [extraOf]="achievementExtra"
                             />
                         </div>
@@ -204,6 +220,7 @@ type StoryTab = 'sc' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
             <gm-command-bar
                 [preview]="preview()"
                 [sending]="exec.sending()"
+                [disabled]="!canSend()"
                 [danger]="isDangerous()"
                 [dangerReason]="dangerReason()"
                 (send)="send()"
@@ -241,6 +258,7 @@ type StoryTab = 'sc' | 'nsc' | 'ktc' | 'kl' | 'kul' | 'ka';
         .commuse-item .value { flex: 1; min-width: 0; }
         .commuse-item .value select { width: 100%; }
         .check { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--color-text-2); }
+        .mode { font-size: var(--text-sm); color: var(--color-text-2); }
 
         /* 篇章段控件（传承篇 / 新生篇） */
         .seg-tabs { display: inline-flex; gap: var(--space-1); padding: 4px 0; }
@@ -265,32 +283,32 @@ export class StoryPage {
         {
             cmd: 'sc' as const,
             label: '普通剧情',
-            hint: 'storycompleted：完成指定关卡及其全部资源前置（同章节在它之前的关卡），逐关执行确定性首通结算。',
+            hint: '/storycompleted <终点关卡>：完成指定关卡及其全部资源前置（同章节在它之前的关卡），逐关执行确定性首通结算。',
         },
         {
             cmd: 'nsc' as const,
             label: '崩坏学园篇',
-            hint: 'newstorycompleted：完成崩坏学园篇整章或指定关卡（通关、挑战触发器补全、评分填满；整章模式额外完成章节任务并发奖；level 模式 precede 默认连带完成前面的关卡）。',
+            hint: '/newstorycompleted <章节菜单ID> [关卡ID] [-noprecede]：整章模式完成关卡/挑战/评分/章节任务并发奖；给关卡则为 level 模式。',
         },
         {
             cmd: 'ktc' as const,
             label: '九霄任务',
-            hint: 'kyusyoTaskCompleted：把九霄任务推进到指定状态。status 缺省 claimed（置可领奖并由服务端发奖）。',
+            hint: '/kyusyoTaskCompleted <任务ID|all> [status]：status 缺省 claimed（置可领奖并由服务端发奖）。',
         },
         {
             cmd: 'kl' as const,
             label: '九霄等级',
-            hint: 'kyusyoLevel：设置九霄等级 1-99，超出 KyusyoData 上限会被拒绝。',
+            hint: '/kyusyoLevel <等级> [-notrigger]：等级范围由 KyusyoData 资源表决定，超出即拒绝。',
         },
         {
             cmd: 'kul' as const,
             label: '九霄关卡解锁',
-            hint: 'kyusyoUnlockLevel：解锁指定九霄关卡。level=all 解锁全部 Type∈{1,2,3,4} 常规关卡；trigger=0 只解指定关卡。',
+            hint: '/kyusyoUnlockLevel <关卡ID|all> [-notrigger]：all 解锁全部 Type∈{1,2,3} 常规关卡，Extra 未开放区不在内。',
         },
         {
             cmd: 'ka' as const,
             label: '九霄成就',
-            hint: 'kyusyoAchievement：完成九霄成就（探索）并按 KyusyoExpoData 发奖；id=all 完成全部 95 个。',
+            hint: '/kyusyoAchievement <ExpoID|all>：按 KyusyoExpoData 发奖，已完成的 expo 幂等不重复发奖。',
         },
     ];
 
@@ -301,10 +319,10 @@ export class StoryPage {
     protected to = '';
 
     // nsc（newstorycompleted）
-    /** 章节 ID：signal，关卡 picker 的 filterOf 依赖它做联动过滤 */
+    /** 章节 ID：关卡 picker 的 filterOf 依赖它做联动过滤 */
     readonly nscChapterId = signal('');
     protected nscLevelId = '';
-    /** precede（默认 true）：level 模式自动一并完成章节内排在目标之前的关卡 */
+    /** 自动完成前置关卡（默认开启，关闭时追加 -noprecede） */
     protected nscPrecede = true;
 
     // ktc
@@ -314,6 +332,7 @@ export class StoryPage {
 
     // kl
     protected kyusyoLevel: number | null = null;
+    protected klTrigger = true;
 
     // kul
     protected levelId = '';
@@ -322,17 +341,40 @@ export class StoryPage {
     // ka
     protected achievementId = '';
 
-    protected readonly hint = computed(
-        () => this.tabDefs.find(t => t.cmd === this.tab())?.hint ?? '',
-    );
+    protected hint(): string {
+        return this.tabDefs.find(t => t.cmd === this.tab())?.hint ?? '';
+    }
 
-    protected readonly isDangerous = computed(() => this.tab() === 'ktc' && this.ktcAll);
+    protected isDangerous(): boolean {
+        return (this.tab() === 'ktc' && this.ktcAll) || (this.tab() === 'nsc' && !this.nscLevelId);
+    }
 
-    protected readonly dangerReason = computed(() =>
-        this.isDangerous()
-            ? `将一次性完成全部九霄任务并发放奖励（status=${this.ktcStatus}）`
-            : '',
-    );
+    protected dangerReason(): string {
+        if (this.tab() === 'ktc' && this.ktcAll) {
+            return `将一次性完成全部九霄任务并发放奖励（status=${this.ktcStatus}）`;
+        }
+        if (this.tab() === 'nsc' && !this.nscLevelId) {
+            return '整章模式将完成该章节全部关卡并领取所有章节任务奖励';
+        }
+        return '';
+    }
+
+    /** 各 tab 的必填项校验 */
+    protected canSend(): boolean {
+        switch (this.tab()) {
+            case 'sc':
+                return this.to.trim() !== '';
+            case 'nsc':
+                return this.nscChapterId().trim() !== '';
+            case 'ktc':
+                return this.ktcAll || this.taskId.trim() !== '';
+            case 'kl':
+                return this.kyusyoLevel !== null && this.kyusyoLevel > 0;
+            case 'kul':
+            case 'ka':
+                return true; // 留空即 all
+        }
+    }
 
     protected setTab(cmd: StoryTab): void {
         this.tab.set(cmd);
@@ -371,21 +413,14 @@ export class StoryPage {
 
     /**
      * 关卡 picker 联动过滤：选中章节后只显示该章节的关卡。
-     * 关卡行的 GM 模板含 id=<章节ID>&level=...，从中解析章节归属。
+     * 关卡行的 GM 模板形如 newstorycompleted&uid=<UID>&id=2&level=402001，
+     * 归一化后的第一个位置参数就是所属章节 ID。
      */
     protected readonly nscLevelFilter = (e: HandbookEntry): boolean => {
         const chapter = this.nscChapterId();
         if (!chapter) return true;
-        const m = /(?:^|&)id=(\d+)(?:&|$)/.exec(e.attrs['GM'] ?? '');
-        return m !== null && m[1] === chapter;
+        return parseGmTemplate(e.attrs['GM'] ?? '').positionals[0] === chapter;
     };
-
-    /** 章节切换：清空已选关卡（跨章节的关卡 ID 不通用）并触发 preview 重算 */
-    protected onNscChapterChange(value: string): void {
-        this.nscChapterId.set(value);
-        this.nscLevelId = '';
-        this.bump();
-    }
 
     protected readonly levelExtra = (e: { attrs: Record<string, string> }): string => {
         const t = e.attrs['levelTypeForServer'];
@@ -396,120 +431,36 @@ export class StoryPage {
     protected readonly achievementExtra = (e: { attrs: Record<string, string> }): string => {
         return e.attrs['reward'] ? `奖励 ${e.attrs['reward']}` : '';
     };
-    /** 输入触发：每个表单字段 (ngModelChange) 调用，驱动 preview 实时重算 */
-    private readonly revision = signal(0);
-    protected bump(): void { this.revision.update(n => n + 1); }
 
-    
-
-    protected readonly preview = computed(() => {
-        this.revision(); // 实时依赖
-        const parts: string[] = [];
-        switch (this.tab()) {
-            case 'sc': {
-                parts.push('cmd=sc');
-                if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
-                if (this.to.trim()) parts.push(`to=${encodeURIComponent(this.to.trim())}`);
-                break;
-            }
-            case 'nsc': {
-                parts.push('cmd=nsc');
-                if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
-                if (this.nscChapterId().trim()) parts.push(`id=${encodeURIComponent(this.nscChapterId().trim())}`);
-                if (this.nscLevelId.trim()) {
-                    parts.push(`level=${encodeURIComponent(this.nscLevelId.trim())}`);
-                    // precede 默认 true，只在 false 时显式传参
-                    if (!this.nscPrecede) parts.push('precede=false');
-                }
-                break;
-            }
-            case 'ktc': {
-                parts.push('cmd=ktc');
-                if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
-                if (this.ktcAll) {
-                    parts.push('id=all');
-                } else if (this.taskId.trim()) {
-                    parts.push(`id=${encodeURIComponent(this.taskId.trim())}`);
-                } else {
-                    // 任务 id 必填
-                    parts.push('id=__REQUIRED__');
-                }
-                if (this.ktcStatus !== 'claimed') parts.push(`status=${this.ktcStatus}`);
-                break;
-            }
-            case 'kl': {
-                parts.push('cmd=kl');
-                if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
-                if (this.kyusyoLevel !== null && this.kyusyoLevel > 0) {
-                    parts.push(`level=${Math.floor(this.kyusyoLevel)}`);
-                }
-                break;
-            }
-            case 'kul': {
-                parts.push('cmd=kul');
-                if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
-                if (this.levelId.trim()) {
-                    parts.push(`level=${encodeURIComponent(this.levelId.trim())}`);
-                } else {
-                    parts.push('level=all');
-                }
-                if (!this.kulTrigger) parts.push('trigger=0');
-                break;
-            }
-            case 'ka': {
-                parts.push('cmd=ka');
-                if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
-                if (this.achievementId.trim()) {
-                    parts.push(`id=${encodeURIComponent(this.achievementId.trim())}`);
-                } else {
-                    parts.push('id=all');
-                }
-                break;
-            }
+    protected preview(): string {
+        const tab = this.tab();
+        if (tab === 'sc') {
+            return cmdLine('storycompleted', [arg(this.to)], this.uid);
         }
-        return parts.join('&');
-    });
+        if (tab === 'nsc') {
+            const parts: CmdPart[] = [arg(this.nscChapterId()), arg(this.nscLevelId)];
+            if (this.nscLevelId) parts.push(flag('noprecede', !this.nscPrecede));
+            return cmdLine('newstorycompleted', parts, this.uid);
+        }
+        if (tab === 'ktc') {
+            const parts: CmdPart[] = [arg(this.ktcAll ? 'all' : this.taskId)];
+            if (this.ktcStatus !== 'claimed') parts.push(arg(this.ktcStatus));
+            return cmdLine('kyusyoTaskCompleted', parts, this.uid);
+        }
+        if (tab === 'kl') {
+            return cmdLine('kyusyoLevel', [arg(this.kyusyoLevel), flag('notrigger', !this.klTrigger)], this.uid);
+        }
+        if (tab === 'kul') {
+            return cmdLine(
+                'kyusyoUnlockLevel',
+                [arg(this.levelId || 'all'), flag('notrigger', !this.kulTrigger)],
+                this.uid,
+            );
+        }
+        return cmdLine('kyusyoAchievement', [arg(this.achievementId || 'all')], this.uid);
+    }
 
     protected send(): void {
-        void this.exec.run(() => {
-            const record: Record<string, string> = {};
-            if (this.uid.trim()) record['uid'] = this.uid.trim();
-            switch (this.tab()) {
-                case 'sc':
-                    record['cmd'] = 'sc';
-                    if (this.to.trim()) record['to'] = this.to.trim();
-                    break;
-                case 'nsc':
-                    record['cmd'] = 'nsc';
-                    if (this.nscChapterId().trim()) record['id'] = this.nscChapterId().trim();
-                    if (this.nscLevelId.trim()) {
-                        record['level'] = this.nscLevelId.trim();
-                        if (!this.nscPrecede) record['precede'] = 'false';
-                    }
-                    break;
-                case 'ktc':
-                    record['cmd'] = 'ktc';
-                    if (this.ktcAll) record['id'] = 'all';
-                    else if (this.taskId.trim()) record['id'] = this.taskId.trim();
-                    if (this.ktcStatus !== 'claimed') record['status'] = this.ktcStatus;
-                    break;
-                case 'kl':
-                    record['cmd'] = 'kl';
-                    if (this.kyusyoLevel !== null && this.kyusyoLevel > 0) record['level'] = String(Math.floor(this.kyusyoLevel));
-                    break;
-                case 'kul':
-                    record['cmd'] = 'kul';
-                    if (this.levelId.trim()) record['level'] = this.levelId.trim();
-                    else record['level'] = 'all';
-                    if (!this.kulTrigger) record['trigger'] = '0';
-                    break;
-                case 'ka':
-                    record['cmd'] = 'ka';
-                    if (this.achievementId.trim()) record['id'] = this.achievementId.trim();
-                    else record['id'] = 'all';
-                    break;
-            }
-            return record;
-        });
+        void this.exec.run(() => this.preview());
     }
 }

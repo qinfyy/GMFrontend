@@ -1,6 +1,7 @@
 /**
  * 结果面板：展示一次 GM 调用的结果或错误。
- * 成功时显示 Before/After 对比与同步状态；失败时用 --color-error 强调。
+ * 2026-09 上游改为逐条消息输出，成功时按服务端 messages 顺序列出；
+ * 失败时用 --color-error 强调，并展示 HTTP 状态与服务端错误码。
  */
 import { Component, input } from '@angular/core';
 import { GmResult, GmApiError } from '../core/gm-api.service';
@@ -12,35 +13,24 @@ import { GmResult, GmApiError } from '../core/gm-api.service';
             <div class="panel error" role="alert">
                 <div class="head">
                     <span class="badge error-badge">失败</span>
-                    <span class="meta">HTTP {{ err.status }} · {{ err.code }}</span>
+                    <span class="meta">HTTP {{ err.status }}</span>
+                    @if (err.code) { <span class="meta">{{ err.code }}</span> }
                 </div>
                 <p class="message">{{ err.message }}</p>
             </div>
         } @else if (result(); as res) {
             <div class="panel success">
                 <div class="head">
-                    <span class="badge success-badge">成功</span>
-                    <span class="meta">cmd={{ res.command }}</span>
-                    @if (res.uid !== null) { <span class="meta">uid={{ res.uid }}</span> }
-                    @if (res.amount !== null) { <span class="meta">amount={{ res.amount }}</span> }
-                    <span class="meta sync" [class.warn]="!res.syncDelivered">
-                        {{ res.syncDelivered ? '已在线同步' : '在线同步未送达' }}
-                    </span>
+                    <span class="badge success-badge">发送成功</span>
+                    <span class="meta">输出 {{ res.messages.length }} 条</span>
                 </div>
-                @if (res.help) {
-                    <p class="hint">命令说明共 {{ res.help.length }} 条，可在「命令手册」页查看。</p>
-                } @else {
-                    <div class="diff">
-                        <div class="col">
-                            <h4>Before</h4>
-                            <pre>{{ pretty(res.before) }}</pre>
-                        </div>
-                        <div class="col">
-                            <h4>After</h4>
-                            <pre>{{ pretty(res.after) }}</pre>
-                        </div>
-                    </div>
-                }
+                <div class="output">
+                    @for (m of res.messages; track $index) {
+                        <div class="line">{{ m }}</div>
+                    } @empty {
+                        <div class="line muted">（服务端未返回消息）</div>
+                    }
+                </div>
             </div>
         }
     `,
@@ -61,27 +51,21 @@ import { GmResult, GmApiError } from '../core/gm-api.service';
         .success-badge { background: rgba(0, 180, 42, 0.1); color: var(--color-success); }
         .error-badge { background: rgba(245, 63, 63, 0.1); color: var(--color-error); }
         .meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-2); }
-        .sync { margin-left: auto; }
-        .sync.warn { color: var(--color-warning); }
-        .message { margin: 0; font-size: var(--text-sm); color: var(--color-text-1); }
-        .hint { margin: 0; font-size: var(--text-sm); color: var(--color-text-2); }
+        .message { margin: 0; font-size: var(--text-sm); color: var(--color-text-1); line-height: 1.7; }
 
-        .diff { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
-        .col h4 { margin: 0 0 var(--space-2); font-size: var(--text-xs); color: var(--color-text-3); font-weight: var(--weight-medium); }
-        pre {
-            margin: 0; padding: var(--space-3);
+        /* 服务端输出：终端风格逐行展示 */
+        .output {
+            padding: var(--space-3) var(--space-4);
             background: var(--color-bg-inverted); color: #e5e6eb;
-            border-radius: var(--radius-md); overflow: auto; max-height: 220px;
-            font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.6;
+            border-radius: var(--radius-md);
+            overflow: auto; max-height: 320px;
+            font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.8;
         }
-        @media (max-width: 720px) { .diff { grid-template-columns: 1fr; } }
+        .line { white-space: pre-wrap; word-break: break-word; }
+        .line.muted { color: #8a8f99; }
     `,
 })
 export class ResultPanelComponent {
     readonly result = input<GmResult | null>(null);
     readonly error = input<GmApiError | null>(null);
-
-    pretty(value: unknown): string {
-        return value === null || value === undefined ? '（无）' : JSON.stringify(value, null, 2);
-    }
 }

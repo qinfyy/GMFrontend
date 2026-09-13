@@ -1,11 +1,13 @@
 /**
  * 玩家设置页（setlevel）。
+ * 命令行：/setlevel <等级> [@uid]
  */
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommandBarComponent } from '../../shared/command-bar';
 import { ResultPanelComponent } from '../../shared/result-panel';
 import { pageExecutor } from '../../shared/page-executor';
+import { arg, cmdLine } from '../../core/command-line';
 
 @Component({
     imports: [FormsModule, CommandBarComponent, ResultPanelComponent],
@@ -30,6 +32,7 @@ import { pageExecutor } from '../../shared/page-executor';
             <gm-command-bar
                 [preview]="preview()"
                 [sending]="exec.sending()"
+                [disabled]="!canSend()"
                 (send)="send()"
             />
             <gm-result-panel [result]="exec.result()" [error]="exec.error()" />
@@ -56,19 +59,16 @@ export class PlayerPage {
     protected uid = '';
     protected level: number | null = null;
 
+    /** 等级是必填位置参数，为空时禁用发送 */
+    protected canSend(): boolean {
+        return this.level !== null && this.level > 0;
+    }
+
     protected preview(): string {
-        const parts = ['cmd=setlevel'];
-        if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
-        if (this.level !== null && this.level > 0) parts.push(`level=${Math.floor(this.level)}`);
-        return parts.join('&');
+        return cmdLine('setlevel', [arg(this.level)], this.uid);
     }
 
     protected send(): void {
-        void this.exec.run(() => {
-            const record: Record<string, string> = { cmd: 'setlevel' };
-            if (this.uid.trim()) record['uid'] = this.uid.trim();
-            if (this.level !== null && this.level > 0) record['level'] = String(Math.floor(this.level));
-            return record;
-        });
+        void this.exec.run(() => this.preview());
     }
 }

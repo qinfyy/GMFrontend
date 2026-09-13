@@ -1,15 +1,21 @@
 /**
  * 账号管理页（account）。
- * 服务端命令：account&operate=<create|settings|delete|ForceLogin>。
- * 注意：create 不传 username 时用 mobile 创建；
- *       settings/delete 的 query 只支持 username 或 mobile，不支持密码。
- *       ForceLogin 把 uid 写入内存（uid=0 清除待执行强制登录），不修改账号数据。
+ *
+ * 命令行（2026-09 起为位置参数形式）:
+ *   /account create <用户名> <密码> [手机号]
+ *   /account settings <用户名|手机号> [u新用户名] [p新密码] [m新手机号]
+ *   /account delete <用户名|手机号>
+ *   /account forcelogin <玩家UID>        （uid=0 清除待执行的强制登录）
+ *
+ * 注意：create 按位置解析，用户名必须占位——上游命令行模式无法表达「只给手机号创建」；
+ *       settings/delete 的查询只支持 username 或 mobile，不支持密码查询。
  */
-import { Component, computed, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommandBarComponent } from '../../shared/command-bar';
 import { ResultPanelComponent } from '../../shared/result-panel';
 import { pageExecutor } from '../../shared/page-executor';
+import { CmdPart, arg, cmdLine } from '../../core/command-line';
 
 type Operate = 'create' | 'settings' | 'delete' | 'forcelogin';
 
@@ -19,7 +25,7 @@ type Operate = 'create' | 'settings' | 'delete' | 'forcelogin';
         <section class="page">
             <header class="page-head">
                 <h2>账号管理</h2>
-                <p>account：管理 SDK 账号，或安排下一次连接强制登录指定 game 账号。操作均在内存中生效。</p>
+                <p>account：管理 SDK 账号，或安排下一次连接强制登录指定 game 账号。</p>
             </header>
 
             <div class="tabs" role="tablist">
@@ -32,66 +38,66 @@ type Operate = 'create' | 'settings' | 'delete' | 'forcelogin';
                     </button>
                 }
             </div>
-            @if (currentHint(); as h) {
+            @if (hint(); as h) {
                 <p class="hint">{{ h }}</p>
             }
 
             <div class="commuse">
                 @if (operate() === 'create') {
                     <div class="commuse-item">
-                        <div class="label">用户名 username</div>
-                        <div class="value"><input type="text" [(ngModel)]="username" (ngModelChange)="bump()" placeholder="可省略（用 mobile 创建）" /></div>
+                        <div class="label">用户名（必填）</div>
+                        <div class="value"><input type="text" [(ngModel)]="username" placeholder="命令行按位置解析，必须占位" /></div>
                     </div>
                     <div class="commuse-item">
-                        <div class="label">密码 password</div>
+                        <div class="label">密码</div>
                         <div class="value">
-                            <input type="password" [(ngModel)]="password" (ngModelChange)="bump()" placeholder="提供密码时必须同时填 username" />
+                            <input type="password" [(ngModel)]="password" placeholder="可省略；提供密码时用户名必填" />
                         </div>
                     </div>
                     <div class="commuse-item">
-                        <div class="label">手机号 mobile</div>
-                        <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="mobile" (ngModelChange)="bump()" placeholder="username、mobile 至少提供一个" /></div>
+                        <div class="label">手机号</div>
+                        <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="mobile" placeholder="可省略" /></div>
                     </div>
                 }
 
                 @if (operate() === 'settings') {
                     <div class="commuse-item">
-                        <div class="label">query（必填）</div>
+                        <div class="label">查询（必填）</div>
                         <div class="value">
-                            <input type="text" [(ngModel)]="query" (ngModelChange)="bump()" placeholder="被改账号的 username 或 mobile，不支持密码查询" />
+                            <input type="text" [(ngModel)]="query" placeholder="被改账号的用户名或手机号，不支持密码查询" />
                         </div>
                     </div>
                     <fieldset class="commuse-block">
-                        <legend>新值（仅给出的字段会被修改）</legend>
+                        <legend>新值（仅填写的字段会被修改）</legend>
                         <div class="commuse-item">
-                            <div class="label">新用户名 newusername</div>
-                            <div class="value"><input type="text" [(ngModel)]="newUsername" (ngModelChange)="bump()" /></div>
+                            <div class="label">新用户名 u</div>
+                            <div class="value"><input type="text" [(ngModel)]="newUsername" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">新密码 newpassword</div>
-                            <div class="value"><input type="password" [(ngModel)]="newPassword" (ngModelChange)="bump()" /></div>
+                            <div class="label">新密码 p</div>
+                            <div class="value"><input type="password" [(ngModel)]="newPassword" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">新手机号 newmobile</div>
-                            <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="newMobile" (ngModelChange)="bump()" /></div>
+                            <div class="label">新手机号 m</div>
+                            <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="newMobile" /></div>
                         </div>
                     </fieldset>
                 }
 
                 @if (operate() === 'delete') {
                     <div class="commuse-item">
-                        <div class="label">query（必填）</div>
+                        <div class="label">查询（必填）</div>
                         <div class="value">
-                            <input type="text" [(ngModel)]="query" (ngModelChange)="bump()" placeholder="被删账号的 username 或 mobile" />
+                            <input type="text" [(ngModel)]="query" placeholder="被删账号的用户名或手机号" />
                         </div>
                     </div>
                 }
 
                 @if (operate() === 'forcelogin') {
                     <div class="commuse-item">
-                        <div class="label">uid</div>
+                        <div class="label">玩家 UID</div>
                         <div class="value">
-                            <input type="text" inputmode="numeric" [(ngModel)]="forceLoginUid" (ngModelChange)="bump()" placeholder="玩家 UID；填 0 清除待执行的强制登录" />
+                            <input type="text" inputmode="numeric" [(ngModel)]="forceLoginUid" placeholder="填 0 清除待执行的强制登录" />
                         </div>
                     </div>
                 }
@@ -100,6 +106,7 @@ type Operate = 'create' | 'settings' | 'delete' | 'forcelogin';
             <gm-command-bar
                 [preview]="preview()"
                 [sending]="exec.sending()"
+                [disabled]="!canSend()"
                 [danger]="isDangerous()"
                 [dangerReason]="dangerReason()"
                 (send)="send()"
@@ -140,10 +147,10 @@ export class AccountPage {
     protected readonly exec = pageExecutor();
 
     protected readonly operations: { value: Operate; label: string; hint: string }[] = [
-        { value: 'create', label: '创建', hint: 'create：username、mobile 至少提供一个；提供 password 必须同时提供 username。' },
-        { value: 'settings', label: '修改', hint: 'settings：query 只支持 username/mobile。仅给出的新字段会被修改。' },
-        { value: 'delete', label: '删除', hint: 'delete：按 username/mobile 删除账号。' },
-        { value: 'forcelogin', label: '强制登录', hint: 'ForceLogin：uid=0 清除待执行强制登录；非 0 时下一次 Gateway 登录会改为该玩家。' },
+        { value: 'create', label: '创建', hint: 'create <用户名> <密码> [手机号]：用户名必须提供（命令行按位置解析，无法只给手机号）。' },
+        { value: 'settings', label: '修改', hint: 'settings <用户名|手机号> [u新用户名] [p新密码] [m新手机号]：查询只支持用户名或手机号。' },
+        { value: 'delete', label: '删除', hint: 'delete <用户名|手机号>：删除账号及其绑定存档。' },
+        { value: 'forcelogin', label: '强制登录', hint: 'forcelogin <玩家UID>：只在内存中安排下一次 Gateway 登录；uid=0 清除。' },
     ];
 
     protected readonly operate = signal<Operate>('create');
@@ -162,81 +169,61 @@ export class AccountPage {
     // forcelogin 专用
     protected forceLoginUid = '';
 
-    protected readonly currentHint = computed(
-        () => this.operations.find(o => o.value === this.operate())?.hint ?? '',
-    );
+    protected hint(): string {
+        return this.operations.find(o => o.value === this.operate())?.hint ?? '';
+    }
 
     protected selectOp(op: Operate): void {
         this.operate.set(op);
     }
 
-    protected readonly isDangerous = computed(() => this.operate() === 'delete');
+    protected isDangerous(): boolean {
+        return this.operate() === 'delete';
+    }
 
-    protected readonly dangerReason = computed(() =>
-        this.operate() === 'delete' ? '将删除该账号及其关联玩家数据' : '',
-    );
-    /** 输入触发：每个表单字段 (ngModelChange) 调用，驱动 preview 实时重算 */
-    private readonly revision = signal(0);
-    protected bump(): void { this.revision.update(n => n + 1); }
+    protected dangerReason(): string {
+        return this.operate() === 'delete' ? '将删除该账号及其关联存档' : '';
+    }
 
-    
-
-    protected readonly preview = computed(() => {
-        this.revision(); // 实时依赖
-        const parts: string[] = ['cmd=account'];
+    protected canSend(): boolean {
         switch (this.operate()) {
             case 'create':
-                parts.push('operate=create');
-                if (this.username.trim()) parts.push(`username=${encodeURIComponent(this.username.trim())}`);
-                if (this.password.trim()) parts.push(`password=${encodeURIComponent(this.password.trim())}`);
-                if (this.mobile.trim()) parts.push(`mobile=${encodeURIComponent(this.mobile.trim())}`);
+                return this.username.trim() !== '';
+            case 'settings':
+            case 'delete':
+                return this.query.trim() !== '';
+            case 'forcelogin':
+                return this.forceLoginUid.trim() !== '';
+        }
+    }
+
+    protected preview(): string {
+        const op = this.operate();
+        let parts: CmdPart[] = [op];
+        switch (op) {
+            case 'create':
+                parts = [op, arg(this.username), arg(this.password), arg(this.mobile)];
                 break;
             case 'settings':
-                parts.push('operate=settings');
-                if (this.query.trim()) parts.push(`query=${encodeURIComponent(this.query.trim())}`);
-                if (this.newUsername.trim()) parts.push(`newusername=${encodeURIComponent(this.newUsername.trim())}`);
-                if (this.newPassword.trim()) parts.push(`newpassword=${encodeURIComponent(this.newPassword.trim())}`);
-                if (this.newMobile.trim()) parts.push(`newmobile=${encodeURIComponent(this.newMobile.trim())}`);
+                parts = [
+                    op,
+                    arg(this.query),
+                    this.newUsername.trim() ? `u${this.newUsername.trim()}` : null,
+                    this.newPassword.trim() ? `p${this.newPassword.trim()}` : null,
+                    this.newMobile.trim() ? `m${this.newMobile.trim()}` : null,
+                ];
                 break;
             case 'delete':
-                parts.push('operate=delete');
-                if (this.query.trim()) parts.push(`query=${encodeURIComponent(this.query.trim())}`);
+                parts = [op, arg(this.query)];
                 break;
             case 'forcelogin':
-                parts.push('operate=ForceLogin');
-                if (this.forceLoginUid.trim()) parts.push(`uid=${this.forceLoginUid.trim()}`);
+                parts = [op, arg(this.forceLoginUid)];
                 break;
         }
-        return parts.join('&');
-    });
+        return cmdLine('account', parts);
+    }
 
     protected send(): void {
-        void this.exec.run(() => {
-            const record: Record<string, string> = { cmd: 'account' };
-            switch (this.operate()) {
-                case 'create':
-                    record['operate'] = 'create';
-                    if (this.username.trim()) record['username'] = this.username.trim();
-                    if (this.password.trim()) record['password'] = this.password.trim();
-                    if (this.mobile.trim()) record['mobile'] = this.mobile.trim();
-                    break;
-                case 'settings':
-                    record['operate'] = 'settings';
-                    if (this.query.trim()) record['query'] = this.query.trim();
-                    if (this.newUsername.trim()) record['newusername'] = this.newUsername.trim();
-                    if (this.newPassword.trim()) record['newpassword'] = this.newPassword.trim();
-                    if (this.newMobile.trim()) record['newmobile'] = this.newMobile.trim();
-                    break;
-                case 'delete':
-                    record['operate'] = 'delete';
-                    if (this.query.trim()) record['query'] = this.query.trim();
-                    break;
-                case 'forcelogin':
-                    record['operate'] = 'ForceLogin';
-                    if (this.forceLoginUid.trim()) record['uid'] = this.forceLoginUid.trim();
-                    break;
-            }
-            return record;
-        });
+        void this.exec.run(() => this.preview());
     }
 }

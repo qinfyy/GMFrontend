@@ -1,19 +1,22 @@
 /**
  * 单件发放页（give）。类型 Tab + Handbook 选择器 + 数量 + 装备/养成参数。
- * 表单采用 commuse 模式：右对齐 label + 弹性 input。
+ * 命令行：/give <type> <id> [x数量] [lv.. r.. s.. p.. i.. t.. pt.. bl..|ml..] [@uid]
+ * 注意：skin / partner 是唯一收藏，服务端不接受 x数量。
  */
-import { Component, computed, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HandbookEntry } from '../../core/handbook.service';
 import { CommandBarComponent } from '../../shared/command-bar';
 import { ResultPanelComponent } from '../../shared/result-panel';
 import { EntryPickerComponent } from '../../shared/entry-picker';
 import { pageExecutor } from '../../shared/page-executor';
+import { CmdPart, arg, cmdLine, mod, xAmount } from '../../core/command-line';
 
 interface TypeTab {
     type: string;
     label: string;
     section: string;
+    /** 是否接受 x数量；skin / partner 服务端只允许单份 */
     hasAmount: boolean;
     hint: string;
 }
@@ -45,14 +48,13 @@ interface TypeTab {
             }
 
             <div class="commuse">
-                <div class="commuse-item">
+                <div class="commuse-item align-top">
                     <div class="label">选择条目</div>
                     <div class="value">
                         <gm-entry-picker
                             [section]="current().section"
                             [placeholder]="'搜索' + current().label + '（ID 或名称）…'"
                             [(value)]="entryId"
-                            (valueChange)="bump()"
                             [extraOf]="extraOfCurrent()"
                         />
                     </div>
@@ -60,13 +62,13 @@ interface TypeTab {
 
                 <div class="commuse-item">
                     <div class="label">uid</div>
-                    <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="uid" (ngModelChange)="bump()" /></div>
+                    <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="uid" /></div>
                 </div>
 
                 @if (current().hasAmount) {
                     <div class="commuse-item">
-                        <div class="label">数量 amount</div>
-                        <div class="value"><input type="number" min="1" [(ngModel)]="amount" (ngModelChange)="bump()" /></div>
+                        <div class="label">数量 x</div>
+                        <div class="value"><input type="number" min="1" [(ngModel)]="amount" placeholder="省略按 1 处理" /></div>
                     </div>
                 }
 
@@ -83,48 +85,50 @@ interface TypeTab {
                     <fieldset class="commuse-block">
                         <legend>装备 / 养成参数（可省略，超出上限按资源截断）</legend>
                         <div class="commuse-item">
-                            <div class="label">等级 level</div>
-                            <div class="value"><input type="number" min="1" [(ngModel)]="equip['level']" (ngModelChange)="bump()" /></div>
+                            <div class="label">等级 lv</div>
+                            <div class="value"><input type="number" min="1" [(ngModel)]="equip['level']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">星级 star</div>
-                            <div class="value"><input type="number" min="0" placeholder="上限 99" [(ngModel)]="equip['star']" (ngModelChange)="bump()" /></div>
+                            <div class="label">星级 r</div>
+                            <div class="value"><input type="number" min="0" placeholder="上限 99" [(ngModel)]="equip['star']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">技能 skill</div>
-                            <div class="value"><input type="number" min="0" [(ngModel)]="equip['skill']" (ngModelChange)="bump()" /></div>
+                            <div class="label">技能 s</div>
+                            <div class="value"><input type="number" min="0" [(ngModel)]="equip['skill']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">升格 promote</div>
-                            <div class="value"><input type="number" min="0" [(ngModel)]="equip['promote']" (ngModelChange)="bump()" /></div>
+                            <div class="label">升格 p</div>
+                            <div class="value"><input type="number" min="0" [(ngModel)]="equip['promote']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">亲密 intimacy</div>
-                            <div class="value"><input type="number" min="0" [(ngModel)]="equip['intimacy']" (ngModelChange)="bump()" /></div>
+                            <div class="label">亲密 i</div>
+                            <div class="value"><input type="number" min="0" [(ngModel)]="equip['intimacy']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">圣痕 talent</div>
-                            <div class="value"><input type="number" min="0" placeholder="99=点满" [(ngModel)]="equip['talent']" (ngModelChange)="bump()" /></div>
+                            <div class="label">圣痕 t</div>
+                            <div class="value"><input type="number" min="0" placeholder="99=点满" [(ngModel)]="equip['talent']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">限解 potential</div>
-                            <div class="value"><input type="number" min="0" placeholder="上限 4" [(ngModel)]="equip['potential']" (ngModelChange)="bump()" /></div>
+                            <div class="label">限解 pt</div>
+                            <div class="value"><input type="number" min="0" placeholder="上限 4" [(ngModel)]="equip['potential']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">基础等级 baselevel</div>
-                            <div class="value"><input type="number" min="1" placeholder="1–50" [(ngModel)]="equip['baselevel']" (ngModelChange)="bump()" /></div>
+                            <div class="label">基础等级 bl</div>
+                            <div class="value"><input type="number" min="1" placeholder="1–50" [(ngModel)]="equip['baselevel']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">精通 masterylevel</div>
-                            <div class="value"><input type="number" min="0" placeholder="50+M" [(ngModel)]="equip['masterylevel']" (ngModelChange)="bump()" /></div>
+                            <div class="label">精通等级 ml</div>
+                            <div class="value"><input type="number" min="0" placeholder="50+M" [(ngModel)]="equip['masterylevel']" /></div>
                         </div>
                     </fieldset>
+                    <p class="note">bl 与 ml 是同一条等级线，只能给一个；同时给出服务端会报错。</p>
                 }
             </div>
 
             <gm-command-bar
                 [preview]="preview()"
                 [sending]="exec.sending()"
+                [disabled]="!canSend()"
                 (send)="send()"
             />
             <gm-result-panel [result]="exec.result()" [error]="exec.error()" />
@@ -147,13 +151,17 @@ interface TypeTab {
         .tabs button:hover { color: var(--color-primary-6); border-color: var(--color-primary-6); }
         .tabs button.active { background: var(--color-primary-6); border-color: var(--color-primary-6); color: #fff; }
         .hint { margin: 0 0 var(--space-3); font-size: var(--text-xs); color: var(--color-text-3); }
+        .note { margin: var(--space-2) 0 0 130px; font-size: var(--text-xs); color: var(--color-text-3); }
 
         .commuse { display: flex; flex-direction: column; }
         .commuse-item { display: flex; align-items: center; margin: 12px 0; }
+        .commuse-item.align-top { align-items: flex-start; }
         .commuse-item .label {
             width: 120px; text-align: right; padding-right: 10px;
             color: var(--color-text-2); font-size: var(--text-sm); flex-shrink: 0;
+            line-height: 32px;
         }
+        .commuse-item.align-top .label { line-height: 1.5; padding-top: 6px; }
         .commuse-item .value { flex: 1; min-width: 0; }
         .commuse-block { border: none; padding: 0; margin: var(--space-3) 0 0; }
         .commuse-block legend { font-size: var(--text-sm); color: var(--color-text-2); padding: 0; margin-bottom: var(--space-2); }
@@ -165,13 +173,13 @@ export class GivePage {
     protected readonly tabs: TypeTab[] = [
         { type: 'currency', label: '货币', section: 'currency', hasAmount: true, hint: 'hcoin 水晶、bhcoin 祈之共鸣、scoin 金币，或 RewardData 数字 CoinType。' },
         { type: 'material', label: '材料', section: 'material', hasAmount: true, hint: '背包堆叠材料，按 MetaId 发放。' },
-        { type: 'weapon', label: '装备武器', section: 'weapon', hasAmount: true, hint: '每份创建独立实体，支持 level/star/skill/promote/intimacy 参数。' },
+        { type: 'weapon', label: '装备武器', section: 'weapon', hasAmount: true, hint: '每份创建独立实体，支持 lv/r/s/p/i 参数。' },
         { type: 'costume', label: '服装', section: 'costume', hasAmount: true, hint: '服装类装备实体。' },
         { type: 'badge', label: '徽章', section: 'badge', hasAmount: true, hint: '徽章类装备实体。' },
-        { type: 'role', label: '角色', section: 'role', hasAmount: true, hint: '发放新角色，已拥有同 MetaId 也会照发新的一份。' },
+        { type: 'role', label: '角色', section: 'role', hasAmount: true, hint: '发放新角色，已拥有同 MetaId 也会照发新的一份；支持 t/pt/bl/ml 养成参数。' },
         { type: 'potential', label: '限解道具', section: 'potential', hasAmount: true, hint: 'id=common 是账号通用训练组件；id=<角色ID> 是该角色专属限解特装。需先拥有该角色。' },
-        { type: 'skin', label: '皮肤', section: 'skin', hasAmount: false, hint: '重复发放幂等；皮肤 ID 与适用角色见列表。' },
-        { type: 'partner', label: '看板', section: 'partner', hasAmount: true, hint: '看板（Poster）。' },
+        { type: 'skin', label: '皮肤', section: 'skin', hasAmount: false, hint: '重复发放幂等；单次只能发放一个 ID，不接受数量。' },
+        { type: 'partner', label: '看板', section: 'partner', hasAmount: false, hint: '看板是唯一收藏，不接受数量。' },
     ];
 
     protected readonly current = signal(this.tabs[0]);
@@ -180,15 +188,22 @@ export class GivePage {
     protected uid = '';
     protected amount: number | null = null;
 
-    /** 装备/养成参数表单值（字符串留空即不发送） */
+    /** 装备/养成参数表单值（留空即不发送） */
     protected readonly equip: Record<string, string | number> = {};
 
-    protected readonly isPotential = computed(() => this.current().type === 'potential');
+    protected isPotential(): boolean {
+        return this.current().type === 'potential';
+    }
 
     /** 装备参数只在装备型 Tab 下展示（货币/材料/skin/partner/potential 不需要） */
-    protected readonly hasEquipmentAttrs = computed(() =>
-        ['weapon', 'costume', 'badge', 'role'].includes(this.current().type),
-    );
+    protected hasEquipmentAttrs(): boolean {
+        return ['weapon', 'costume', 'badge', 'role'].includes(this.current().type);
+    }
+
+    /** 条目 ID 必填 */
+    protected canSend(): boolean {
+        return this.entryId.trim() !== '';
+    }
 
     /** 选择器右侧附加信息：货币显示别名，皮肤显示适用角色 */
     protected extraOfCurrent(): ((e: HandbookEntry) => string) | null {
@@ -202,46 +217,30 @@ export class GivePage {
         this.current.set(tab);
         this.entryId = '';
     }
-    /** 输入触发：每个表单字段 (ngModelChange) 调用，驱动 preview 实时重算 */
-    private readonly revision = signal(0);
-    protected bump(): void { this.revision.update(n => n + 1); }
 
-    
-
-    protected readonly preview = computed(() => {
-        this.revision(); // 实时依赖
-        const parts = ['cmd=give'];
-        if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
-        parts.push(`type=${this.current().type}`);
-        if (this.entryId.trim()) parts.push(`id=${encodeURIComponent(this.entryId.trim())}`);
-        if (this.current().hasAmount && this.amount !== null && this.amount > 0) {
-            parts.push(`amount=${Math.floor(this.amount)}`);
+    protected preview(): string {
+        const tab = this.current();
+        const parts: CmdPart[] = [arg(tab.type), arg(this.entryId)];
+        if (tab.hasAmount) {
+            parts.push(xAmount(this.amount));
         }
-        for (const key of ['level', 'star', 'skill', 'promote', 'intimacy', 'talent', 'potential', 'baselevel', 'masterylevel']) {
-            const raw = this.equip[key];
-            if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
-                parts.push(`${key}=${String(raw).trim()}`);
-            }
+        if (this.hasEquipmentAttrs()) {
+            parts.push(
+                mod('lv', this.equip['level']),
+                mod('r', this.equip['star']),
+                mod('s', this.equip['skill']),
+                mod('p', this.equip['promote']),
+                mod('i', this.equip['intimacy']),
+                mod('t', this.equip['talent']),
+                mod('pt', this.equip['potential']),
+                mod('bl', this.equip['baselevel']),
+                mod('ml', this.equip['masterylevel']),
+            );
         }
-        return parts.join('&');
-    });
+        return cmdLine('give', parts, this.uid);
+    }
 
     protected send(): void {
-        void this.exec.run(() => {
-            const record: Record<string, string> = { cmd: 'give' };
-            if (this.uid.trim()) record['uid'] = this.uid.trim();
-            record['type'] = this.current().type;
-            if (this.entryId.trim()) record['id'] = this.entryId.trim();
-            if (this.current().hasAmount && this.amount !== null && this.amount > 0) {
-                record['amount'] = String(Math.floor(this.amount));
-            }
-            for (const key of ['level', 'star', 'skill', 'promote', 'intimacy', 'talent', 'potential', 'baselevel', 'masterylevel']) {
-                const raw = this.equip[key];
-                if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
-                    record[key] = String(raw).trim();
-                }
-            }
-            return record;
-        });
+        void this.exec.run(() => this.preview());
     }
 }

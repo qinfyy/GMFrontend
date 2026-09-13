@@ -1,11 +1,22 @@
 /**
  * 批量补齐页（giveall）。按类别批量补齐；type=all 与 material/currency 为危险操作。
+ * 命令行：/giveall <type> [x数量] [lv.. r.. s.. p.. i.. t.. pt.. bl..|ml..] [@uid]
+ * 注意：装备类别按 MetaId 去重，不接受 x数量；material/currency 必须显式给 x数量。
  */
-import { Component, computed, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommandBarComponent } from '../../shared/command-bar';
 import { ResultPanelComponent } from '../../shared/result-panel';
 import { pageExecutor } from '../../shared/page-executor';
+import { CmdPart, arg, cmdLine, mod, xAmount } from '../../core/command-line';
+
+interface TypeTab {
+    type: string;
+    label: string;
+    /** 是否要求 x数量（material / currency 必须显式给） */
+    requiresAmount: boolean;
+    hint: string;
+}
 
 @Component({
     imports: [FormsModule, CommandBarComponent, ResultPanelComponent],
@@ -33,13 +44,13 @@ import { pageExecutor } from '../../shared/page-executor';
             <div class="commuse">
                 <div class="commuse-item">
                     <div class="label">uid</div>
-                    <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="uid" (ngModelChange)="bump()" /></div>
+                    <div class="value"><input type="text" inputmode="numeric" [(ngModel)]="uid" /></div>
                 </div>
 
-                @if (current().hasAmount) {
+                @if (current().requiresAmount) {
                     <div class="commuse-item">
-                        <div class="label">数量 amount</div>
-                        <div class="value"><input type="number" min="1" [(ngModel)]="amount" (ngModelChange)="bump()" /></div>
+                        <div class="label">数量 x（必填）</div>
+                        <div class="value"><input type="number" min="1" [(ngModel)]="amount" placeholder="如 100" /></div>
                     </div>
                 }
 
@@ -47,48 +58,50 @@ import { pageExecutor } from '../../shared/page-executor';
                     <fieldset class="commuse-block">
                         <legend>装备 / 养成参数（可省略）</legend>
                         <div class="commuse-item">
-                            <div class="label">等级 level</div>
-                            <div class="value"><input type="number" [(ngModel)]="equip['level']" (ngModelChange)="bump()" /></div>
+                            <div class="label">等级 lv</div>
+                            <div class="value"><input type="number" [(ngModel)]="equip['level']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">星级 star</div>
-                            <div class="value"><input type="number" [(ngModel)]="equip['star']" (ngModelChange)="bump()" /></div>
+                            <div class="label">星级 r</div>
+                            <div class="value"><input type="number" [(ngModel)]="equip['star']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">技能 skill</div>
-                            <div class="value"><input type="number" [(ngModel)]="equip['skill']" (ngModelChange)="bump()" /></div>
+                            <div class="label">技能 s</div>
+                            <div class="value"><input type="number" [(ngModel)]="equip['skill']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">升格 promote</div>
-                            <div class="value"><input type="number" [(ngModel)]="equip['promote']" (ngModelChange)="bump()" /></div>
+                            <div class="label">升格 p</div>
+                            <div class="value"><input type="number" [(ngModel)]="equip['promote']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">亲密 intimacy</div>
-                            <div class="value"><input type="number" [(ngModel)]="equip['intimacy']" (ngModelChange)="bump()" /></div>
+                            <div class="label">亲密 i</div>
+                            <div class="value"><input type="number" [(ngModel)]="equip['intimacy']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">圣痕 talent</div>
-                            <div class="value"><input type="number" [(ngModel)]="equip['talent']" (ngModelChange)="bump()" /></div>
+                            <div class="label">圣痕 t</div>
+                            <div class="value"><input type="number" [(ngModel)]="equip['talent']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">限解 potential</div>
-                            <div class="value"><input type="number" [(ngModel)]="equip['potential']" (ngModelChange)="bump()" /></div>
+                            <div class="label">限解 pt</div>
+                            <div class="value"><input type="number" [(ngModel)]="equip['potential']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">基础等级 baselevel</div>
-                            <div class="value"><input type="number" [(ngModel)]="equip['baselevel']" (ngModelChange)="bump()" /></div>
+                            <div class="label">基础等级 bl</div>
+                            <div class="value"><input type="number" [(ngModel)]="equip['baselevel']" /></div>
                         </div>
                         <div class="commuse-item">
-                            <div class="label">精通 masterylevel</div>
-                            <div class="value"><input type="number" [(ngModel)]="equip['masterylevel']" (ngModelChange)="bump()" /></div>
+                            <div class="label">精通等级 ml</div>
+                            <div class="value"><input type="number" [(ngModel)]="equip['masterylevel']" /></div>
                         </div>
                     </fieldset>
+                    <p class="note">bl 与 ml 是同一条等级线，只能给一个。</p>
                 }
             </div>
 
             <gm-command-bar
                 [preview]="preview()"
                 [sending]="exec.sending()"
+                [disabled]="!canSend()"
                 [danger]="isDangerous()"
                 [dangerReason]="dangerReason()"
                 (send)="send()"
@@ -113,6 +126,7 @@ import { pageExecutor } from '../../shared/page-executor';
         .tabs button:hover { color: var(--color-primary-6); border-color: var(--color-primary-6); }
         .tabs button.active { background: var(--color-primary-6); border-color: var(--color-primary-6); color: #fff; }
         .hint { margin: 0 0 var(--space-3); font-size: var(--text-xs); color: var(--color-text-3); }
+        .note { margin: var(--space-2) 0 0 130px; font-size: var(--text-xs); color: var(--color-text-3); }
 
         .commuse { display: flex; flex-direction: column; }
         .commuse-item { display: flex; align-items: center; margin: 12px 0; }
@@ -128,16 +142,16 @@ import { pageExecutor } from '../../shared/page-executor';
 export class GiveAllPage {
     protected readonly exec = pageExecutor();
 
-    protected readonly tabs = [
-        { type: 'all', label: '全部', section: '', hasAmount: false, hint: '覆盖全部可发放装备类型和 IsOpen=1 的看板（不含 skin/potential）。' },
-        { type: 'weapon', label: '武器', section: 'weapon', hasAmount: false, hint: '' },
-        { type: 'costume', label: '服装', section: 'costume', hasAmount: false, hint: '' },
-        { type: 'badge', label: '徽章', section: 'badge', hasAmount: false, hint: '' },
-        { type: 'role', label: '角色', section: 'role', hasAmount: false, hint: '' },
-        { type: 'partner', label: '看板', section: 'partner', hasAmount: false, hint: '' },
-        { type: 'skin', label: '皮肤', section: 'skin', hasAmount: false, hint: '' },
-        { type: 'material', label: '材料', section: 'material', hasAmount: true, hint: '按数量累加，必须显式指定 amount。' },
-        { type: 'currency', label: '货币', section: 'currency', hasAmount: true, hint: '只发水晶与金币各 amount；活动货币请用「单件发放」按数字 CoinType 单独发。' },
+    protected readonly tabs: TypeTab[] = [
+        { type: 'all', label: '全部', requiresAmount: false, hint: '覆盖全部可发放装备类型和 IsOpen=1 的看板（不含 skin/potential）。' },
+        { type: 'weapon', label: '武器', requiresAmount: false, hint: '' },
+        { type: 'costume', label: '服装', requiresAmount: false, hint: '' },
+        { type: 'badge', label: '徽章', requiresAmount: false, hint: '' },
+        { type: 'role', label: '角色', requiresAmount: false, hint: '' },
+        { type: 'partner', label: '看板', requiresAmount: false, hint: '按 PosterID 去重补齐，不接受数量。' },
+        { type: 'skin', label: '皮肤', requiresAmount: false, hint: '按当前资源补齐全部标准角色皮肤，不接受数量或装备参数。' },
+        { type: 'material', label: '材料', requiresAmount: true, hint: '按数量累加，没有「已拥有」概念，必须显式指定 x数量。' },
+        { type: 'currency', label: '货币', requiresAmount: true, hint: '只发水晶与金币各 x数量；活动 Wallet 货币请用「单件发放」按数字 CoinType 单独发。' },
     ];
 
     protected readonly current = signal(this.tabs[0]);
@@ -146,63 +160,55 @@ export class GiveAllPage {
 
     protected readonly equip: Record<string, string | number> = {};
 
-    protected readonly hasEquipmentAttrs = computed(() =>
-        ['all', 'weapon', 'costume', 'badge', 'role'].includes(this.current().type),
-    );
+    protected hasEquipmentAttrs(): boolean {
+        return ['all', 'weapon', 'costume', 'badge', 'role'].includes(this.current().type);
+    }
 
-    protected readonly isDangerous = computed(() =>
-        ['all', 'material', 'currency'].includes(this.current().type),
-    );
+    /** material / currency 必须给数量，其余类别直接可发 */
+    protected canSend(): boolean {
+        if (!this.current().requiresAmount) return true;
+        return this.amount !== null && this.amount > 0;
+    }
 
-    protected readonly dangerReason = computed(() => {
-        const t = this.current().type;
-        if (t === 'all') return '将一次性发放全类别物品';
-        if (t === 'material') return `将为所有材料各累加 ${this.amount ?? '?'} 个`;
-        if (t === 'currency') return `将发放水晶与金币各 ${this.amount ?? '?'}，请确认数量`;
+    protected isDangerous(): boolean {
+        return ['all', 'material', 'currency'].includes(this.current().type);
+    }
+
+    protected dangerReason(): string {
+        const type = this.current().type;
+        if (type === 'all') return '将一次性发放全类别物品';
+        if (type === 'material') return `将为所有材料各累加 ${this.amount ?? '?'} 个`;
+        if (type === 'currency') return `将发放水晶与金币各 ${this.amount ?? '?'}，请确认数量`;
         return '';
-    });
+    }
 
-    protected selectTab(tab: (typeof this.tabs)[number]): void {
+    protected selectTab(tab: TypeTab): void {
         this.current.set(tab);
     }
-    /** 输入触发：每个表单字段 (ngModelChange) 调用，驱动 preview 实时重算 */
-    private readonly revision = signal(0);
-    protected bump(): void { this.revision.update(n => n + 1); }
 
-    
-
-    protected readonly preview = computed(() => {
-        this.revision(); // 实时依赖
-        const parts = ['cmd=giveall'];
-        if (this.uid.trim()) parts.push(`uid=${this.uid.trim()}`);
-        if (this.current().type !== 'all') parts.push(`type=${this.current().type}`);
-        if (this.current().hasAmount && this.amount !== null && this.amount > 0) {
-            parts.push(`amount=${Math.floor(this.amount)}`);
+    protected preview(): string {
+        const tab = this.current();
+        const parts: CmdPart[] = [arg(tab.type)];
+        if (tab.requiresAmount) {
+            parts.push(xAmount(this.amount));
         }
-        for (const key of ['level', 'star', 'skill', 'promote', 'intimacy', 'talent', 'potential', 'baselevel', 'masterylevel']) {
-            const raw = this.equip[key];
-            if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
-                parts.push(`${key}=${String(raw).trim()}`);
-            }
+        if (this.hasEquipmentAttrs()) {
+            parts.push(
+                mod('lv', this.equip['level']),
+                mod('r', this.equip['star']),
+                mod('s', this.equip['skill']),
+                mod('p', this.equip['promote']),
+                mod('i', this.equip['intimacy']),
+                mod('t', this.equip['talent']),
+                mod('pt', this.equip['potential']),
+                mod('bl', this.equip['baselevel']),
+                mod('ml', this.equip['masterylevel']),
+            );
         }
-        return parts.join('&');
-    });
+        return cmdLine('giveall', parts, this.uid);
+    }
 
     protected send(): void {
-        void this.exec.run(() => {
-            const record: Record<string, string> = { cmd: 'giveall' };
-            if (this.uid.trim()) record['uid'] = this.uid.trim();
-            if (this.current().type !== 'all') record['type'] = this.current().type;
-            if (this.current().hasAmount && this.amount !== null && this.amount > 0) {
-                record['amount'] = String(Math.floor(this.amount));
-            }
-            for (const key of ['level', 'star', 'skill', 'promote', 'intimacy', 'talent', 'potential', 'baselevel', 'masterylevel']) {
-                const raw = this.equip[key];
-                if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
-                    record[key] = String(raw).trim();
-                }
-            }
-            return record;
-        });
+        void this.exec.run(() => this.preview());
     }
 }

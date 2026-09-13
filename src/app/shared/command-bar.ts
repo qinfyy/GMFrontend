@@ -1,17 +1,29 @@
 /**
- * 命令栏：页面底部统一的「请求预览 + 发送按钮」。
- * preview 为将要发出的查询串（不含 baseUrl），danger 为 true 时用错误色并要求二次确认。
+ * 命令栏：页面底部统一的「命令行预览 + 发送按钮」。
+ * preview 为将要执行的 GM 命令行（如 /give hcoin x100 @1），danger 为 true 时用错误色并要求二次确认。
+ * 预览框右侧可一键复制该命令行，方便直接粘进控制台或游戏内聊天框。
  */
-import { Component, computed, inject, input, output, signal } from '@angular/core';
-import { SettingsStore } from '../core/settings.store';
+import { Component, computed, input, output, signal } from '@angular/core';
 
 @Component({
     selector: 'gm-command-bar',
     template: `
         <div class="bar">
-            <div class="preview" title="将发送的请求">
-                <span class="label">GET</span>
-                <code class="mono">{{ fullUrl() }}</code>
+            <div class="preview">
+                @if (preview()) {
+                    <code class="mono">{{ preview() }}</code>
+                } @else {
+                    <code class="mono placeholder">（填写表单后此处显示将执行的命令）</code>
+                }
+                <button
+                    type="button"
+                    class="copy"
+                    [disabled]="!preview()"
+                    (click)="copyCommand()"
+                    [title]="'复制命令：' + preview()"
+                >
+                    {{ copied() ? '已复制' : '复制命令' }}
+                </button>
             </div>
             @if (confirming()) {
                 <div class="confirm">
@@ -43,27 +55,33 @@ import { SettingsStore } from '../core/settings.store';
             background: var(--color-bg-1);
         }
         .preview {
-            display: flex; align-items: baseline; gap: var(--space-3);
+            display: flex; align-items: center; gap: var(--space-3);
             padding: var(--space-3) var(--space-4);
             background: var(--color-bg-inverted);
             color: #e5e6eb;
             border-radius: var(--radius-md);
             min-width: 0;
-            overflow-x: auto; overflow-y: hidden;
-            scrollbar-width: thin;
         }
-        .label { font-size: var(--text-xs); color: #8ec0ff; font-weight: var(--weight-semibold); flex-shrink: 0; }
         .preview code {
             color: #e5e6eb; font-size: var(--text-xs);
             overflow-x: auto; overflow-y: hidden; white-space: nowrap;
-            display: block; width: 100%;
-            min-width: max-content;
+            flex: 1; min-width: 0;
             scrollbar-width: thin;
         }
-        .preview::-webkit-scrollbar, .preview code::-webkit-scrollbar { height: 8px; }
-        .preview::-webkit-scrollbar-track, .preview code::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
-        .preview::-webkit-scrollbar-thumb, .preview code::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 4px; }
-        .preview::-webkit-scrollbar-thumb:hover, .preview code::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.45); }
+        .preview code.placeholder { color: #8a8f99; }
+        .preview code::-webkit-scrollbar { height: 8px; }
+        .preview code::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
+        .preview code::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 4px; }
+        .preview code::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.45); }
+        .copy {
+            flex-shrink: 0;
+            background: transparent; color: #b7bcc4;
+            border: 1px solid rgba(255,255,255,0.22); border-radius: var(--radius-sm);
+            padding: 3px 10px; font-size: var(--text-xs);
+            transition: color var(--duration-fast) var(--ease-default), border-color var(--duration-fast) var(--ease-default);
+        }
+        .copy:hover:not(:disabled) { color: #fff; border-color: rgba(255,255,255,0.5); }
+        .copy:disabled { opacity: 0.4; cursor: not-allowed; }
 
         .actions { display: flex; justify-content: flex-end; }
         .btn {
@@ -85,7 +103,7 @@ import { SettingsStore } from '../core/settings.store';
     `,
 })
 export class CommandBarComponent {
-    /** 查询串预览，如 cmd=give&uid=1&...；为空时禁用发送 */
+    /** 命令行预览，如 /give hcoin x100 @1；为空时禁用发送与复制 */
     readonly preview = input('');
     readonly disabled = input(false);
     readonly busy = input(false);
@@ -95,16 +113,22 @@ export class CommandBarComponent {
     readonly dangerReason = input('');
     readonly send = output<void>();
 
-    private readonly settings = inject(SettingsStore);
     readonly confirming = signal(false);
+    readonly copied = signal(false);
 
     readonly sendLabel = computed(() => (this.sending() ? '发送中…' : '执行命令'));
 
-    readonly fullUrl = computed(() => {
-        // 实时合并：baseUrl（设置项）+ preview（父组件信号输入），任一变化即重算
-        const base = this.settings.baseUrl().replace(/\/$/, '');
-        return base ? `${base}/api/gm?${this.preview()}` : `/api/gm?${this.preview()}`;
-    });
+    protected async copyCommand(): Promise<void> {
+        const command = this.preview().trim();
+        if (!command) return;
+        try {
+            await navigator.clipboard.writeText(command);
+            this.copied.set(true);
+            setTimeout(() => this.copied.set(false), 1500);
+        } catch {
+            // 剪贴板不可用（非安全上下文）时静默失败
+        }
+    }
 
     protected onSend(): void {
         if (this.danger()) {
