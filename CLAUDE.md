@@ -44,12 +44,14 @@ src/app/
 
 **约定**：每个页面只写一个 `preview(): string`，`send()` 直接 `exec.run(() => this.preview())`，保证「预览的就是执行的」，避免两份拼装逻辑漂移。表单用普通方法而非 `computed`（Angular 默认变更检测会在事件后重算模板表达式），只有真的依赖 signal 时才用 `computed`。
 
+**命名约定**：`player` 页 = `setlevel`（改等级），`moderation` 页 = `kick` + `ban`（踢人与封禁），两者不要混。
+
 ## 上游协议（GM API）
 
 - 唯一端点 `GET /api/gm?content=<整条 GM 命令行>`，命令行形如 `/give weapon 1001 x2 lv80 r5 @10001`
 - **位置参数 + 通用修饰符 + `-flag` + `@uid` 全部空格分隔**，前缀斜杠可省略；服务端 `CommandContext` 负责分词
 - 鉴权：ApiKey 非空时 `Authorization: Bearer <key>` 头（也支持 `access_token` 查询参数）
-- 命令集 12 条（2026-09-13 同步）：`give / giveall / role / setlevel / storycompleted(sc) / newstorycompleted(nsc) / kyusyoTaskCompleted(ktc) / kyusyoLevel(kl) / kyusyoUnlockLevel(kul) / kyusyoAchievement(ka) / account / help`
+- 命令集 14 条（2026-09-14 同步）：`give / giveall / role / setlevel / kick / ban / storycompleted(sc) / newstorycompleted(nsc) / kyusyoTaskCompleted(ktc) / kyusyoLevel(kl) / kyusyoUnlockLevel(kul) / kyusyoAchievement(ka) / account / help`
 - 权威定义在 `D:\Il2Cpp\bh2\Sv\GameMaster\*.cs` 的 `GameMasterCommandRegistry.Commands`，或直接 `curl "http://localhost:21000/api/gm?content=%2Fhelp"`
 
 ### 修饰符一览（服务端 CommandContext.TryParseModifier）
@@ -68,19 +70,21 @@ src/app/
 - 失败时 HTTP 状态 400/401/404/500；短码有 `player_not_found` / `numeric_overflow` / `internal_error` / `invalid_token` / `unauthorized` / `invalid_request`
 - **注意**：`help` 返回的是人类可读文本（不是结构化数组），由 `parseHelpText` 解析。格式随上游改过：19:46 起用法与 notes 不再缩进（`      /usage` → `/usage`、`  注:` → `注:`），且不再把多行打包进单条 message。解析器统一用 `^\s*` 且先按换行摊平，新旧两种格式都能吃
 
-## Handbook.txt 格式（parser 支持三种行）
+## Handbook.txt 格式（parser 支持两种数据行）
 
-文件在 `public/Handbook.txt`（8679 行，17 个分区），fetch 路径就是 `Handbook.txt`（无子目录）。
+文件在 `public/Handbook.txt`（8696 行，17 个分区），fetch 路径就是 `Handbook.txt`（无子目录）。
 
 1. **括号分区头**：`[currency]`；裸标题 + 下划线行（`崩坏学园篇章节目录` + `------`）也识别为分区头
 2. **tab 分隔行**（传统分区）：`currency <TAB> hcoin <TAB> 水晶 <TAB> alias=239 <TAB> GM=...`
-   → 第 1 列 type、第 2 列 id、第 3 列起 name/attrs
-3. **单空格分隔行**（传承篇/新生篇）：`第一章 L1-1 8351 type=1 GM=...`
-   → 首列以「第」开头时：id=tokens[2]、name=`第X章 关卡名`、type='level'
+   → 第 1 列 type、第 2 列 id、第 3 列起 name/attrs（`GM=` 总是最后一列）
+3. **单空格分隔行**（传承篇/新生篇）：`第一章 L1-1 8351 type=1 GM=/storycompleted 8351 [@uid]`
+   → 正则 `^(第\S+)\s+(\S+)\s+(\d+)\s+(.*)$`：id=第 3 组、name=`第X章 关卡名`、type='level'
 
 解析后 `HandbookEntry = { section, type, id, name, attrs }`。
 
-**GM 模板新旧混用**：上游生成器只迁移了一部分分区——`skin / potential / role / 数字货币` 已是 `/give skin 17001 [@uid]` 命令行形式，而 `currency` 首行、剧情关卡、九霄任务/关卡/成就仍是旧的 `cmd&uid=..&k=v` 查询串。`handbook.service` 的 `parseGmTemplate` / `normalizeGmTemplate` 负责统一（按命令的位置参数表 + 修饰符前缀表转换）。
+**GM 模板**：2026-09-14 起上游已把全部模板改成命令行写法（`/cmd <位置参数> [x数量] [lv..] [-flag] [@uid]`），旧的 `cmd&uid=..&k=v` 查询串已彻底移除，因此 `handbook.service` 只按命令行解析（`parseGmTemplate`），**不再保留旧格式兼容层**。
+
+**空格分隔行的 `GM=` 必须整段切出来**：`GM=` 的值本身含空格且总是行尾字段，若按空格无脑切列，值会被切碎并污染 `name`（曾导致「第一章 L1-1 8351 [@uid]」这种脏 name）。`parseAttrs` 先用 `/(?:^|\s)GM=(.*)$/` 单独取出。
 
 ## 关键陷阱（已踩过，勿重复）
 

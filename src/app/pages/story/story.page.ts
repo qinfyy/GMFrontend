@@ -1,18 +1,18 @@
 /**
  * 剧情 / 九霄页。
- * 服务端命令集（2026-09）:
+ * 服务端命令集（2026-09-14，共 14 条）:
  *   - storycompleted (sc)        完成普通剧情指定关卡及其全部资源前置
  *   - newstorycompleted (nsc)    完成崩坏学园篇整章或指定关卡
  *   - kyusyoTaskCompleted (ktc)  九霄任务推进到指定状态；id 可为 all
  *   - kyusyoLevel (kl)           设置九霄等级（范围由 KyusyoData 资源表决定）
- *   - kyusyoUnlockLevel (kul)    解锁九霄出击关卡；level 可为 all
+ *   - kyusyoUnlockLevel (kul)    解锁九霄出击关卡；id 可为 all
  *   - kyusyoAchievement (ka)     完成九霄成就（探索）；id 可为 all
  *
- * 命令行（2026-09 起统一为 LunarCore 风格，位置参数 + 前缀修饰符 + -flag + @uid）:
+ * 命令行（统一为 LunarCore 风格，位置参数 + 前缀修饰符 + -flag + @uid）:
  *   /storycompleted <终点关卡> [@uid]
  *   /newstorycompleted <章节菜单ID> [关卡ID] [-noprecede] [@uid]
  *   /kyusyoTaskCompleted <任务ID|all> [status] [@uid]
- *   /kyusyoLevel <等级> [-notrigger] [@uid]
+ *   /kyusyoLevel <等级> [-notrigger] [@uid]（也接受 /kl lv<等级> [@uid]）
  *   /kyusyoUnlockLevel <关卡ID|all> [-notrigger] [@uid]
  *   /kyusyoAchievement <ExpoID|all> [@uid]
  */
@@ -303,7 +303,7 @@ export class StoryPage {
         {
             cmd: 'kul' as const,
             label: '九霄关卡解锁',
-            hint: '/kyusyoUnlockLevel <关卡ID|all> [-notrigger]：all 解锁全部 Type∈{1,2,3} 常规关卡，Extra 未开放区不在内。',
+            hint: '/kyusyoUnlockLevel <关卡ID|all> [-notrigger]：all 解锁全部 Type∈{1,2,3,4} 常规关卡（type=4 为护送）。',
         },
         {
             cmd: 'ka' as const,

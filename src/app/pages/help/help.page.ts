@@ -11,7 +11,7 @@
  */
 import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { GmApiService, GmApiError, GmCommandHelp } from '../../core/gm-api.service';
-import { HandbookEntry, HandbookService, normalizeGmTemplate } from '../../core/handbook.service';
+import { HandbookEntry, HandbookService } from '../../core/handbook.service';
 
 const ALL_SECTIONS = '全部分区';
 
@@ -97,7 +97,7 @@ interface FilteredEntry {
 
             <hr />
 
-            <!-- Handbook 浏览（常开） -->
+            <!-- Handbook 浏览 -->
             <h3 class="sub">Handbook 浏览</h3>
             <p class="sub-hint">按 ID / 名称 / 附加信息过滤条目</p>
             <div class="handbook-body">
@@ -596,9 +596,9 @@ export class HelpPage {
         return name.length > 8 ? name.slice(0, 8) + '…' : name;
     }
 
-    /** Handbook 里的 GM 模板归一化成可执行的命令行（兼容新旧两种写法） */
+    /** Handbook 里的 GM 模板本身就是可执行的命令行，原样使用 */
     protected commandOf(raw: string): string {
-        return normalizeGmTemplate(raw) || raw;
+        return raw.trim();
     }
 
     protected async copyCommand(raw: string): Promise<void> {

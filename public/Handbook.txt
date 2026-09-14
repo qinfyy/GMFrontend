@@ -1,5 +1,5 @@
 BH2 GM Handbook
-生成时间：2026-09-13 20:32:34
+生成时间：2026-09-14 20:23:11
 =================
 
 请求：GET /api/gm?content="/命令 [参数...]" 或在游戏内私聊发送 /命令
@@ -74,6 +74,21 @@ setlevel（别名：level）：设置玩家等级。
   - 支持通过 @uid 指定目标玩家，游戏内聊天发送时默认目标为当前玩家。
   - 等级上限与升级所需经验由 PlayerProfileLogic.SetLevel 按当前资源校验。
   - 保存成功后在线推送玩家数据 PDT_BEGIN 快照。
+
+kick：踢出指定在线玩家：退回登录页或显示维护页。
+    /kick [rc|aa|kr|re|ns] [消息...] [@uid]
+  - 支持通过 @uid 指定目标玩家；不加则踢出发送者自己。
+  - rc: RegistryCloseReadPacket。弹框显示“消息”，确认后登出回登录页。
+  - aa: AntiAddictionNotifyPacket。正文可自定义，标题由客户端固定，确认后同样登出。
+  - ns: NotifyStopServerReadPacket。断开连接，该方法会崩溃。
+  - kr: KindlyRequirePlayerToLogoutPacket。文案固定，确认后回登录页。
+  - re: ReLoginPacket。客户端只清空数据，游戏内不登出，该方法会NRE。
+
+ban：封禁/解封玩家账号。
+    /ban [unban] [t结束时间] [r封禁理由] [@uid]
+  - 支持通过 @uid 指定目标玩家；不加则作用于发送者自己，离线玩家也可操作。
+  - t 为结束时间，格式 yyyyMMddHHmm；省略默认封禁 1 天。
+  - r 为封禁理由，省略用默认文案；理由不能含空格。
 
 storycompleted（别名：sc）：完成普通剧情指定关卡及其全部资源前置（同章节在它之前的关卡），并逐关执行确定性首通结算。
     /storycompleted <终点关卡> [@uid]
@@ -150,145 +165,145 @@ help（别名：h）：列出全部 GM 命令的用法与说明，或查看指�
 
 类型说明
 --------
-currency：货币；give 按 id 发放基础货币或 RewardData Type=30 的 Wallet CoinType，giveall&type=currency 按 amount 同时增加水晶和金币。
-material：堆叠材料；give 按 MetaId 发放，giveall&type=material 按 amount 为当前资源中的每种材料累加。
+currency：货币；give 按 id 发放基础货币或 RewardData Type=30 的 Wallet CoinType，giveall currency x<数量> 同时增加水晶和金币。
+material：堆叠材料；give 按 MetaId 发放，giveall material x<数量> 为当前资源中的每种材料累加。
 weapon / costume / badge / role：武器、服装、徽章和标准角色装备；give 需要 MetaId，giveall 按资源补齐未拥有的 MetaId。
 potential：RoleV2 限解训练组件或角色限解特装；仅支持 give，不属于背包材料，合法 ID 见 [potential]。
-skin：标准角色皮肤；give 按 SkinID 发放，giveall&type=skin 补齐全部资源皮肤，合法 ID 和中文名称见 [skin]。
-partner：开放看板；give 按 PosterID 发放，giveall&type=partner 补齐全部 IsOpen=1 看板。
+skin：标准角色皮肤；give 按 SkinID 发放，giveall skin 补齐全部资源皮肤，合法 ID 和中文名称见 [skin]。
+partner：开放看板；give 按 PosterID 发放，giveall partner 补齐全部 IsOpen=1 看板。
 all：仅限 giveall，包含全部可发放装备和开放看板，不隐式包含 skin、potential、material 或 currency。
 
 返回码：200 成功，400 参数、命令或凭据格式错误（invalid_request），401 缺少凭据或令牌无效（invalid_token），404 玩家不存在，500 存储失败。
 
 [currency]
 hcoin、bhcoin 和 scoin 是玩家基础货币；数字 ID 是 RewardData Type=30 定义的 Wallet CoinType。
-currency	hcoin	水晶	alias=239	GM=give&uid=<UID>&type=currency&id=hcoin&amount=<数量>
-currency	bhcoin	祈之共鸣	alias=5|bhdust	GM=give&uid=<UID>&type=currency&id=bhcoin&amount=<数量>
-currency	scoin	金币	GM=give&uid=<UID>&type=currency&id=scoin&amount=<数量>
-currency	1	绯玉结晶	GM=/give 1 x<数量> [@uid]
-currency	2	绯玉结晶	GM=/give 2 x<数量> [@uid]
-currency	3	绯玉结晶	GM=/give 3 x<数量> [@uid]
-currency	4	镜月结晶	GM=/give 4 x<数量> [@uid]
-currency	5	祈之共鸣	alias=bhcoin|bhdust	GM=/give 5 x<数量> [@uid]
-currency	6	社团贡献	GM=/give 6 x<数量> [@uid]
-currency	7	绿晶石	GM=/give 7 x<数量> [@uid]
-currency	8	婚礼体验日代币	GM=/give 8 x<数量> [@uid]
-currency	9	白白	GM=/give 9 x<数量> [@uid]
-currency	10	誓约十字	GM=/give 10 x<数量> [@uid]
-currency	11	迷宫代币	GM=/give 11 x<数量> [@uid]
-currency	12	迷雾结晶	GM=/give 12 x<数量> [@uid]
-currency	13	梦魇遗物	GM=/give 13 x<数量> [@uid]
-currency	14	四叶星屑	GM=/give 14 x<数量> [@uid]
-currency	15	血之精晶	GM=/give 15 x<数量> [@uid]
-currency	16	魔力糖果	GM=/give 16 x<数量> [@uid]
-currency	17	冰原狼牙	GM=/give 17 x<数量> [@uid]
-currency	18	锈蚀硬币	GM=/give 18 x<数量> [@uid]
-currency	19	同构晶片	GM=/give 19 x<数量> [@uid]
-currency	20	绮羽青晶	GM=/give 20 x<数量> [@uid]
-currency	21	使魔爱心	GM=/give 21 x<数量> [@uid]
-currency	22	绯红十字	GM=/give 22 x<数量> [@uid]
-currency	23	罪恶之源	GM=/give 23 x<数量> [@uid]
-currency	24	聚合芯片	GM=/give 24 x<数量> [@uid]
-currency	25	绯玉结晶	GM=/give 25 x<数量> [@uid]
-currency	26	通用圣痕点数	GM=/give 26 x<数量> [@uid]
-currency	27	不捣鬼小魔代币	GM=/give 27 x<数量> [@uid]
-currency	28	绯玉结晶	GM=/give 28 x<数量> [@uid]
-currency	29	勇者纹章	GM=/give 29 x<数量> [@uid]
-currency	30	核心晶片	GM=/give 30 x<数量> [@uid]
-currency	31	金属结晶	GM=/give 31 x<数量> [@uid]
-currency	32	追踪标记	GM=/give 32 x<数量> [@uid]
-currency	33	聚合芯片	GM=/give 33 x<数量> [@uid]
-currency	34	清凉夜半代币	GM=/give 34 x<数量> [@uid]
-currency	35	誓约花球	GM=/give 35 x<数量> [@uid]
-currency	36	基因残片	GM=/give 36 x<数量> [@uid]
-currency	37	运算晶元	GM=/give 37 x<数量> [@uid]
-currency	38	海底珍贝	GM=/give 38 x<数量> [@uid]
-currency	39	梦想星结	GM=/give 39 x<数量> [@uid]
-currency	40	苏生魔力	GM=/give 40 x<数量> [@uid]
-currency	41	炎节假期代币	GM=/give 41 x<数量> [@uid]
-currency	42	基因残片	GM=/give 42 x<数量> [@uid]
-currency	43	碧色结晶	GM=/give 43 x<数量> [@uid]
-currency	45	星梦之结	GM=/give 45 x<数量> [@uid]
-currency	46	摇曳灯火	GM=/give 46 x<数量> [@uid]
-currency	47	小判	GM=/give 47 x<数量> [@uid]
-currency	48	游汐叶界通用币	GM=/give 48 x<数量> [@uid]
-currency	49	梦之星	GM=/give 49 x<数量> [@uid]
-currency	50	海滩珍贝	GM=/give 50 x<数量> [@uid]
-currency	51	思绪低语	GM=/give 51 x<数量> [@uid]
-currency	52	蓝色纪念币	GM=/give 52 x<数量> [@uid]
-currency	53	魔法时刻	GM=/give 53 x<数量> [@uid]
-currency	54	灰色纪念币	GM=/give 54 x<数量> [@uid]
-currency	55	圣夜雪愿	GM=/give 55 x<数量> [@uid]
-currency	56	太虚之雪	GM=/give 56 x<数量> [@uid]
-currency	57	金色结晶	GM=/give 57 x<数量> [@uid]
-currency	58	绯玉结晶	GM=/give 58 x<数量> [@uid]
-currency	59	晶莹露滴	GM=/give 59 x<数量> [@uid]
-currency	60	仲夏甜梦	GM=/give 60 x<数量> [@uid]
-currency	61	心意花束	GM=/give 61 x<数量> [@uid]
-currency	62	阿瓦隆能量	GM=/give 62 x<数量> [@uid]
-currency	63	心意之结	GM=/give 63 x<数量> [@uid]
-currency	64	握手券	GM=/give 64 x<数量> [@uid]
-currency	65	世界之光代币	GM=/give 65 x<数量> [@uid]
-currency	66	清凉夜半代币	GM=/give 66 x<数量> [@uid]
-currency	67	甜品券	GM=/give 67 x<数量> [@uid]
-currency	68	记忆晶片	GM=/give 68 x<数量> [@uid]
-currency	69	成熟南瓜	GM=/give 69 x<数量> [@uid]
-currency	70	樱雪初绽	GM=/give 70 x<数量> [@uid]
-currency	71	群星的追忆代币	GM=/give 71 x<数量> [@uid]
-currency	72	午后茶歇	GM=/give 72 x<数量> [@uid]
-currency	73	好运软糖	GM=/give 73 x<数量> [@uid]
-currency	75	秋日寄梦	GM=/give 75 x<数量> [@uid]
-currency	76	初始之印	GM=/give 76 x<数量> [@uid]
-currency	77	金喵币	GM=/give 77 x<数量> [@uid]
-currency	100	友情点数	GM=/give 100 x<数量> [@uid]
-currency	101	绯玉结晶	GM=/give 101 x<数量> [@uid]
-currency	102	绯玉结晶	GM=/give 102 x<数量> [@uid]
-currency	103	血红结晶	GM=/give 103 x<数量> [@uid]
-currency	104	古龙之证	GM=/give 104 x<数量> [@uid]
-currency	105	炎节假期代币	GM=/give 105 x<数量> [@uid]
-currency	106	虚轴结晶	GM=/give 106 x<数量> [@uid]
-currency	111	课间补给代币	GM=/give 111 x<数量> [@uid]
-currency	112	翠舞隐匿代币	GM=/give 112 x<数量> [@uid]
-currency	113	沁暑时光代币	GM=/give 113 x<数量> [@uid]
-currency	114	浮波夏记代币	GM=/give 114 x<数量> [@uid]
-currency	115	白热绮谭代币	GM=/give 115 x<数量> [@uid]
-currency	116	烘焙光阴代币	GM=/give 116 x<数量> [@uid]
-currency	117	历练之路代币	GM=/give 117 x<数量> [@uid]
-currency	118	休诊时间代币	GM=/give 118 x<数量> [@uid]
-currency	119	军火承包代币	GM=/give 119 x<数量> [@uid]
-currency	120	拼装时光代币	GM=/give 120 x<数量> [@uid]
-currency	135	奇迹残骸	GM=/give 135 x<数量> [@uid]
-currency	136	希望光辉	GM=/give 136 x<数量> [@uid]
-currency	137	群星的预言代币	GM=/give 137 x<数量> [@uid]
-currency	138	群星的秘宝代币	GM=/give 138 x<数量> [@uid]
-currency	196	虚拟币-Ⅲ型	GM=/give 196 x<数量> [@uid]
-currency	197	虚拟币-Ⅲ型	GM=/give 197 x<数量> [@uid]
-currency	198	虚拟币-Ⅱ型	GM=/give 198 x<数量> [@uid]
-currency	199	虚拟币-Ⅰ型	GM=/give 199 x<数量> [@uid]
-currency	200	最初降生之虹	GM=/give 200 x<数量> [@uid]
-currency	201	记忆中的星云	GM=/give 201 x<数量> [@uid]
-currency	202	深渊禁忌之匣	GM=/give 202 x<数量> [@uid]
-currency	203	宇宙真理之泡	GM=/give 203 x<数量> [@uid]
-currency	238	萌星之辉光	GM=/give 238 x<数量> [@uid]
-currency	239	水晶	alias=hcoin	GM=/give 239 x<数量> [@uid]
-currency	240	璨能晶片	GM=/give 240 x<数量> [@uid]
-currency	241	崩坏结晶	GM=/give 241 x<数量> [@uid]
-currency	242	辉光之末	GM=/give 242 x<数量> [@uid]
-currency	243	翁德兰纯灵	GM=/give 243 x<数量> [@uid]
-currency	244	魔女之辉光	GM=/give 244 x<数量> [@uid]
-currency	245	未成熟的记忆	GM=/give 245 x<数量> [@uid]
-currency	246	惊喜礼炮	GM=/give 246 x<数量> [@uid]
-currency	247	吼美的心意	GM=/give 247 x<数量> [@uid]
-currency	248	梦想之辉光	GM=/give 248 x<数量> [@uid]
-currency	249	吼姆的希望	GM=/give 249 x<数量> [@uid]
-currency	250	宙能核心	GM=/give 250 x<数量> [@uid]
-currency	251	魔女之辉光	GM=/give 251 x<数量> [@uid]
-currency	252	公主之辉光	GM=/give 252 x<数量> [@uid]
-currency	253	公主之辉光	GM=/give 253 x<数量> [@uid]
-currency	254	魔法少女之辉光	GM=/give 254 x<数量> [@uid]
-currency	255	遗忘之尘	GM=/give 255 x<数量> [@uid]
-currency	256	原味饭团	GM=/give 256 x<数量> [@uid]
-currency	257	护身钱币	GM=/give 257 x<数量> [@uid]
+currency	hcoin	水晶	alias=239	GM=/give currency hcoin x<数量> [@uid]
+currency	bhcoin	祈之共鸣	alias=5|bhdust	GM=/give currency bhcoin x<数量> [@uid]
+currency	scoin	金币	GM=/give currency scoin x<数量> [@uid]
+currency	1	绯玉结晶	GM=/give currency 1 x<数量> [@uid]
+currency	2	绯玉结晶	GM=/give currency 2 x<数量> [@uid]
+currency	3	绯玉结晶	GM=/give currency 3 x<数量> [@uid]
+currency	4	镜月结晶	GM=/give currency 4 x<数量> [@uid]
+currency	5	祈之共鸣	alias=bhcoin|bhdust	GM=/give currency 5 x<数量> [@uid]
+currency	6	社团贡献	GM=/give currency 6 x<数量> [@uid]
+currency	7	绿晶石	GM=/give currency 7 x<数量> [@uid]
+currency	8	婚礼体验日代币	GM=/give currency 8 x<数量> [@uid]
+currency	9	白白	GM=/give currency 9 x<数量> [@uid]
+currency	10	誓约十字	GM=/give currency 10 x<数量> [@uid]
+currency	11	迷宫代币	GM=/give currency 11 x<数量> [@uid]
+currency	12	迷雾结晶	GM=/give currency 12 x<数量> [@uid]
+currency	13	梦魇遗物	GM=/give currency 13 x<数量> [@uid]
+currency	14	四叶星屑	GM=/give currency 14 x<数量> [@uid]
+currency	15	血之精晶	GM=/give currency 15 x<数量> [@uid]
+currency	16	魔力糖果	GM=/give currency 16 x<数量> [@uid]
+currency	17	冰原狼牙	GM=/give currency 17 x<数量> [@uid]
+currency	18	锈蚀硬币	GM=/give currency 18 x<数量> [@uid]
+currency	19	同构晶片	GM=/give currency 19 x<数量> [@uid]
+currency	20	绮羽青晶	GM=/give currency 20 x<数量> [@uid]
+currency	21	使魔爱心	GM=/give currency 21 x<数量> [@uid]
+currency	22	绯红十字	GM=/give currency 22 x<数量> [@uid]
+currency	23	罪恶之源	GM=/give currency 23 x<数量> [@uid]
+currency	24	聚合芯片	GM=/give currency 24 x<数量> [@uid]
+currency	25	绯玉结晶	GM=/give currency 25 x<数量> [@uid]
+currency	26	通用圣痕点数	GM=/give currency 26 x<数量> [@uid]
+currency	27	不捣鬼小魔代币	GM=/give currency 27 x<数量> [@uid]
+currency	28	绯玉结晶	GM=/give currency 28 x<数量> [@uid]
+currency	29	勇者纹章	GM=/give currency 29 x<数量> [@uid]
+currency	30	核心晶片	GM=/give currency 30 x<数量> [@uid]
+currency	31	金属结晶	GM=/give currency 31 x<数量> [@uid]
+currency	32	追踪标记	GM=/give currency 32 x<数量> [@uid]
+currency	33	聚合芯片	GM=/give currency 33 x<数量> [@uid]
+currency	34	清凉夜半代币	GM=/give currency 34 x<数量> [@uid]
+currency	35	誓约花球	GM=/give currency 35 x<数量> [@uid]
+currency	36	基因残片	GM=/give currency 36 x<数量> [@uid]
+currency	37	运算晶元	GM=/give currency 37 x<数量> [@uid]
+currency	38	海底珍贝	GM=/give currency 38 x<数量> [@uid]
+currency	39	梦想星结	GM=/give currency 39 x<数量> [@uid]
+currency	40	苏生魔力	GM=/give currency 40 x<数量> [@uid]
+currency	41	炎节假期代币	GM=/give currency 41 x<数量> [@uid]
+currency	42	基因残片	GM=/give currency 42 x<数量> [@uid]
+currency	43	碧色结晶	GM=/give currency 43 x<数量> [@uid]
+currency	45	星梦之结	GM=/give currency 45 x<数量> [@uid]
+currency	46	摇曳灯火	GM=/give currency 46 x<数量> [@uid]
+currency	47	小判	GM=/give currency 47 x<数量> [@uid]
+currency	48	游汐叶界通用币	GM=/give currency 48 x<数量> [@uid]
+currency	49	梦之星	GM=/give currency 49 x<数量> [@uid]
+currency	50	海滩珍贝	GM=/give currency 50 x<数量> [@uid]
+currency	51	思绪低语	GM=/give currency 51 x<数量> [@uid]
+currency	52	蓝色纪念币	GM=/give currency 52 x<数量> [@uid]
+currency	53	魔法时刻	GM=/give currency 53 x<数量> [@uid]
+currency	54	灰色纪念币	GM=/give currency 54 x<数量> [@uid]
+currency	55	圣夜雪愿	GM=/give currency 55 x<数量> [@uid]
+currency	56	太虚之雪	GM=/give currency 56 x<数量> [@uid]
+currency	57	金色结晶	GM=/give currency 57 x<数量> [@uid]
+currency	58	绯玉结晶	GM=/give currency 58 x<数量> [@uid]
+currency	59	晶莹露滴	GM=/give currency 59 x<数量> [@uid]
+currency	60	仲夏甜梦	GM=/give currency 60 x<数量> [@uid]
+currency	61	心意花束	GM=/give currency 61 x<数量> [@uid]
+currency	62	阿瓦隆能量	GM=/give currency 62 x<数量> [@uid]
+currency	63	心意之结	GM=/give currency 63 x<数量> [@uid]
+currency	64	握手券	GM=/give currency 64 x<数量> [@uid]
+currency	65	世界之光代币	GM=/give currency 65 x<数量> [@uid]
+currency	66	清凉夜半代币	GM=/give currency 66 x<数量> [@uid]
+currency	67	甜品券	GM=/give currency 67 x<数量> [@uid]
+currency	68	记忆晶片	GM=/give currency 68 x<数量> [@uid]
+currency	69	成熟南瓜	GM=/give currency 69 x<数量> [@uid]
+currency	70	樱雪初绽	GM=/give currency 70 x<数量> [@uid]
+currency	71	群星的追忆代币	GM=/give currency 71 x<数量> [@uid]
+currency	72	午后茶歇	GM=/give currency 72 x<数量> [@uid]
+currency	73	好运软糖	GM=/give currency 73 x<数量> [@uid]
+currency	75	秋日寄梦	GM=/give currency 75 x<数量> [@uid]
+currency	76	初始之印	GM=/give currency 76 x<数量> [@uid]
+currency	77	金喵币	GM=/give currency 77 x<数量> [@uid]
+currency	100	友情点数	GM=/give currency 100 x<数量> [@uid]
+currency	101	绯玉结晶	GM=/give currency 101 x<数量> [@uid]
+currency	102	绯玉结晶	GM=/give currency 102 x<数量> [@uid]
+currency	103	血红结晶	GM=/give currency 103 x<数量> [@uid]
+currency	104	古龙之证	GM=/give currency 104 x<数量> [@uid]
+currency	105	炎节假期代币	GM=/give currency 105 x<数量> [@uid]
+currency	106	虚轴结晶	GM=/give currency 106 x<数量> [@uid]
+currency	111	课间补给代币	GM=/give currency 111 x<数量> [@uid]
+currency	112	翠舞隐匿代币	GM=/give currency 112 x<数量> [@uid]
+currency	113	沁暑时光代币	GM=/give currency 113 x<数量> [@uid]
+currency	114	浮波夏记代币	GM=/give currency 114 x<数量> [@uid]
+currency	115	白热绮谭代币	GM=/give currency 115 x<数量> [@uid]
+currency	116	烘焙光阴代币	GM=/give currency 116 x<数量> [@uid]
+currency	117	历练之路代币	GM=/give currency 117 x<数量> [@uid]
+currency	118	休诊时间代币	GM=/give currency 118 x<数量> [@uid]
+currency	119	军火承包代币	GM=/give currency 119 x<数量> [@uid]
+currency	120	拼装时光代币	GM=/give currency 120 x<数量> [@uid]
+currency	135	奇迹残骸	GM=/give currency 135 x<数量> [@uid]
+currency	136	希望光辉	GM=/give currency 136 x<数量> [@uid]
+currency	137	群星的预言代币	GM=/give currency 137 x<数量> [@uid]
+currency	138	群星的秘宝代币	GM=/give currency 138 x<数量> [@uid]
+currency	196	虚拟币-Ⅲ型	GM=/give currency 196 x<数量> [@uid]
+currency	197	虚拟币-Ⅲ型	GM=/give currency 197 x<数量> [@uid]
+currency	198	虚拟币-Ⅱ型	GM=/give currency 198 x<数量> [@uid]
+currency	199	虚拟币-Ⅰ型	GM=/give currency 199 x<数量> [@uid]
+currency	200	最初降生之虹	GM=/give currency 200 x<数量> [@uid]
+currency	201	记忆中的星云	GM=/give currency 201 x<数量> [@uid]
+currency	202	深渊禁忌之匣	GM=/give currency 202 x<数量> [@uid]
+currency	203	宇宙真理之泡	GM=/give currency 203 x<数量> [@uid]
+currency	238	萌星之辉光	GM=/give currency 238 x<数量> [@uid]
+currency	239	水晶	alias=hcoin	GM=/give currency 239 x<数量> [@uid]
+currency	240	璨能晶片	GM=/give currency 240 x<数量> [@uid]
+currency	241	崩坏结晶	GM=/give currency 241 x<数量> [@uid]
+currency	242	辉光之末	GM=/give currency 242 x<数量> [@uid]
+currency	243	翁德兰纯灵	GM=/give currency 243 x<数量> [@uid]
+currency	244	魔女之辉光	GM=/give currency 244 x<数量> [@uid]
+currency	245	未成熟的记忆	GM=/give currency 245 x<数量> [@uid]
+currency	246	惊喜礼炮	GM=/give currency 246 x<数量> [@uid]
+currency	247	吼美的心意	GM=/give currency 247 x<数量> [@uid]
+currency	248	梦想之辉光	GM=/give currency 248 x<数量> [@uid]
+currency	249	吼姆的希望	GM=/give currency 249 x<数量> [@uid]
+currency	250	宙能核心	GM=/give currency 250 x<数量> [@uid]
+currency	251	魔女之辉光	GM=/give currency 251 x<数量> [@uid]
+currency	252	公主之辉光	GM=/give currency 252 x<数量> [@uid]
+currency	253	公主之辉光	GM=/give currency 253 x<数量> [@uid]
+currency	254	魔法少女之辉光	GM=/give currency 254 x<数量> [@uid]
+currency	255	遗忘之尘	GM=/give currency 255 x<数量> [@uid]
+currency	256	原味饭团	GM=/give currency 256 x<数量> [@uid]
+currency	257	护身钱币	GM=/give currency 257 x<数量> [@uid]
 
 [weapon]
 weapon	1	M617左轮手枪
@@ -7280,7 +7295,7 @@ partner	1213	看板No.2213 Name	type=1	max_intimacy=99	dynamic=False
 partner	1215	奔涌而至的相逢	type=5	max_intimacy=0	dynamic=True
 
 [九霄任务目录（逐火之蛾主玩法）]
-GM=ktc&uid=<UID>&id=<任务ID>；id 可为 all；status 缺省 claimed 全完成发奖。
+GM=/ktc <任务ID|all> [status] [@uid]；status 缺省 claimed 全完成发奖。
 mission	2	安家	showtype=主线	parents=	levels=	rewards=18
 mission	3	生存	showtype=主线	parents=2	levels=2,3	rewards=2001
 mission	4	苏醒	showtype=主线	parents=3	levels=	rewards=18
@@ -7413,280 +7428,280 @@ mission	3001	The gift for my dearest daughter	showtype=5	parents=6	levels=1
 mission	3002	The gift for my dearest daughter	showtype=5	parents=35	levels=66	rewards=2005
 
 [kyusyoUnlockLevel 九霄关卡目录（逐火之蛾出击）]
-GM=kul&uid=<UID>&level=<关卡ID|all>；id=all 解锁全部 Type∈{1,2,3,4} 常规关卡，type=4=护送 GUARDB（含 ME 社 58 警备室、59 控制室）。
+GM=/kul <关卡ID|all> [-notrigger] [@uid]；all 解锁全部 Type∈{1,2,3,4} 常规关卡，type=4=护送 GUARDB（含 ME 社 58 警备室、59 控制室）。
 type: 1=闯关 2=生存 3=迷宫 4=护送
 ---- type=1 闯关 ----
-level	1	列车	levelTypeForServer=1	init=1	parents=	GM=kul&uid=<UID>&level=1
-level	2	居所	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=2
-level	3	边界	levelTypeForServer=1	init=0	parents=2	GM=kul&uid=<UID>&level=3
-level	4	城市废墟	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=4
-level	5	荒漠	levelTypeForServer=1	init=0	parents=4	GM=kul&uid=<UID>&level=5
-level	6	探索区	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=6
-level	7	保卫区	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=7
-level	8	站台	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=8
-level	11	商业街	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=11
-level	12	废墟	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=12
-level	13	废弃坑道	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=13
-level	14	旁道	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=14
-level	15	秘密通道	levelTypeForServer=1	init=0	parents=14	GM=kul&uid=<UID>&level=15
-level	17	地铁广场	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=17
-level	20	平原区	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=20
-level	21	丘陵区	levelTypeForServer=1	init=0	parents=20	GM=kul&uid=<UID>&level=21
-level	22	乐园边界	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=22
-level	23	鬼屋	levelTypeForServer=1	init=0	parents=22	GM=kul&uid=<UID>&level=23
-level	24	吼姆像	levelTypeForServer=1	init=0	parents=23	GM=kul&uid=<UID>&level=24
-level	25	摩天轮	levelTypeForServer=1	init=0	parents=24	GM=kul&uid=<UID>&level=25
-level	26	旋转马车	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=26
-level	27	丛林迷宫	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=27
-level	28	市区边界	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=28
-level	29	海盗船	levelTypeForServer=1	init=0	parents=28	GM=kul&uid=<UID>&level=29
-level	30	哨塔	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=30
-level	31	外城	levelTypeForServer=1	init=0	parents=30	GM=kul&uid=<UID>&level=31
-level	32	护城河	levelTypeForServer=1	init=0	parents=31	GM=kul&uid=<UID>&level=32
-level	35	马戏城	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=35
-level	36	过山车	levelTypeForServer=1	init=0	parents=35	GM=kul&uid=<UID>&level=36
-level	37	马场	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=37
-level	38	狩猎区	levelTypeForServer=1	init=0	parents=37	GM=kul&uid=<UID>&level=38
-level	39	乐园边界	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=39
-level	40	中心湖	levelTypeForServer=1	init=0	parents=39	GM=kul&uid=<UID>&level=40
-level	43	扩张区	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=43
-level	44	隔离点	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=44
-level	45	驻战区	levelTypeForServer=1	init=0	parents=44	GM=kul&uid=<UID>&level=45
-level	46	武器室	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=46
-level	47	用刑室	levelTypeForServer=1	init=0	parents=46	GM=kul&uid=<UID>&level=47
-level	48	园区广场	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=48
-level	51	地下车库	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=51
-level	52	外运轨道	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=52
-level	53	边界战区	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=53
-level	54	底层大厅	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=54
-level	55	上层走廊	levelTypeForServer=1	init=0	parents=54	GM=kul&uid=<UID>&level=55
-level	57	生产区	levelTypeForServer=1	init=0	parents=56	GM=kul&uid=<UID>&level=57
-level	61	资料室	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=61
-level	62	解析室	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=62
-level	63	办公区	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=63
-level	64	地下走廊	levelTypeForServer=1	init=0	parents=63	GM=kul&uid=<UID>&level=64
-level	65	地下车间	levelTypeForServer=1	init=0	parents=64	GM=kul&uid=<UID>&level=65
-level	67	运输线	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=67
-level	70	B416车间	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=70
-level	71	园区郊野	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=71
-level	72	休伯利安	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=72
-level	73	海畔	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=73
-level	74	弃置区	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=74
-level	77	格纳库	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=77
-level	78	舰桥	levelTypeForServer=1	init=0	parents=75	GM=kul&uid=<UID>&level=78
-level	81	废墟外围	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=81
-level	82	标记区	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=82
-level	83	车场外围	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=83
-level	84	车场深处	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=84
-level	85	废墟战区	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=85
-level	88	隔离舱	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=88
-level	90	主炮舱室	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=90
-level	92	医护舱	levelTypeForServer=1	init=0	parents=79	GM=kul&uid=<UID>&level=92
-level	93	防线边沿	levelTypeForServer=1	init=0	parents=85	GM=kul&uid=<UID>&level=93
-level	94	动力炉	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=94
-level	96	大桥东侧	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=96
-level	97	大桥底部	levelTypeForServer=1	init=0	parents=96	GM=kul&uid=<UID>&level=97
-level	98	大桥西侧	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=98
-level	99	街道废墟	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=99
-level	100	沿海街道	levelTypeForServer=1	init=0	parents=99	GM=kul&uid=<UID>&level=100
-level	101	安全区	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=101
-level	103	商业中心	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=103
-level	104	旧发电厂	levelTypeForServer=1	init=0	parents=103	GM=kul&uid=<UID>&level=104
-level	105	小型港口	levelTypeForServer=1	init=0	parents=104	GM=kul&uid=<UID>&level=105
-level	107	中心广场	levelTypeForServer=1	init=0	parents=114	GM=kul&uid=<UID>&level=107
-level	108	桥面	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=108
-level	109	残破大厦	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=109
-level	110	综合医院	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=110
-level	111	郊外诊所	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=111
-level	112	安全屋外	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=112
-level	114	侵蚀	levelTypeForServer=1	init=0	parents=106	GM=kul&uid=<UID>&level=114
-level	115	外野	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=115
-level	116	延伸区	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=116
-level	118	驻留区	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=118
-level	119	能量乱流	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=119
-level	120	大教堂	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=120
-level	121	月光王座	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=121
-level	123	幻觉	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=123
-level	124	虚数空间	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=124
-level	125	浮空巨岩	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=125
-level	127	大桥外围	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=127
-level	128	大楼残骸	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=128
-level	130	扩张区	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=130
-level	131	空间断层	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=131
-level	132	学园废墟	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=132
-level	134	熔炉	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=134
-level	136	外轨道	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=136
-level	137	甲板	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=137
-level	141	外壁	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=141
-level	142	螺旋走廊	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=142
-level	143	中层区域	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=143
-level	144	回旋阶梯	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=144
-level	146	虚无都市	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=146
-level	149	避难区	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=149
-level	151	角质化区域	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=151
-level	970	0	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=970
-level	971	0	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=971
-level	972	0	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=972
-level	973	0	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=973
-level	994	虚像空间	levelTypeForServer=1	init=1	parents=	GM=kul&uid=<UID>&level=994
+level	1	列车	levelTypeForServer=1	init=1	parents=	GM=/kul 1
+level	2	居所	levelTypeForServer=1	init=0	parents=	GM=/kul 2
+level	3	边界	levelTypeForServer=1	init=0	parents=2	GM=/kul 3
+level	4	城市废墟	levelTypeForServer=1	init=0	parents=	GM=/kul 4
+level	5	荒漠	levelTypeForServer=1	init=0	parents=4	GM=/kul 5
+level	6	探索区	levelTypeForServer=1	init=0	parents=	GM=/kul 6
+level	7	保卫区	levelTypeForServer=1	init=0	parents=	GM=/kul 7
+level	8	站台	levelTypeForServer=1	init=0	parents=	GM=/kul 8
+level	11	商业街	levelTypeForServer=1	init=0	parents=	GM=/kul 11
+level	12	废墟	levelTypeForServer=1	init=0	parents=	GM=/kul 12
+level	13	废弃坑道	levelTypeForServer=1	init=0	parents=	GM=/kul 13
+level	14	旁道	levelTypeForServer=1	init=0	parents=	GM=/kul 14
+level	15	秘密通道	levelTypeForServer=1	init=0	parents=14	GM=/kul 15
+level	17	地铁广场	levelTypeForServer=1	init=0	parents=	GM=/kul 17
+level	20	平原区	levelTypeForServer=1	init=0	parents=	GM=/kul 20
+level	21	丘陵区	levelTypeForServer=1	init=0	parents=20	GM=/kul 21
+level	22	乐园边界	levelTypeForServer=1	init=0	parents=	GM=/kul 22
+level	23	鬼屋	levelTypeForServer=1	init=0	parents=22	GM=/kul 23
+level	24	吼姆像	levelTypeForServer=1	init=0	parents=23	GM=/kul 24
+level	25	摩天轮	levelTypeForServer=1	init=0	parents=24	GM=/kul 25
+level	26	旋转马车	levelTypeForServer=1	init=0	parents=	GM=/kul 26
+level	27	丛林迷宫	levelTypeForServer=1	init=0	parents=	GM=/kul 27
+level	28	市区边界	levelTypeForServer=1	init=0	parents=	GM=/kul 28
+level	29	海盗船	levelTypeForServer=1	init=0	parents=28	GM=/kul 29
+level	30	哨塔	levelTypeForServer=1	init=0	parents=	GM=/kul 30
+level	31	外城	levelTypeForServer=1	init=0	parents=30	GM=/kul 31
+level	32	护城河	levelTypeForServer=1	init=0	parents=31	GM=/kul 32
+level	35	马戏城	levelTypeForServer=1	init=0	parents=	GM=/kul 35
+level	36	过山车	levelTypeForServer=1	init=0	parents=35	GM=/kul 36
+level	37	马场	levelTypeForServer=1	init=0	parents=	GM=/kul 37
+level	38	狩猎区	levelTypeForServer=1	init=0	parents=37	GM=/kul 38
+level	39	乐园边界	levelTypeForServer=1	init=0	parents=	GM=/kul 39
+level	40	中心湖	levelTypeForServer=1	init=0	parents=39	GM=/kul 40
+level	43	扩张区	levelTypeForServer=1	init=0	parents=	GM=/kul 43
+level	44	隔离点	levelTypeForServer=1	init=0	parents=	GM=/kul 44
+level	45	驻战区	levelTypeForServer=1	init=0	parents=44	GM=/kul 45
+level	46	武器室	levelTypeForServer=1	init=0	parents=	GM=/kul 46
+level	47	用刑室	levelTypeForServer=1	init=0	parents=46	GM=/kul 47
+level	48	园区广场	levelTypeForServer=1	init=0	parents=	GM=/kul 48
+level	51	地下车库	levelTypeForServer=1	init=0	parents=	GM=/kul 51
+level	52	外运轨道	levelTypeForServer=1	init=0	parents=	GM=/kul 52
+level	53	边界战区	levelTypeForServer=1	init=0	parents=	GM=/kul 53
+level	54	底层大厅	levelTypeForServer=1	init=0	parents=	GM=/kul 54
+level	55	上层走廊	levelTypeForServer=1	init=0	parents=54	GM=/kul 55
+level	57	生产区	levelTypeForServer=1	init=0	parents=56	GM=/kul 57
+level	61	资料室	levelTypeForServer=1	init=0	parents=	GM=/kul 61
+level	62	解析室	levelTypeForServer=1	init=0	parents=	GM=/kul 62
+level	63	办公区	levelTypeForServer=1	init=0	parents=	GM=/kul 63
+level	64	地下走廊	levelTypeForServer=1	init=0	parents=63	GM=/kul 64
+level	65	地下车间	levelTypeForServer=1	init=0	parents=64	GM=/kul 65
+level	67	运输线	levelTypeForServer=1	init=0	parents=	GM=/kul 67
+level	70	B416车间	levelTypeForServer=1	init=0	parents=	GM=/kul 70
+level	71	园区郊野	levelTypeForServer=1	init=0	parents=	GM=/kul 71
+level	72	休伯利安	levelTypeForServer=1	init=0	parents=	GM=/kul 72
+level	73	海畔	levelTypeForServer=1	init=0	parents=	GM=/kul 73
+level	74	弃置区	levelTypeForServer=1	init=0	parents=	GM=/kul 74
+level	77	格纳库	levelTypeForServer=1	init=0	parents=	GM=/kul 77
+level	78	舰桥	levelTypeForServer=1	init=0	parents=75	GM=/kul 78
+level	81	废墟外围	levelTypeForServer=1	init=0	parents=	GM=/kul 81
+level	82	标记区	levelTypeForServer=1	init=0	parents=	GM=/kul 82
+level	83	车场外围	levelTypeForServer=1	init=0	parents=	GM=/kul 83
+level	84	车场深处	levelTypeForServer=1	init=0	parents=	GM=/kul 84
+level	85	废墟战区	levelTypeForServer=1	init=0	parents=	GM=/kul 85
+level	88	隔离舱	levelTypeForServer=1	init=0	parents=	GM=/kul 88
+level	90	主炮舱室	levelTypeForServer=1	init=0	parents=	GM=/kul 90
+level	92	医护舱	levelTypeForServer=1	init=0	parents=79	GM=/kul 92
+level	93	防线边沿	levelTypeForServer=1	init=0	parents=85	GM=/kul 93
+level	94	动力炉	levelTypeForServer=1	init=0	parents=	GM=/kul 94
+level	96	大桥东侧	levelTypeForServer=1	init=0	parents=	GM=/kul 96
+level	97	大桥底部	levelTypeForServer=1	init=0	parents=96	GM=/kul 97
+level	98	大桥西侧	levelTypeForServer=1	init=0	parents=	GM=/kul 98
+level	99	街道废墟	levelTypeForServer=1	init=0	parents=	GM=/kul 99
+level	100	沿海街道	levelTypeForServer=1	init=0	parents=99	GM=/kul 100
+level	101	安全区	levelTypeForServer=1	init=0	parents=	GM=/kul 101
+level	103	商业中心	levelTypeForServer=1	init=0	parents=	GM=/kul 103
+level	104	旧发电厂	levelTypeForServer=1	init=0	parents=103	GM=/kul 104
+level	105	小型港口	levelTypeForServer=1	init=0	parents=104	GM=/kul 105
+level	107	中心广场	levelTypeForServer=1	init=0	parents=114	GM=/kul 107
+level	108	桥面	levelTypeForServer=1	init=0	parents=	GM=/kul 108
+level	109	残破大厦	levelTypeForServer=1	init=0	parents=	GM=/kul 109
+level	110	综合医院	levelTypeForServer=1	init=0	parents=	GM=/kul 110
+level	111	郊外诊所	levelTypeForServer=1	init=0	parents=	GM=/kul 111
+level	112	安全屋外	levelTypeForServer=1	init=0	parents=	GM=/kul 112
+level	114	侵蚀	levelTypeForServer=1	init=0	parents=106	GM=/kul 114
+level	115	外野	levelTypeForServer=1	init=0	parents=	GM=/kul 115
+level	116	延伸区	levelTypeForServer=1	init=0	parents=	GM=/kul 116
+level	118	驻留区	levelTypeForServer=1	init=0	parents=	GM=/kul 118
+level	119	能量乱流	levelTypeForServer=1	init=0	parents=	GM=/kul 119
+level	120	大教堂	levelTypeForServer=1	init=0	parents=	GM=/kul 120
+level	121	月光王座	levelTypeForServer=1	init=0	parents=	GM=/kul 121
+level	123	幻觉	levelTypeForServer=1	init=0	parents=	GM=/kul 123
+level	124	虚数空间	levelTypeForServer=1	init=0	parents=	GM=/kul 124
+level	125	浮空巨岩	levelTypeForServer=1	init=0	parents=	GM=/kul 125
+level	127	大桥外围	levelTypeForServer=1	init=0	parents=	GM=/kul 127
+level	128	大楼残骸	levelTypeForServer=1	init=0	parents=	GM=/kul 128
+level	130	扩张区	levelTypeForServer=1	init=0	parents=	GM=/kul 130
+level	131	空间断层	levelTypeForServer=1	init=0	parents=	GM=/kul 131
+level	132	学园废墟	levelTypeForServer=1	init=0	parents=	GM=/kul 132
+level	134	熔炉	levelTypeForServer=1	init=0	parents=	GM=/kul 134
+level	136	外轨道	levelTypeForServer=1	init=0	parents=	GM=/kul 136
+level	137	甲板	levelTypeForServer=1	init=0	parents=	GM=/kul 137
+level	141	外壁	levelTypeForServer=1	init=0	parents=	GM=/kul 141
+level	142	螺旋走廊	levelTypeForServer=1	init=0	parents=	GM=/kul 142
+level	143	中层区域	levelTypeForServer=1	init=0	parents=	GM=/kul 143
+level	144	回旋阶梯	levelTypeForServer=1	init=0	parents=	GM=/kul 144
+level	146	虚无都市	levelTypeForServer=1	init=0	parents=	GM=/kul 146
+level	149	避难区	levelTypeForServer=1	init=0	parents=	GM=/kul 149
+level	151	角质化区域	levelTypeForServer=1	init=0	parents=	GM=/kul 151
+level	970	0	levelTypeForServer=1	init=0	parents=	GM=/kul 970
+level	971	0	levelTypeForServer=1	init=0	parents=	GM=/kul 971
+level	972	0	levelTypeForServer=1	init=0	parents=	GM=/kul 972
+level	973	0	levelTypeForServer=1	init=0	parents=	GM=/kul 973
+level	994	虚像空间	levelTypeForServer=1	init=1	parents=	GM=/kul 994
 ---- type=2 生存 ----
-level	10	轨道	levelTypeForServer=2	init=0	parents=9	GM=kul&uid=<UID>&level=10
-level	16	哨点	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=16
-level	18	大门	levelTypeForServer=2	init=0	parents=17	GM=kul&uid=<UID>&level=18
-level	19	维修室	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=19
-level	33	会客厅	levelTypeForServer=2	init=0	parents=32	GM=kul&uid=<UID>&level=33
-level	34	王座之间	levelTypeForServer=2	init=0	parents=33	GM=kul&uid=<UID>&level=34
-level	41	起居室	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=41
-level	49	ME社入口	levelTypeForServer=2	init=0	parents=48	GM=kul&uid=<UID>&level=49
-level	50	绿化带	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=50
-level	60	电力板块	levelTypeForServer=2	init=0	parents=59	GM=kul&uid=<UID>&level=60
-level	66	实验室	levelTypeForServer=2	init=0	parents=65	GM=kul&uid=<UID>&level=66
-level	68	王座大厅	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=68
-level	75	战舰通道	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=75
-level	76	引擎室	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=76
-level	79	动力区	levelTypeForServer=2	init=0	parents=78	GM=kul&uid=<UID>&level=79
-level	80	整备舱	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=80
-level	86	指挥室	levelTypeForServer=2	init=0	parents=93	GM=kul&uid=<UID>&level=86
-level	87	C区舱室	levelTypeForServer=2	init=0	parents=86	GM=kul&uid=<UID>&level=87
-level	89	战舰外壁	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=89
-level	91	空中走廊	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=91
-level	95	野外区	levelTypeForServer=2	init=0	parents=94	GM=kul&uid=<UID>&level=95
-level	102	梦境	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=102
-level	106	酒窖	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=106
-level	113	检查口	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=113
-level	117	边境	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=117
-level	122	动力核心	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=122
-level	126	美丽世界	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=126
-level	129	临时防线	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=129
-level	133	维修通道	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=133
-level	135	节奏的天国	levelTypeForServer=1	init=0	parents=126	GM=kul&uid=<UID>&level=135
-level	138	内部舱室	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=138
-level	139	战舰左舷	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=139
-level	140	高空	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=140
-level	145	塔顶	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=145
-level	147	死斑	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=147
-level	148	终焉之塔	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=148
-level	150	停机架	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=150
-level	152	千羽学园	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=152
-level	951	虚像空间	levelTypeForServer=2	init=1	parents=	GM=kul&uid=<UID>&level=951
-level	952	德丽莎周常关卡	levelTypeForServer=2	init=1	parents=	GM=kul&uid=<UID>&level=952
-level	953	虚像空间:西琳	levelTypeForServer=2	init=1	parents=	GM=kul&uid=<UID>&level=953
-level	954	虚像空间:终焉的轮舞	levelTypeForServer=2	init=1	parents=	GM=kul&uid=<UID>&level=954
-level	987	测试关卡	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=987
-level	988	测试关卡1	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=988
-level	989	测试关卡	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=989
-level	990	测试关卡1	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=990
-level	991	虚像空间	levelTypeForServer=2	init=1	parents=	GM=kul&uid=<UID>&level=991
-level	992	虚像空间	levelTypeForServer=2	init=1	parents=	GM=kul&uid=<UID>&level=992
-level	993	虚像空间	levelTypeForServer=2	init=1	parents=	GM=kul&uid=<UID>&level=993
-level	996	梦境	levelTypeForServer=1	init=0	parents=	GM=kul&uid=<UID>&level=996
-level	997	测试关卡3	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=997
-level	998	测试关卡1	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=998
-level	999	测试关卡	levelTypeForServer=2	init=0	parents=	GM=kul&uid=<UID>&level=999
+level	10	轨道	levelTypeForServer=2	init=0	parents=9	GM=/kul 10
+level	16	哨点	levelTypeForServer=2	init=0	parents=	GM=/kul 16
+level	18	大门	levelTypeForServer=2	init=0	parents=17	GM=/kul 18
+level	19	维修室	levelTypeForServer=2	init=0	parents=	GM=/kul 19
+level	33	会客厅	levelTypeForServer=2	init=0	parents=32	GM=/kul 33
+level	34	王座之间	levelTypeForServer=2	init=0	parents=33	GM=/kul 34
+level	41	起居室	levelTypeForServer=2	init=0	parents=	GM=/kul 41
+level	49	ME社入口	levelTypeForServer=2	init=0	parents=48	GM=/kul 49
+level	50	绿化带	levelTypeForServer=2	init=0	parents=	GM=/kul 50
+level	60	电力板块	levelTypeForServer=2	init=0	parents=59	GM=/kul 60
+level	66	实验室	levelTypeForServer=2	init=0	parents=65	GM=/kul 66
+level	68	王座大厅	levelTypeForServer=2	init=0	parents=	GM=/kul 68
+level	75	战舰通道	levelTypeForServer=2	init=0	parents=	GM=/kul 75
+level	76	引擎室	levelTypeForServer=2	init=0	parents=	GM=/kul 76
+level	79	动力区	levelTypeForServer=2	init=0	parents=78	GM=/kul 79
+level	80	整备舱	levelTypeForServer=2	init=0	parents=	GM=/kul 80
+level	86	指挥室	levelTypeForServer=2	init=0	parents=93	GM=/kul 86
+level	87	C区舱室	levelTypeForServer=2	init=0	parents=86	GM=/kul 87
+level	89	战舰外壁	levelTypeForServer=2	init=0	parents=	GM=/kul 89
+level	91	空中走廊	levelTypeForServer=2	init=0	parents=	GM=/kul 91
+level	95	野外区	levelTypeForServer=2	init=0	parents=94	GM=/kul 95
+level	102	梦境	levelTypeForServer=2	init=0	parents=	GM=/kul 102
+level	106	酒窖	levelTypeForServer=2	init=0	parents=	GM=/kul 106
+level	113	检查口	levelTypeForServer=2	init=0	parents=	GM=/kul 113
+level	117	边境	levelTypeForServer=2	init=0	parents=	GM=/kul 117
+level	122	动力核心	levelTypeForServer=2	init=0	parents=	GM=/kul 122
+level	126	美丽世界	levelTypeForServer=1	init=0	parents=	GM=/kul 126
+level	129	临时防线	levelTypeForServer=1	init=0	parents=	GM=/kul 129
+level	133	维修通道	levelTypeForServer=1	init=0	parents=	GM=/kul 133
+level	135	节奏的天国	levelTypeForServer=1	init=0	parents=126	GM=/kul 135
+level	138	内部舱室	levelTypeForServer=2	init=0	parents=	GM=/kul 138
+level	139	战舰左舷	levelTypeForServer=2	init=0	parents=	GM=/kul 139
+level	140	高空	levelTypeForServer=2	init=0	parents=	GM=/kul 140
+level	145	塔顶	levelTypeForServer=2	init=0	parents=	GM=/kul 145
+level	147	死斑	levelTypeForServer=2	init=0	parents=	GM=/kul 147
+level	148	终焉之塔	levelTypeForServer=2	init=0	parents=	GM=/kul 148
+level	150	停机架	levelTypeForServer=2	init=0	parents=	GM=/kul 150
+level	152	千羽学园	levelTypeForServer=2	init=0	parents=	GM=/kul 152
+level	951	虚像空间	levelTypeForServer=2	init=1	parents=	GM=/kul 951
+level	952	德丽莎周常关卡	levelTypeForServer=2	init=1	parents=	GM=/kul 952
+level	953	虚像空间:西琳	levelTypeForServer=2	init=1	parents=	GM=/kul 953
+level	954	虚像空间:终焉的轮舞	levelTypeForServer=2	init=1	parents=	GM=/kul 954
+level	987	测试关卡	levelTypeForServer=2	init=0	parents=	GM=/kul 987
+level	988	测试关卡1	levelTypeForServer=2	init=0	parents=	GM=/kul 988
+level	989	测试关卡	levelTypeForServer=2	init=0	parents=	GM=/kul 989
+level	990	测试关卡1	levelTypeForServer=2	init=0	parents=	GM=/kul 990
+level	991	虚像空间	levelTypeForServer=2	init=1	parents=	GM=/kul 991
+level	992	虚像空间	levelTypeForServer=2	init=1	parents=	GM=/kul 992
+level	993	虚像空间	levelTypeForServer=2	init=1	parents=	GM=/kul 993
+level	996	梦境	levelTypeForServer=1	init=0	parents=	GM=/kul 996
+level	997	测试关卡3	levelTypeForServer=2	init=0	parents=	GM=/kul 997
+level	998	测试关卡1	levelTypeForServer=2	init=0	parents=	GM=/kul 998
+level	999	测试关卡	levelTypeForServer=2	init=0	parents=	GM=/kul 999
 ---- type=3 迷宫 ----
-level	9	休息区	levelTypeForServer=3	init=0	parents=8	GM=kul&uid=<UID>&level=9
-level	42	工业区	levelTypeForServer=3	init=0	parents=34	GM=kul&uid=<UID>&level=42
-level	56	上层车间	levelTypeForServer=3	init=0	parents=55	GM=kul&uid=<UID>&level=56
+level	9	休息区	levelTypeForServer=3	init=0	parents=8	GM=/kul 9
+level	42	工业区	levelTypeForServer=3	init=0	parents=34	GM=/kul 42
+level	56	上层车间	levelTypeForServer=3	init=0	parents=55	GM=/kul 56
 ---- type=4 护送 ----
-level	58	警备室	levelTypeForServer=2	init=0	parents=57	GM=kul&uid=<UID>&level=58
-level	59	控制室	levelTypeForServer=2	init=0	parents=58	GM=kul&uid=<UID>&level=59
+level	58	警备室	levelTypeForServer=2	init=0	parents=57	GM=/kul 58
+level	59	控制室	levelTypeForServer=2	init=0	parents=58	GM=/kul 59
 
 [kyusyoAchievement 九霄成就目录（逐火之蛾探索）]
-GM=ka&uid=<UID>&id=<ExpoID|all>；id=all 完成全部 95 个成就并按表发奖。
-expo	1	新米反抗军	type=6	max=5	reward=scoin:5000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=1
-expo	2	新晋勇者	type=6	max=10	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=2
-expo	3	希望化身	type=6	max=20	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=3
-expo	4	无畏的救世主	type=6	max=30	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=4
-expo	5	人类的守护者	type=6	max=40	reward=scoin:0/hcoin:100/exp:0	GM=ka&uid=<UID>&id=5
-expo	6	执此守护之剑	type=7	max=10000	reward=scoin:0/hcoin:0/exp:0	GM=ka&uid=<UID>&id=6
-expo	7	剑斩肉身，心斩灵魂	type=7	max=50000	reward=scoin:5000/hcoin:50/exp:0	GM=ka&uid=<UID>&id=7
-expo	8	剑随身动，心意相通	type=7	max=200000	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=8
-expo	9	立下守护之誓	type=7	max=500000	reward=scoin:10000/hcoin:50/exp:0	GM=ka&uid=<UID>&id=9
-expo	10	末世剑圣传说	type=7	max=999999	reward=scoin:0/hcoin:100/exp:0	GM=ka&uid=<UID>&id=10
-expo	11	双持的正义	type=7	max=10000	reward=scoin:0/hcoin:0/exp:0	GM=ka&uid=<UID>&id=11
-expo	12	流畅的切割感	type=7	max=50000	reward=scoin:5000/hcoin:50/exp:0	GM=ka&uid=<UID>&id=12
-expo	13	战场上的舞者	type=7	max=200000	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=13
-expo	14	超越世界的加速	type=7	max=500000	reward=scoin:10000/hcoin:50/exp:0	GM=ka&uid=<UID>&id=14
-expo	15	伊利达雷之怒	type=7	max=999999	reward=scoin:0/hcoin:100/exp:0	GM=ka&uid=<UID>&id=15
-expo	16	名为火力的勇气	type=7	max=10000	reward=scoin:0/hcoin:0/exp:0	GM=ka&uid=<UID>&id=16
-expo	17	烟花绽放的瞬间	type=7	max=50000	reward=scoin:5000/hcoin:50/exp:0	GM=ka&uid=<UID>&id=17
-expo	18	枪炮轰鸣之夜	type=7	max=200000	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=18
-expo	19	化身炮塔的觉悟	type=7	max=500000	reward=scoin:10000/hcoin:50/exp:0	GM=ka&uid=<UID>&id=19
-expo	20	勇气的赞美诗	type=7	max=999999	reward=scoin:0/hcoin:100/exp:0	GM=ka&uid=<UID>&id=20
-expo	21	无敌的一刻	type=8	max=50	reward=scoin:5000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=21
-expo	22	每一秒都拼尽全力	type=8	max=100	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=22
-expo	23	在我的BGM中	type=8	max=200	reward=scoin:5000/hcoin:50/exp:0	GM=ka&uid=<UID>&id=23
-expo	24	华丽的演出	type=8	max=500	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=24
-expo	25	救世主的荣光	type=8	max=1000	reward=scoin:0/hcoin:100/exp:0	GM=ka&uid=<UID>&id=25
-expo	26	持久战	type=9	max=100	reward=scoin:5000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=26
-expo	27	战斗补时	type=9	max=500	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=27
-expo	28	战争的根性	type=9	max=1000	reward=scoin:5000/hcoin:50/exp:0	GM=ka&uid=<UID>&id=28
-expo	29	无限战斗幻想	type=9	max=2500	reward=scoin:15000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=29
-expo	30	There is no spoon	type=9	max=5000	reward=scoin:20000/hcoin:100/exp:0	GM=ka&uid=<UID>&id=30
-expo	31	茧中幼子	type=10	max=10	reward=scoin:5000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=31
-expo	32	破壳的雏蛾	type=10	max=50	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=32
-expo	33	振翅的白蛾	type=10	max=100	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=33
-expo	34	逐火的灰蛾	type=10	max=250	reward=scoin:15000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=34
-expo	35	盗火之蛾	type=10	max=500	reward=scoin:0/hcoin:100/exp:0	GM=ka&uid=<UID>&id=35
-expo	36	铭记希望的信念	type=1	max=5	reward=scoin:5000/hcoin:50/exp:0	GM=ka&uid=<UID>&id=36
-expo	37	战斗人员的标准	type=2	max=1	reward=scoin:5000/hcoin:75/exp:0	GM=ka&uid=<UID>&id=37
-expo	38	命运的八十秒	type=3	max=1	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=38
-expo	39	爆破残响	type=4	max=3	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=39
-expo	40	传达不到的温暖	type=4	max=10	reward=scoin:20000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=40
-expo	41	探索地下网络	type=5	max=8000	reward=scoin:10000/hcoin:50/exp:0	GM=ka&uid=<UID>&id=41
-expo	42	联通外界之匙	type=5	max=10000	reward=scoin:0/hcoin:100/exp:0	GM=ka&uid=<UID>&id=42
-expo	43	异形大战崩坏战士	type=1	max=5	reward=scoin:5000/hcoin:50/exp:0	GM=ka&uid=<UID>&id=43
-expo	44	女孩子们的矜持	type=2	max=1	reward=scoin:5000/hcoin:75/exp:0	GM=ka&uid=<UID>&id=44
-expo	45	恶心地狱逃亡记	type=3	max=1	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=45
-expo	46	虫体的研究	type=4	max=3	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=46
-expo	47	进化之理	type=4	max=9	reward=scoin:20000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=47
-expo	48	清扫虫群	type=5	max=8000	reward=scoin:10000/hcoin:50/exp:0	GM=ka&uid=<UID>&id=48
-expo	49	重建生活区	type=5	max=10000	reward=scoin:0/hcoin:100/exp:0	GM=ka&uid=<UID>&id=49
-expo	50	护花使者	type=11	max=1	reward=scoin:0/hcoin:100/exp:0	GM=ka&uid=<UID>&id=50
-expo	51	见习猎人	type=16	max=5	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=51
-expo	52	成熟猎人	type=16	max=20	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=52
-expo	53	老猎人	type=16	max=100	reward=scoin:0/hcoin:100/exp:0	GM=ka&uid=<UID>&id=53
-expo	54	Take me home，Country road	type=13	max=1	reward=scoin:5000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=54
-expo	55	Time capsule	type=13	max=1	reward=scoin:5000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=55
-expo	56	Letter song	type=13	max=1	reward=scoin:5000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=56
-expo	57	免许皆传	type=1	max=5	reward=scoin:5000/hcoin:50/exp:0	GM=ka&uid=<UID>&id=57
-expo	58	劳伦特心眼	type=2	max=1	reward=scoin:5000/hcoin:75/exp:0	GM=ka&uid=<UID>&id=58
-expo	59	无双挑战	type=3	max=1	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=59
-expo	60	成长的飞蛾	type=4	max=3	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=60
-expo	61	回忆忘却之匣	type=4	max=11	reward=scoin:20000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=61
-expo	62	蒸汽轰鸣	type=5	max=8000	reward=scoin:10000/hcoin:50/exp:0	GM=ka&uid=<UID>&id=62
-expo	63	工业革命	type=5	max=10000	reward=scoin:0/hcoin:100/exp:0	GM=ka&uid=<UID>&id=63
-expo	64	灵魂的程序员	type=6	max=60	reward=scoin:0/hcoin:150/exp:0	GM=ka&uid=<UID>&id=64
-expo	65	屠龙	type=1	max=5	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=65
-expo	66	断尾者	type=14	max=3	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=66
-expo	67	飞蛾避火	type=2	max=1	reward=scoin:0/hcoin:75/exp:0	GM=ka&uid=<UID>&id=67
-expo	68	天空霸主	type=3	max=1	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=68
-expo	69	踏上龙背	type=4	max=3	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=69
-expo	70	骑龙勇士	type=4	max=7	reward=scoin:20000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=70
-expo	71	世界再造者	type=6	max=70	reward=scoin:0/hcoin:100/exp:0	GM=ka&uid=<UID>&id=71
-expo	72	创梦境	type=6	max=80	reward=scoin:0/hcoin:100/exp:0	GM=ka&uid=<UID>&id=72
-expo	73	激战区的回忆	type=4	max=2	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=73
-expo	74	第3救援小队	type=4	max=6	reward=scoin:20000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=74
-expo	75	醉拳	type=1	max=5	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=75
-expo	76	闪电疾驰	type=3	max=1	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=76
-expo	77	混沌梦世界	type=2	max=1	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=77
-expo	78	雷电崩坏	type=3	max=1	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=78
-expo	79	闪避达人	type=2	max=1	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=79
-expo	80	改写者	type=6	max=90	reward=scoin:0/hcoin:100/exp:0	GM=ka&uid=<UID>&id=80
-expo	81	揭晓过去	type=4	max=2	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=81
-expo	82	Weight of the world	type=4	max=7	reward=scoin:10000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=82
-expo	83	挥向神的刀锋	type=1	max=5	reward=scoin:20000/hcoin:0/exp:0	GM=ka&uid=<UID>&id=83
-expo	84	心的律动	type=15	max=1	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=84
-expo	85	魂之歌	type=15	max=1	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=85
-expo	86	困境中的捷径	type=3	max=1	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=86
-expo	87	死亡边境	type=3	max=1	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=87
-expo	88	空中的舞者	type=2	max=1	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=88
-expo	89	天空的立法者	type=2	max=1	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=89
-expo	90	Relife	type=6	max=99	reward=scoin:0/hcoin:150/exp:0	GM=ka&uid=<UID>&id=90
-expo	91	Be the one	type=4	max=4	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=91
-expo	92	欢迎回家	type=1	max=1	reward=scoin:0/hcoin:250/exp:0	GM=ka&uid=<UID>&id=92
-expo	93	病原体	type=3	max=1	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=93
-expo	94	枪与刃的救赎	type=2	max=1	reward=scoin:0/hcoin:50/exp:0	GM=ka&uid=<UID>&id=94
+GM=/ka <ExpoID|all> [@uid]；all 完成全部 95 个成就并按表发奖。
+expo	1	新米反抗军	type=6	max=5	reward=scoin:5000/hcoin:0/exp:0	GM=/ka 1
+expo	2	新晋勇者	type=6	max=10	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 2
+expo	3	希望化身	type=6	max=20	reward=scoin:0/hcoin:50/exp:0	GM=/ka 3
+expo	4	无畏的救世主	type=6	max=30	reward=scoin:0/hcoin:50/exp:0	GM=/ka 4
+expo	5	人类的守护者	type=6	max=40	reward=scoin:0/hcoin:100/exp:0	GM=/ka 5
+expo	6	执此守护之剑	type=7	max=10000	reward=scoin:0/hcoin:0/exp:0	GM=/ka 6
+expo	7	剑斩肉身，心斩灵魂	type=7	max=50000	reward=scoin:5000/hcoin:50/exp:0	GM=/ka 7
+expo	8	剑随身动，心意相通	type=7	max=200000	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 8
+expo	9	立下守护之誓	type=7	max=500000	reward=scoin:10000/hcoin:50/exp:0	GM=/ka 9
+expo	10	末世剑圣传说	type=7	max=999999	reward=scoin:0/hcoin:100/exp:0	GM=/ka 10
+expo	11	双持的正义	type=7	max=10000	reward=scoin:0/hcoin:0/exp:0	GM=/ka 11
+expo	12	流畅的切割感	type=7	max=50000	reward=scoin:5000/hcoin:50/exp:0	GM=/ka 12
+expo	13	战场上的舞者	type=7	max=200000	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 13
+expo	14	超越世界的加速	type=7	max=500000	reward=scoin:10000/hcoin:50/exp:0	GM=/ka 14
+expo	15	伊利达雷之怒	type=7	max=999999	reward=scoin:0/hcoin:100/exp:0	GM=/ka 15
+expo	16	名为火力的勇气	type=7	max=10000	reward=scoin:0/hcoin:0/exp:0	GM=/ka 16
+expo	17	烟花绽放的瞬间	type=7	max=50000	reward=scoin:5000/hcoin:50/exp:0	GM=/ka 17
+expo	18	枪炮轰鸣之夜	type=7	max=200000	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 18
+expo	19	化身炮塔的觉悟	type=7	max=500000	reward=scoin:10000/hcoin:50/exp:0	GM=/ka 19
+expo	20	勇气的赞美诗	type=7	max=999999	reward=scoin:0/hcoin:100/exp:0	GM=/ka 20
+expo	21	无敌的一刻	type=8	max=50	reward=scoin:5000/hcoin:0/exp:0	GM=/ka 21
+expo	22	每一秒都拼尽全力	type=8	max=100	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 22
+expo	23	在我的BGM中	type=8	max=200	reward=scoin:5000/hcoin:50/exp:0	GM=/ka 23
+expo	24	华丽的演出	type=8	max=500	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 24
+expo	25	救世主的荣光	type=8	max=1000	reward=scoin:0/hcoin:100/exp:0	GM=/ka 25
+expo	26	持久战	type=9	max=100	reward=scoin:5000/hcoin:0/exp:0	GM=/ka 26
+expo	27	战斗补时	type=9	max=500	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 27
+expo	28	战争的根性	type=9	max=1000	reward=scoin:5000/hcoin:50/exp:0	GM=/ka 28
+expo	29	无限战斗幻想	type=9	max=2500	reward=scoin:15000/hcoin:0/exp:0	GM=/ka 29
+expo	30	There is no spoon	type=9	max=5000	reward=scoin:20000/hcoin:100/exp:0	GM=/ka 30
+expo	31	茧中幼子	type=10	max=10	reward=scoin:5000/hcoin:0/exp:0	GM=/ka 31
+expo	32	破壳的雏蛾	type=10	max=50	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 32
+expo	33	振翅的白蛾	type=10	max=100	reward=scoin:0/hcoin:50/exp:0	GM=/ka 33
+expo	34	逐火的灰蛾	type=10	max=250	reward=scoin:15000/hcoin:0/exp:0	GM=/ka 34
+expo	35	盗火之蛾	type=10	max=500	reward=scoin:0/hcoin:100/exp:0	GM=/ka 35
+expo	36	铭记希望的信念	type=1	max=5	reward=scoin:5000/hcoin:50/exp:0	GM=/ka 36
+expo	37	战斗人员的标准	type=2	max=1	reward=scoin:5000/hcoin:75/exp:0	GM=/ka 37
+expo	38	命运的八十秒	type=3	max=1	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 38
+expo	39	爆破残响	type=4	max=3	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 39
+expo	40	传达不到的温暖	type=4	max=10	reward=scoin:20000/hcoin:0/exp:0	GM=/ka 40
+expo	41	探索地下网络	type=5	max=8000	reward=scoin:10000/hcoin:50/exp:0	GM=/ka 41
+expo	42	联通外界之匙	type=5	max=10000	reward=scoin:0/hcoin:100/exp:0	GM=/ka 42
+expo	43	异形大战崩坏战士	type=1	max=5	reward=scoin:5000/hcoin:50/exp:0	GM=/ka 43
+expo	44	女孩子们的矜持	type=2	max=1	reward=scoin:5000/hcoin:75/exp:0	GM=/ka 44
+expo	45	恶心地狱逃亡记	type=3	max=1	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 45
+expo	46	虫体的研究	type=4	max=3	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 46
+expo	47	进化之理	type=4	max=9	reward=scoin:20000/hcoin:0/exp:0	GM=/ka 47
+expo	48	清扫虫群	type=5	max=8000	reward=scoin:10000/hcoin:50/exp:0	GM=/ka 48
+expo	49	重建生活区	type=5	max=10000	reward=scoin:0/hcoin:100/exp:0	GM=/ka 49
+expo	50	护花使者	type=11	max=1	reward=scoin:0/hcoin:100/exp:0	GM=/ka 50
+expo	51	见习猎人	type=16	max=5	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 51
+expo	52	成熟猎人	type=16	max=20	reward=scoin:0/hcoin:50/exp:0	GM=/ka 52
+expo	53	老猎人	type=16	max=100	reward=scoin:0/hcoin:100/exp:0	GM=/ka 53
+expo	54	Take me home，Country road	type=13	max=1	reward=scoin:5000/hcoin:0/exp:0	GM=/ka 54
+expo	55	Time capsule	type=13	max=1	reward=scoin:5000/hcoin:0/exp:0	GM=/ka 55
+expo	56	Letter song	type=13	max=1	reward=scoin:5000/hcoin:0/exp:0	GM=/ka 56
+expo	57	免许皆传	type=1	max=5	reward=scoin:5000/hcoin:50/exp:0	GM=/ka 57
+expo	58	劳伦特心眼	type=2	max=1	reward=scoin:5000/hcoin:75/exp:0	GM=/ka 58
+expo	59	无双挑战	type=3	max=1	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 59
+expo	60	成长的飞蛾	type=4	max=3	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 60
+expo	61	回忆忘却之匣	type=4	max=11	reward=scoin:20000/hcoin:0/exp:0	GM=/ka 61
+expo	62	蒸汽轰鸣	type=5	max=8000	reward=scoin:10000/hcoin:50/exp:0	GM=/ka 62
+expo	63	工业革命	type=5	max=10000	reward=scoin:0/hcoin:100/exp:0	GM=/ka 63
+expo	64	灵魂的程序员	type=6	max=60	reward=scoin:0/hcoin:150/exp:0	GM=/ka 64
+expo	65	屠龙	type=1	max=5	reward=scoin:0/hcoin:50/exp:0	GM=/ka 65
+expo	66	断尾者	type=14	max=3	reward=scoin:0/hcoin:50/exp:0	GM=/ka 66
+expo	67	飞蛾避火	type=2	max=1	reward=scoin:0/hcoin:75/exp:0	GM=/ka 67
+expo	68	天空霸主	type=3	max=1	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 68
+expo	69	踏上龙背	type=4	max=3	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 69
+expo	70	骑龙勇士	type=4	max=7	reward=scoin:20000/hcoin:0/exp:0	GM=/ka 70
+expo	71	世界再造者	type=6	max=70	reward=scoin:0/hcoin:100/exp:0	GM=/ka 71
+expo	72	创梦境	type=6	max=80	reward=scoin:0/hcoin:100/exp:0	GM=/ka 72
+expo	73	激战区的回忆	type=4	max=2	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 73
+expo	74	第3救援小队	type=4	max=6	reward=scoin:20000/hcoin:0/exp:0	GM=/ka 74
+expo	75	醉拳	type=1	max=5	reward=scoin:0/hcoin:50/exp:0	GM=/ka 75
+expo	76	闪电疾驰	type=3	max=1	reward=scoin:0/hcoin:50/exp:0	GM=/ka 76
+expo	77	混沌梦世界	type=2	max=1	reward=scoin:0/hcoin:50/exp:0	GM=/ka 77
+expo	78	雷电崩坏	type=3	max=1	reward=scoin:0/hcoin:50/exp:0	GM=/ka 78
+expo	79	闪避达人	type=2	max=1	reward=scoin:0/hcoin:50/exp:0	GM=/ka 79
+expo	80	改写者	type=6	max=90	reward=scoin:0/hcoin:100/exp:0	GM=/ka 80
+expo	81	揭晓过去	type=4	max=2	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 81
+expo	82	Weight of the world	type=4	max=7	reward=scoin:10000/hcoin:0/exp:0	GM=/ka 82
+expo	83	挥向神的刀锋	type=1	max=5	reward=scoin:20000/hcoin:0/exp:0	GM=/ka 83
+expo	84	心的律动	type=15	max=1	reward=scoin:0/hcoin:50/exp:0	GM=/ka 84
+expo	85	魂之歌	type=15	max=1	reward=scoin:0/hcoin:50/exp:0	GM=/ka 85
+expo	86	困境中的捷径	type=3	max=1	reward=scoin:0/hcoin:50/exp:0	GM=/ka 86
+expo	87	死亡边境	type=3	max=1	reward=scoin:0/hcoin:50/exp:0	GM=/ka 87
+expo	88	空中的舞者	type=2	max=1	reward=scoin:0/hcoin:50/exp:0	GM=/ka 88
+expo	89	天空的立法者	type=2	max=1	reward=scoin:0/hcoin:50/exp:0	GM=/ka 89
+expo	90	Relife	type=6	max=99	reward=scoin:0/hcoin:150/exp:0	GM=/ka 90
+expo	91	Be the one	type=4	max=4	reward=scoin:0/hcoin:50/exp:0	GM=/ka 91
+expo	92	欢迎回家	type=1	max=1	reward=scoin:0/hcoin:250/exp:0	GM=/ka 92
+expo	93	病原体	type=3	max=1	reward=scoin:0/hcoin:50/exp:0	GM=/ka 93
+expo	94	枪与刃的救赎	type=2	max=1	reward=scoin:0/hcoin:50/exp:0	GM=/ka 94
 
 [ZeroDLC（逐火之蛾 Roguelike 战斗 DLC）内容目录]
 
@@ -7821,861 +7836,861 @@ rune	2021	group=2017	parent=2017	cost_soul=2000
 剧情关卡目录
 ------------
 普通剧情图关卡（4404 后代，LevelTypeForServer=1/248），按 PlayBackStoryTitleData 的篇章与章节锚点分组。
-storycompleted&uid=<UID>&to=<关卡ID>；自动完成该关卡的全部资源前置（同章节在它之前的关卡）。
+GM=/storycompleted <关卡ID> [@uid]；自动完成该关卡的全部资源前置（同章节在它之前的关卡）。
 剧情图关卡总数：337
 
 [传承篇]
-第一章 L1-1 8351 type=1 GM=storycompleted&uid=<UID>&to=8351
-第一章 L1-2 8352 type=1 GM=storycompleted&uid=<UID>&to=8352
-第一章 L1-3 8353 type=1 GM=storycompleted&uid=<UID>&to=8353
-第一章 L1-2A 8354 type=1 GM=storycompleted&uid=<UID>&to=8354
-第一章 L1-4 8356 type=1 GM=storycompleted&uid=<UID>&to=8356
-第一章 L1-5 8357 type=1 GM=storycompleted&uid=<UID>&to=8357
-第一章 L1-6 8358 type=1 GM=storycompleted&uid=<UID>&to=8358
-第一章 L1-7 8359 type=1 GM=storycompleted&uid=<UID>&to=8359
-第一章 L1-6A 8360 type=1 GM=storycompleted&uid=<UID>&to=8360
-第一章 L1-7A 8361 type=1 GM=storycompleted&uid=<UID>&to=8361
-第一章 L1-8 8362 type=1 GM=storycompleted&uid=<UID>&to=8362
-第一章 L1-5 8355 type=248 GM=storycompleted&uid=<UID>&to=8355
-第二章 L2-1 108363 type=1 GM=storycompleted&uid=<UID>&to=108363
-第二章 L2-2 108364 type=1 GM=storycompleted&uid=<UID>&to=108364
-第二章 L2-3 108365 type=1 GM=storycompleted&uid=<UID>&to=108365
-第二章 L2-2A 108366 type=1 GM=storycompleted&uid=<UID>&to=108366
-第二章 L2-3A 108367 type=1 GM=storycompleted&uid=<UID>&to=108367
-第二章 L2-4 108368 type=1 GM=storycompleted&uid=<UID>&to=108368
-第二章 L2-5 108369 type=1 GM=storycompleted&uid=<UID>&to=108369
-第二章 L2-6 108370 type=1 GM=storycompleted&uid=<UID>&to=108370
-第二章 L2-7 108371 type=1 GM=storycompleted&uid=<UID>&to=108371
-第二章 L2-6A 108372 type=1 GM=storycompleted&uid=<UID>&to=108372
-第二章 L2-7A 108373 type=1 GM=storycompleted&uid=<UID>&to=108373
-第二章 L2-8 108374 type=1 GM=storycompleted&uid=<UID>&to=108374
-第三章 L3-1 108375 type=1 GM=storycompleted&uid=<UID>&to=108375
-第三章 L3-2 108376 type=1 GM=storycompleted&uid=<UID>&to=108376
-第三章 L3-3 108377 type=1 GM=storycompleted&uid=<UID>&to=108377
-第三章 L3-2A 108378 type=1 GM=storycompleted&uid=<UID>&to=108378
-第三章 L3-3A 108379 type=1 GM=storycompleted&uid=<UID>&to=108379
-第三章 L3-4 108380 type=1 GM=storycompleted&uid=<UID>&to=108380
-第三章 L3-5 108381 type=1 GM=storycompleted&uid=<UID>&to=108381
-第三章 L3-6 108383 type=1 GM=storycompleted&uid=<UID>&to=108383
-第三章 L3-7 108385 type=1 GM=storycompleted&uid=<UID>&to=108385
-第三章 L3-8 108386 type=1 GM=storycompleted&uid=<UID>&to=108386
-第三章 L4-1 108387 type=1 GM=storycompleted&uid=<UID>&to=108387
-第三章 L4-2 108388 type=1 GM=storycompleted&uid=<UID>&to=108388
-第三章 L4-3 108389 type=1 GM=storycompleted&uid=<UID>&to=108389
-第三章 L4-4 108390 type=1 GM=storycompleted&uid=<UID>&to=108390
-第三章 L4-4A 108391 type=1 GM=storycompleted&uid=<UID>&to=108391
-第三章 L4-5 108392 type=1 GM=storycompleted&uid=<UID>&to=108392
-第三章 L4-6 108393 type=1 GM=storycompleted&uid=<UID>&to=108393
-第三章 L4-6A 108394 type=1 GM=storycompleted&uid=<UID>&to=108394
-第三章 L4-6B 108395 type=1 GM=storycompleted&uid=<UID>&to=108395
-第三章 L4-7 108396 type=1 GM=storycompleted&uid=<UID>&to=108396
-第三章 L4-8 108397 type=1 GM=storycompleted&uid=<UID>&to=108397
-第三章 L4-9 108398 type=1 GM=storycompleted&uid=<UID>&to=108398
-第三章 L5-1 108403 type=1 GM=storycompleted&uid=<UID>&to=108403
-第三章 L5-2 108404 type=1 GM=storycompleted&uid=<UID>&to=108404
-第三章 L5-3 108405 type=1 GM=storycompleted&uid=<UID>&to=108405
-第三章 L5-4 108406 type=1 GM=storycompleted&uid=<UID>&to=108406
-第三章 L5-5 108407 type=1 GM=storycompleted&uid=<UID>&to=108407
-第三章 L5-6 108410 type=1 GM=storycompleted&uid=<UID>&to=108410
-第三章 L5-7 108411 type=1 GM=storycompleted&uid=<UID>&to=108411
-第三章 L5-8 108412 type=1 GM=storycompleted&uid=<UID>&to=108412
-第三章 L5-9 108413 type=1 GM=storycompleted&uid=<UID>&to=108413
-第三章 L5-9A 108414 type=1 GM=storycompleted&uid=<UID>&to=108414
-第三章 L5-9B 108415 type=1 GM=storycompleted&uid=<UID>&to=108415
-第三章 L5-9C 108416 type=1 GM=storycompleted&uid=<UID>&to=108416
-第三章 L5-9D 108417 type=1 GM=storycompleted&uid=<UID>&to=108417
-第三章 L5-10 108419 type=1 GM=storycompleted&uid=<UID>&to=108419
-第三章 L5-11 108420 type=1 GM=storycompleted&uid=<UID>&to=108420
-第三章 L5-12 108421 type=1 GM=storycompleted&uid=<UID>&to=108421
-第三章 L6-1 108425 type=1 GM=storycompleted&uid=<UID>&to=108425
-第三章 L6-2 108426 type=1 GM=storycompleted&uid=<UID>&to=108426
-第三章 L6-3 108427 type=1 GM=storycompleted&uid=<UID>&to=108427
-第三章 L6-4 108428 type=1 GM=storycompleted&uid=<UID>&to=108428
-第三章 L6-5 108429 type=1 GM=storycompleted&uid=<UID>&to=108429
-第三章 L6-6 108430 type=1 GM=storycompleted&uid=<UID>&to=108430
-第三章 L6-7 108431 type=1 GM=storycompleted&uid=<UID>&to=108431
-第三章 L6-8 108433 type=1 GM=storycompleted&uid=<UID>&to=108433
-第三章 L6-9 108434 type=1 GM=storycompleted&uid=<UID>&to=108434
-第三章 抗争者·乱 108435 type=1 GM=storycompleted&uid=<UID>&to=108435
-第三章 抗争者·惑 108436 type=1 GM=storycompleted&uid=<UID>&to=108436
-第三章 抗争者·觉 108437 type=1 GM=storycompleted&uid=<UID>&to=108437
-第三章 刺神者·影 108438 type=1 GM=storycompleted&uid=<UID>&to=108438
-第三章 刺神者·迷 108439 type=1 GM=storycompleted&uid=<UID>&to=108439
-第三章 刺神者·解 108440 type=1 GM=storycompleted&uid=<UID>&to=108440
-第三章 L6-13 108442 type=1 GM=storycompleted&uid=<UID>&to=108442
-第三章 L6-14 108443 type=1 GM=storycompleted&uid=<UID>&to=108443
-第三章 L6-15 108444 type=1 GM=storycompleted&uid=<UID>&to=108444
-第三章 L6-16 108445 type=1 GM=storycompleted&uid=<UID>&to=108445
-第三章 L3-9 108382 type=248 GM=storycompleted&uid=<UID>&to=108382
-第三章 L3-11 108384 type=248 GM=storycompleted&uid=<UID>&to=108384
-第三章 BONUS 108399 type=248 GM=storycompleted&uid=<UID>&to=108399
-第三章 陷阵重围 108400 type=248 GM=storycompleted&uid=<UID>&to=108400
-第三章 掣刀破魂 108401 type=248 GM=storycompleted&uid=<UID>&to=108401
+第一章 L1-1 8351 type=1 GM=/storycompleted 8351 [@uid]
+第一章 L1-2 8352 type=1 GM=/storycompleted 8352 [@uid]
+第一章 L1-3 8353 type=1 GM=/storycompleted 8353 [@uid]
+第一章 L1-2A 8354 type=1 GM=/storycompleted 8354 [@uid]
+第一章 L1-4 8356 type=1 GM=/storycompleted 8356 [@uid]
+第一章 L1-5 8357 type=1 GM=/storycompleted 8357 [@uid]
+第一章 L1-6 8358 type=1 GM=/storycompleted 8358 [@uid]
+第一章 L1-7 8359 type=1 GM=/storycompleted 8359 [@uid]
+第一章 L1-6A 8360 type=1 GM=/storycompleted 8360 [@uid]
+第一章 L1-7A 8361 type=1 GM=/storycompleted 8361 [@uid]
+第一章 L1-8 8362 type=1 GM=/storycompleted 8362 [@uid]
+第一章 L1-5 8355 type=248 GM=/storycompleted 8355 [@uid]
+第二章 L2-1 108363 type=1 GM=/storycompleted 108363 [@uid]
+第二章 L2-2 108364 type=1 GM=/storycompleted 108364 [@uid]
+第二章 L2-3 108365 type=1 GM=/storycompleted 108365 [@uid]
+第二章 L2-2A 108366 type=1 GM=/storycompleted 108366 [@uid]
+第二章 L2-3A 108367 type=1 GM=/storycompleted 108367 [@uid]
+第二章 L2-4 108368 type=1 GM=/storycompleted 108368 [@uid]
+第二章 L2-5 108369 type=1 GM=/storycompleted 108369 [@uid]
+第二章 L2-6 108370 type=1 GM=/storycompleted 108370 [@uid]
+第二章 L2-7 108371 type=1 GM=/storycompleted 108371 [@uid]
+第二章 L2-6A 108372 type=1 GM=/storycompleted 108372 [@uid]
+第二章 L2-7A 108373 type=1 GM=/storycompleted 108373 [@uid]
+第二章 L2-8 108374 type=1 GM=/storycompleted 108374 [@uid]
+第三章 L3-1 108375 type=1 GM=/storycompleted 108375 [@uid]
+第三章 L3-2 108376 type=1 GM=/storycompleted 108376 [@uid]
+第三章 L3-3 108377 type=1 GM=/storycompleted 108377 [@uid]
+第三章 L3-2A 108378 type=1 GM=/storycompleted 108378 [@uid]
+第三章 L3-3A 108379 type=1 GM=/storycompleted 108379 [@uid]
+第三章 L3-4 108380 type=1 GM=/storycompleted 108380 [@uid]
+第三章 L3-5 108381 type=1 GM=/storycompleted 108381 [@uid]
+第三章 L3-6 108383 type=1 GM=/storycompleted 108383 [@uid]
+第三章 L3-7 108385 type=1 GM=/storycompleted 108385 [@uid]
+第三章 L3-8 108386 type=1 GM=/storycompleted 108386 [@uid]
+第三章 L4-1 108387 type=1 GM=/storycompleted 108387 [@uid]
+第三章 L4-2 108388 type=1 GM=/storycompleted 108388 [@uid]
+第三章 L4-3 108389 type=1 GM=/storycompleted 108389 [@uid]
+第三章 L4-4 108390 type=1 GM=/storycompleted 108390 [@uid]
+第三章 L4-4A 108391 type=1 GM=/storycompleted 108391 [@uid]
+第三章 L4-5 108392 type=1 GM=/storycompleted 108392 [@uid]
+第三章 L4-6 108393 type=1 GM=/storycompleted 108393 [@uid]
+第三章 L4-6A 108394 type=1 GM=/storycompleted 108394 [@uid]
+第三章 L4-6B 108395 type=1 GM=/storycompleted 108395 [@uid]
+第三章 L4-7 108396 type=1 GM=/storycompleted 108396 [@uid]
+第三章 L4-8 108397 type=1 GM=/storycompleted 108397 [@uid]
+第三章 L4-9 108398 type=1 GM=/storycompleted 108398 [@uid]
+第三章 L5-1 108403 type=1 GM=/storycompleted 108403 [@uid]
+第三章 L5-2 108404 type=1 GM=/storycompleted 108404 [@uid]
+第三章 L5-3 108405 type=1 GM=/storycompleted 108405 [@uid]
+第三章 L5-4 108406 type=1 GM=/storycompleted 108406 [@uid]
+第三章 L5-5 108407 type=1 GM=/storycompleted 108407 [@uid]
+第三章 L5-6 108410 type=1 GM=/storycompleted 108410 [@uid]
+第三章 L5-7 108411 type=1 GM=/storycompleted 108411 [@uid]
+第三章 L5-8 108412 type=1 GM=/storycompleted 108412 [@uid]
+第三章 L5-9 108413 type=1 GM=/storycompleted 108413 [@uid]
+第三章 L5-9A 108414 type=1 GM=/storycompleted 108414 [@uid]
+第三章 L5-9B 108415 type=1 GM=/storycompleted 108415 [@uid]
+第三章 L5-9C 108416 type=1 GM=/storycompleted 108416 [@uid]
+第三章 L5-9D 108417 type=1 GM=/storycompleted 108417 [@uid]
+第三章 L5-10 108419 type=1 GM=/storycompleted 108419 [@uid]
+第三章 L5-11 108420 type=1 GM=/storycompleted 108420 [@uid]
+第三章 L5-12 108421 type=1 GM=/storycompleted 108421 [@uid]
+第三章 L6-1 108425 type=1 GM=/storycompleted 108425 [@uid]
+第三章 L6-2 108426 type=1 GM=/storycompleted 108426 [@uid]
+第三章 L6-3 108427 type=1 GM=/storycompleted 108427 [@uid]
+第三章 L6-4 108428 type=1 GM=/storycompleted 108428 [@uid]
+第三章 L6-5 108429 type=1 GM=/storycompleted 108429 [@uid]
+第三章 L6-6 108430 type=1 GM=/storycompleted 108430 [@uid]
+第三章 L6-7 108431 type=1 GM=/storycompleted 108431 [@uid]
+第三章 L6-8 108433 type=1 GM=/storycompleted 108433 [@uid]
+第三章 L6-9 108434 type=1 GM=/storycompleted 108434 [@uid]
+第三章 抗争者·乱 108435 type=1 GM=/storycompleted 108435 [@uid]
+第三章 抗争者·惑 108436 type=1 GM=/storycompleted 108436 [@uid]
+第三章 抗争者·觉 108437 type=1 GM=/storycompleted 108437 [@uid]
+第三章 刺神者·影 108438 type=1 GM=/storycompleted 108438 [@uid]
+第三章 刺神者·迷 108439 type=1 GM=/storycompleted 108439 [@uid]
+第三章 刺神者·解 108440 type=1 GM=/storycompleted 108440 [@uid]
+第三章 L6-13 108442 type=1 GM=/storycompleted 108442 [@uid]
+第三章 L6-14 108443 type=1 GM=/storycompleted 108443 [@uid]
+第三章 L6-15 108444 type=1 GM=/storycompleted 108444 [@uid]
+第三章 L6-16 108445 type=1 GM=/storycompleted 108445 [@uid]
+第三章 L3-9 108382 type=248 GM=/storycompleted 108382 [@uid]
+第三章 L3-11 108384 type=248 GM=/storycompleted 108384 [@uid]
+第三章 BONUS 108399 type=248 GM=/storycompleted 108399 [@uid]
+第三章 陷阵重围 108400 type=248 GM=/storycompleted 108400 [@uid]
+第三章 掣刀破魂 108401 type=248 GM=/storycompleted 108401 [@uid]
 
 [新生篇]
-第一章 R1-1 8101 type=1 GM=storycompleted&uid=<UID>&to=8101
-第一章 R1-2 8104 type=1 GM=storycompleted&uid=<UID>&to=8104
-第一章 R1-2A 8106 type=1 GM=storycompleted&uid=<UID>&to=8106
-第一章 R1-3 8107 type=1 GM=storycompleted&uid=<UID>&to=8107
-第一章 R1-4 8108 type=1 GM=storycompleted&uid=<UID>&to=8108
-第一章 R1-5 8109 type=1 GM=storycompleted&uid=<UID>&to=8109
-第一章 R1-6 8111 type=1 GM=storycompleted&uid=<UID>&to=8111
-第一章 R1-6A 8112 type=1 GM=storycompleted&uid=<UID>&to=8112
-第一章 R1-7 8114 type=1 GM=storycompleted&uid=<UID>&to=8114
-第一章 R1-8 8116 type=1 GM=storycompleted&uid=<UID>&to=8116
-第一章 R1-2 8102 type=248 GM=storycompleted&uid=<UID>&to=8102
-第一章 R1-1A 8103 type=248 GM=storycompleted&uid=<UID>&to=8103
-第一章 R1-4 8105 type=248 GM=storycompleted&uid=<UID>&to=8105
-第一章 R1-8 8110 type=248 GM=storycompleted&uid=<UID>&to=8110
-第一章 R1-9B 8113 type=248 GM=storycompleted&uid=<UID>&to=8113
-第一章 R1-11 8115 type=248 GM=storycompleted&uid=<UID>&to=8115
-第二章 R2-1 8117 type=1 GM=storycompleted&uid=<UID>&to=8117
-第二章 R2-2 8119 type=1 GM=storycompleted&uid=<UID>&to=8119
-第二章 R2-2A 8120 type=1 GM=storycompleted&uid=<UID>&to=8120
-第二章 R2-3 8121 type=1 GM=storycompleted&uid=<UID>&to=8121
-第二章 R2-4 8124 type=1 GM=storycompleted&uid=<UID>&to=8124
-第二章 R2-5 8125 type=1 GM=storycompleted&uid=<UID>&to=8125
-第二章 R2-6 8126 type=1 GM=storycompleted&uid=<UID>&to=8126
-第二章 R2-6A 8127 type=1 GM=storycompleted&uid=<UID>&to=8127
-第二章 R2-7 8131 type=1 GM=storycompleted&uid=<UID>&to=8131
-第二章 R2-8 8132 type=1 GM=storycompleted&uid=<UID>&to=8132
-第二章 R2-2 8118 type=248 GM=storycompleted&uid=<UID>&to=8118
-第二章 R2-5 8122 type=248 GM=storycompleted&uid=<UID>&to=8122
-第二章 R2-5A 8123 type=248 GM=storycompleted&uid=<UID>&to=8123
-第二章 R2-8B 8128 type=248 GM=storycompleted&uid=<UID>&to=8128
-第二章 R2-9 8129 type=248 GM=storycompleted&uid=<UID>&to=8129
-第二章 R2-10 8130 type=248 GM=storycompleted&uid=<UID>&to=8130
-第三章 R3-1 8133 type=1 GM=storycompleted&uid=<UID>&to=8133
-第三章 R3-1A 8134 type=1 GM=storycompleted&uid=<UID>&to=8134
-第三章 R3-2 8137 type=1 GM=storycompleted&uid=<UID>&to=8137
-第三章 R3-3 8139 type=1 GM=storycompleted&uid=<UID>&to=8139
-第三章 R3-4 8140 type=1 GM=storycompleted&uid=<UID>&to=8140
-第三章 R3-5 8141 type=1 GM=storycompleted&uid=<UID>&to=8141
-第三章 R3-6 8142 type=1 GM=storycompleted&uid=<UID>&to=8142
-第三章 R3-6A 8146 type=1 GM=storycompleted&uid=<UID>&to=8146
-第三章 R3-7 8147 type=1 GM=storycompleted&uid=<UID>&to=8147
-第三章 R3-8 8148 type=1 GM=storycompleted&uid=<UID>&to=8148
-第三章 R4-1 8150 type=1 GM=storycompleted&uid=<UID>&to=8150
-第三章 R3-2 8135 type=248 GM=storycompleted&uid=<UID>&to=8135
-第三章 R3-3 8136 type=248 GM=storycompleted&uid=<UID>&to=8136
-第三章 R3-4A 8138 type=248 GM=storycompleted&uid=<UID>&to=8138
-第三章 R3-7A 8143 type=248 GM=storycompleted&uid=<UID>&to=8143
-第三章 R3-9 8144 type=248 GM=storycompleted&uid=<UID>&to=8144
-第三章 R3-10 8145 type=248 GM=storycompleted&uid=<UID>&to=8145
-第四章 R4-2 8151 type=1 GM=storycompleted&uid=<UID>&to=8151
-第四章 R4-3 8155 type=1 GM=storycompleted&uid=<UID>&to=8155
-第四章 R4-4 8156 type=1 GM=storycompleted&uid=<UID>&to=8156
-第四章 R4-5 8157 type=1 GM=storycompleted&uid=<UID>&to=8157
-第四章 R4-6 8158 type=1 GM=storycompleted&uid=<UID>&to=8158
-第四章 R4-7 8163 type=1 GM=storycompleted&uid=<UID>&to=8163
-第四章 R4-8 8164 type=1 GM=storycompleted&uid=<UID>&to=8164
-第四章 R4-1 8149 type=248 GM=storycompleted&uid=<UID>&to=8149
-第四章 R4-3A 8152 type=248 GM=storycompleted&uid=<UID>&to=8152
-第四章 R4-3B 8153 type=248 GM=storycompleted&uid=<UID>&to=8153
-第四章 R4-4 8154 type=248 GM=storycompleted&uid=<UID>&to=8154
-第四章 R4-8A 8159 type=248 GM=storycompleted&uid=<UID>&to=8159
-第四章 R4-8B 8160 type=248 GM=storycompleted&uid=<UID>&to=8160
-第四章 R4-8C 8161 type=248 GM=storycompleted&uid=<UID>&to=8161
-第四章 R4-8D 8162 type=248 GM=storycompleted&uid=<UID>&to=8162
-第五章 R5-1 8165 type=1 GM=storycompleted&uid=<UID>&to=8165
-第五章 R5-2 8166 type=1 GM=storycompleted&uid=<UID>&to=8166
-第五章 R5-1A 8167 type=1 GM=storycompleted&uid=<UID>&to=8167
-第五章 R5-3 8168 type=1 GM=storycompleted&uid=<UID>&to=8168
-第五章 R5-2A 8169 type=1 GM=storycompleted&uid=<UID>&to=8169
-第五章 R5-3A 8171 type=1 GM=storycompleted&uid=<UID>&to=8171
-第五章 R5-4 8172 type=1 GM=storycompleted&uid=<UID>&to=8172
-第五章 R5-5 8173 type=1 GM=storycompleted&uid=<UID>&to=8173
-第五章 R5-5A 8174 type=1 GM=storycompleted&uid=<UID>&to=8174
-第五章 R5-5B 8175 type=1 GM=storycompleted&uid=<UID>&to=8175
-第五章 R5-6 8176 type=1 GM=storycompleted&uid=<UID>&to=8176
-第五章 R5-7 8177 type=1 GM=storycompleted&uid=<UID>&to=8177
-第五章 R5-7A 8178 type=1 GM=storycompleted&uid=<UID>&to=8178
-第五章 R5-7B 8179 type=1 GM=storycompleted&uid=<UID>&to=8179
-第五章 R5-8 8180 type=1 GM=storycompleted&uid=<UID>&to=8180
-第五章 R5-4 8170 type=248 GM=storycompleted&uid=<UID>&to=8170
-第六章 R6-1 8181 type=1 GM=storycompleted&uid=<UID>&to=8181
-第六章 R6-1A 8183 type=1 GM=storycompleted&uid=<UID>&to=8183
-第六章 R6-2 8184 type=1 GM=storycompleted&uid=<UID>&to=8184
-第六章 R6-2A 8185 type=1 GM=storycompleted&uid=<UID>&to=8185
-第六章 R6-3 8186 type=1 GM=storycompleted&uid=<UID>&to=8186
-第六章 R6-3A 8187 type=1 GM=storycompleted&uid=<UID>&to=8187
-第六章 R6-4 8188 type=1 GM=storycompleted&uid=<UID>&to=8188
-第六章 R6-5 8189 type=1 GM=storycompleted&uid=<UID>&to=8189
-第六章 R6-5A 8190 type=1 GM=storycompleted&uid=<UID>&to=8190
-第六章 R6-6 8191 type=1 GM=storycompleted&uid=<UID>&to=8191
-第六章 R6-6A 8192 type=1 GM=storycompleted&uid=<UID>&to=8192
-第六章 R6-7 8194 type=1 GM=storycompleted&uid=<UID>&to=8194
-第六章 R6-7A 8195 type=1 GM=storycompleted&uid=<UID>&to=8195
-第六章 R6-8 8196 type=1 GM=storycompleted&uid=<UID>&to=8196
-第六章 R6-2 8182 type=248 GM=storycompleted&uid=<UID>&to=8182
-第六章 R6-8 8193 type=248 GM=storycompleted&uid=<UID>&to=8193
-第七章 R7-1 8197 type=1 GM=storycompleted&uid=<UID>&to=8197
-第七章 R7-2 8198 type=1 GM=storycompleted&uid=<UID>&to=8198
-第七章 R7-1A 8199 type=1 GM=storycompleted&uid=<UID>&to=8199
-第七章 R7-2A 8200 type=1 GM=storycompleted&uid=<UID>&to=8200
-第七章 R7-3 8201 type=1 GM=storycompleted&uid=<UID>&to=8201
-第七章 R7-2B 8202 type=1 GM=storycompleted&uid=<UID>&to=8202
-第七章 R7-4 8204 type=1 GM=storycompleted&uid=<UID>&to=8204
-第七章 R7-5 8205 type=1 GM=storycompleted&uid=<UID>&to=8205
-第七章 R7-5A 8206 type=1 GM=storycompleted&uid=<UID>&to=8206
-第七章 R7-6 8207 type=1 GM=storycompleted&uid=<UID>&to=8207
-第七章 R7-6A 8208 type=1 GM=storycompleted&uid=<UID>&to=8208
-第七章 R7-7 8209 type=1 GM=storycompleted&uid=<UID>&to=8209
-第七章 R7-7A 8210 type=1 GM=storycompleted&uid=<UID>&to=8210
-第七章 R7-8 8212 type=1 GM=storycompleted&uid=<UID>&to=8212
-第七章 R7-4 8203 type=248 GM=storycompleted&uid=<UID>&to=8203
-第七章 R7-9 8211 type=248 GM=storycompleted&uid=<UID>&to=8211
-第八章 R8-1 8213 type=1 GM=storycompleted&uid=<UID>&to=8213
-第八章 R8-2 8214 type=1 GM=storycompleted&uid=<UID>&to=8214
-第八章 R8-2A 8215 type=1 GM=storycompleted&uid=<UID>&to=8215
-第八章 R8-3 8216 type=1 GM=storycompleted&uid=<UID>&to=8216
-第八章 R8-3A 8217 type=1 GM=storycompleted&uid=<UID>&to=8217
-第八章 R8-4 8218 type=1 GM=storycompleted&uid=<UID>&to=8218
-第八章 R8-4A 8219 type=1 GM=storycompleted&uid=<UID>&to=8219
-第八章 R8-5 8220 type=1 GM=storycompleted&uid=<UID>&to=8220
-第八章 R8-6 8221 type=1 GM=storycompleted&uid=<UID>&to=8221
-第八章 R8-6A 8223 type=1 GM=storycompleted&uid=<UID>&to=8223
-第八章 R8-7 8224 type=1 GM=storycompleted&uid=<UID>&to=8224
-第八章 R8-7A 8225 type=1 GM=storycompleted&uid=<UID>&to=8225
-第八章 R8-8 8226 type=1 GM=storycompleted&uid=<UID>&to=8226
-第八章 R8-8A 8227 type=1 GM=storycompleted&uid=<UID>&to=8227
-第八章 R8-9 8228 type=1 GM=storycompleted&uid=<UID>&to=8228
-第八章 R8-7 8222 type=248 GM=storycompleted&uid=<UID>&to=8222
-第九章 R9-1 8229 type=1 GM=storycompleted&uid=<UID>&to=8229
-第九章 R9-2 8230 type=1 GM=storycompleted&uid=<UID>&to=8230
-第九章 R9-1A 8231 type=1 GM=storycompleted&uid=<UID>&to=8231
-第九章 R9-3 8232 type=1 GM=storycompleted&uid=<UID>&to=8232
-第九章 R9-2A 8233 type=1 GM=storycompleted&uid=<UID>&to=8233
-第九章 R9-4 8234 type=1 GM=storycompleted&uid=<UID>&to=8234
-第九章 R9-4A 8235 type=1 GM=storycompleted&uid=<UID>&to=8235
-第九章 R9-5 8236 type=1 GM=storycompleted&uid=<UID>&to=8236
-第九章 R9-6 8237 type=1 GM=storycompleted&uid=<UID>&to=8237
-第九章 R9-7 8238 type=1 GM=storycompleted&uid=<UID>&to=8238
-第九章 R9-6A 8239 type=1 GM=storycompleted&uid=<UID>&to=8239
-第九章 R9-8 8240 type=1 GM=storycompleted&uid=<UID>&to=8240
-第九章 R9-7A 8241 type=1 GM=storycompleted&uid=<UID>&to=8241
-第九章 R9-9 8242 type=1 GM=storycompleted&uid=<UID>&to=8242
-第九章 R9-8A 8243 type=1 GM=storycompleted&uid=<UID>&to=8243
-第九章 R9-10 8244 type=1 GM=storycompleted&uid=<UID>&to=8244
-第十章 R10-1 8245 type=1 GM=storycompleted&uid=<UID>&to=8245
-第十章 R10-2 8246 type=1 GM=storycompleted&uid=<UID>&to=8246
-第十章 R10-1A 8247 type=1 GM=storycompleted&uid=<UID>&to=8247
-第十章 R10-3 8248 type=1 GM=storycompleted&uid=<UID>&to=8248
-第十章 R10-3A 8249 type=1 GM=storycompleted&uid=<UID>&to=8249
-第十章 R10-4 8250 type=1 GM=storycompleted&uid=<UID>&to=8250
-第十章 R10-3B 8251 type=1 GM=storycompleted&uid=<UID>&to=8251
-第十章 R10-5 8252 type=1 GM=storycompleted&uid=<UID>&to=8252
-第十章 R10-6 8253 type=1 GM=storycompleted&uid=<UID>&to=8253
-第十章 R10-7 8254 type=1 GM=storycompleted&uid=<UID>&to=8254
-第十章 R10-6A 8255 type=1 GM=storycompleted&uid=<UID>&to=8255
-第十章 R10-8 8256 type=1 GM=storycompleted&uid=<UID>&to=8256
-第十章 R10-7A 8257 type=1 GM=storycompleted&uid=<UID>&to=8257
-第十章 R10-9 8258 type=1 GM=storycompleted&uid=<UID>&to=8258
-第十章 R10-8A 8259 type=1 GM=storycompleted&uid=<UID>&to=8259
-第十章 R10-10 8260 type=1 GM=storycompleted&uid=<UID>&to=8260
-第十章 R12-8A 8289 type=1 GM=storycompleted&uid=<UID>&to=8289
-第十一章 R11-1 8261 type=1 GM=storycompleted&uid=<UID>&to=8261
-第十一章 R11-2 8262 type=1 GM=storycompleted&uid=<UID>&to=8262
-第十一章 R11-1A 8263 type=1 GM=storycompleted&uid=<UID>&to=8263
-第十一章 R11-2A 8265 type=1 GM=storycompleted&uid=<UID>&to=8265
-第十一章 R11-3 8266 type=1 GM=storycompleted&uid=<UID>&to=8266
-第十一章 R11-3A 8267 type=1 GM=storycompleted&uid=<UID>&to=8267
-第十一章 R11-4 8268 type=1 GM=storycompleted&uid=<UID>&to=8268
-第十一章 R11-5 8269 type=1 GM=storycompleted&uid=<UID>&to=8269
-第十一章 R11-6 8270 type=1 GM=storycompleted&uid=<UID>&to=8270
-第十一章 R11-4A 8271 type=1 GM=storycompleted&uid=<UID>&to=8271
-第十一章 R11-7 8272 type=1 GM=storycompleted&uid=<UID>&to=8272
-第十一章 R11-6A 8273 type=1 GM=storycompleted&uid=<UID>&to=8273
-第十一章 R11-8 8274 type=1 GM=storycompleted&uid=<UID>&to=8274
-第十一章 R11-8A 8275 type=1 GM=storycompleted&uid=<UID>&to=8275
-第十一章 R11-9 8276 type=1 GM=storycompleted&uid=<UID>&to=8276
-第十一章 R11-3 8264 type=248 GM=storycompleted&uid=<UID>&to=8264
-第十二章 R12-1 8277 type=1 GM=storycompleted&uid=<UID>&to=8277
-第十二章 R12-2 8278 type=1 GM=storycompleted&uid=<UID>&to=8278
-第十二章 R12-2A 8279 type=1 GM=storycompleted&uid=<UID>&to=8279
-第十二章 R12-3 8280 type=1 GM=storycompleted&uid=<UID>&to=8280
-第十二章 R12-3A 8281 type=1 GM=storycompleted&uid=<UID>&to=8281
-第十二章 R12-4 8282 type=1 GM=storycompleted&uid=<UID>&to=8282
-第十二章 R12-4A 8283 type=1 GM=storycompleted&uid=<UID>&to=8283
-第十二章 R12-5 8284 type=1 GM=storycompleted&uid=<UID>&to=8284
-第十二章 R12-6 8285 type=1 GM=storycompleted&uid=<UID>&to=8285
-第十二章 R12-7 8286 type=1 GM=storycompleted&uid=<UID>&to=8286
-第十二章 R12-7A 8287 type=1 GM=storycompleted&uid=<UID>&to=8287
-第十二章 R12-8 8288 type=1 GM=storycompleted&uid=<UID>&to=8288
-第十二章 R12-9 8290 type=1 GM=storycompleted&uid=<UID>&to=8290
-第十二章 R12-9A 8291 type=1 GM=storycompleted&uid=<UID>&to=8291
-第十二章 R12-10 8292 type=1 GM=storycompleted&uid=<UID>&to=8292
-第十二章 R13-1 8294 type=1 GM=storycompleted&uid=<UID>&to=8294
-第十二章 R13-2 8295 type=1 GM=storycompleted&uid=<UID>&to=8295
-第十二章 R13-3 8296 type=1 GM=storycompleted&uid=<UID>&to=8296
-第十二章 R13-4 8297 type=1 GM=storycompleted&uid=<UID>&to=8297
-第十二章 孤独守护者 8298 type=1 GM=storycompleted&uid=<UID>&to=8298
-第十二章 深罪救世者 8299 type=1 GM=storycompleted&uid=<UID>&to=8299
-第十二章 迷失追寻者 8300 type=1 GM=storycompleted&uid=<UID>&to=8300
-第十二章 R13-5 8302 type=1 GM=storycompleted&uid=<UID>&to=8302
-第十二章 R13-6 8303 type=1 GM=storycompleted&uid=<UID>&to=8303
-第十二章 命运 8304 type=1 GM=storycompleted&uid=<UID>&to=8304
-第十二章 希望 8305 type=1 GM=storycompleted&uid=<UID>&to=8305
-第十二章 爱 8306 type=1 GM=storycompleted&uid=<UID>&to=8306
-第十二章 决意 8307 type=1 GM=storycompleted&uid=<UID>&to=8307
-第十二章 R13-7 8308 type=1 GM=storycompleted&uid=<UID>&to=8308
-第十二章 R13-8 8309 type=1 GM=storycompleted&uid=<UID>&to=8309
-第十二章 R13-9 8310 type=1 GM=storycompleted&uid=<UID>&to=8310
-第十二章 R14-1 8312 type=1 GM=storycompleted&uid=<UID>&to=8312
-第十二章 R14-2 8313 type=1 GM=storycompleted&uid=<UID>&to=8313
-第十二章 R14-3 8314 type=1 GM=storycompleted&uid=<UID>&to=8314
-第十二章 R14-4 8315 type=1 GM=storycompleted&uid=<UID>&to=8315
-第十二章 R14-5 8316 type=1 GM=storycompleted&uid=<UID>&to=8316
-第十二章 R14-6 8317 type=1 GM=storycompleted&uid=<UID>&to=8317
-第十二章 R14-6A 8318 type=1 GM=storycompleted&uid=<UID>&to=8318
-第十二章 R14-7 8319 type=1 GM=storycompleted&uid=<UID>&to=8319
-第十二章 R14-8 8320 type=1 GM=storycompleted&uid=<UID>&to=8320
-第十二章 R14-9 8322 type=1 GM=storycompleted&uid=<UID>&to=8322
-第十二章 R14-10 8323 type=1 GM=storycompleted&uid=<UID>&to=8323
-第十二章 R14-11 8324 type=1 GM=storycompleted&uid=<UID>&to=8324
-第十二章 R14-12 8325 type=1 GM=storycompleted&uid=<UID>&to=8325
-第十二章 R14-13 8326 type=1 GM=storycompleted&uid=<UID>&to=8326
-第十二章 R14-14 8327 type=1 GM=storycompleted&uid=<UID>&to=8327
-第十二章 R14-15 8328 type=1 GM=storycompleted&uid=<UID>&to=8328
-第十二章 R14-16 8329 type=1 GM=storycompleted&uid=<UID>&to=8329
-第十二章 R14-17 8331 type=1 GM=storycompleted&uid=<UID>&to=8331
-第十二章 R14-18 8332 type=1 GM=storycompleted&uid=<UID>&to=8332
-第十二章 R14-19 8333 type=1 GM=storycompleted&uid=<UID>&to=8333
-第十二章 R14-20 8334 type=1 GM=storycompleted&uid=<UID>&to=8334
-第十二章 R14-21 8335 type=1 GM=storycompleted&uid=<UID>&to=8335
-第十二章 R15-1 8337 type=1 GM=storycompleted&uid=<UID>&to=8337
-第十二章 R15-2 8338 type=1 GM=storycompleted&uid=<UID>&to=8338
-第十二章 R15-3 8339 type=1 GM=storycompleted&uid=<UID>&to=8339
-第十二章 R15-4 8340 type=1 GM=storycompleted&uid=<UID>&to=8340
-第十二章 R15-5 8342 type=1 GM=storycompleted&uid=<UID>&to=8342
-第十二章 R15-6 8343 type=1 GM=storycompleted&uid=<UID>&to=8343
-第十二章 R15-8 8344 type=1 GM=storycompleted&uid=<UID>&to=8344
-第十二章 R15-7 8368 type=1 GM=storycompleted&uid=<UID>&to=8368
-第十二章 R15-9 8346 type=1 GM=storycompleted&uid=<UID>&to=8346
-第十二章 R15-10 8348 type=1 GM=storycompleted&uid=<UID>&to=8348
-第十二章 R15-11 8349 type=1 GM=storycompleted&uid=<UID>&to=8349
-第十二章 R15-12 8350 type=1 GM=storycompleted&uid=<UID>&to=8350
-第十二章 R15-13 8363 type=1 GM=storycompleted&uid=<UID>&to=8363
-第十二章 R15-14 8364 type=1 GM=storycompleted&uid=<UID>&to=8364
-第十二章 R15-15 8366 type=1 GM=storycompleted&uid=<UID>&to=8366
-第十二章 R15-16 8367 type=1 GM=storycompleted&uid=<UID>&to=8367
-第十二章 R15-17 8369 type=1 GM=storycompleted&uid=<UID>&to=8369
-第十二章 R15-18 8399 type=1 GM=storycompleted&uid=<UID>&to=8399
-第十二章 BONUS-1 8293 type=248 GM=storycompleted&uid=<UID>&to=8293
-第十二章 BONUS-1 8301 type=248 GM=storycompleted&uid=<UID>&to=8301
-第十二章 BONUS-2 8311 type=248 GM=storycompleted&uid=<UID>&to=8311
+第一章 R1-1 8101 type=1 GM=/storycompleted 8101 [@uid]
+第一章 R1-2 8104 type=1 GM=/storycompleted 8104 [@uid]
+第一章 R1-2A 8106 type=1 GM=/storycompleted 8106 [@uid]
+第一章 R1-3 8107 type=1 GM=/storycompleted 8107 [@uid]
+第一章 R1-4 8108 type=1 GM=/storycompleted 8108 [@uid]
+第一章 R1-5 8109 type=1 GM=/storycompleted 8109 [@uid]
+第一章 R1-6 8111 type=1 GM=/storycompleted 8111 [@uid]
+第一章 R1-6A 8112 type=1 GM=/storycompleted 8112 [@uid]
+第一章 R1-7 8114 type=1 GM=/storycompleted 8114 [@uid]
+第一章 R1-8 8116 type=1 GM=/storycompleted 8116 [@uid]
+第一章 R1-2 8102 type=248 GM=/storycompleted 8102 [@uid]
+第一章 R1-1A 8103 type=248 GM=/storycompleted 8103 [@uid]
+第一章 R1-4 8105 type=248 GM=/storycompleted 8105 [@uid]
+第一章 R1-8 8110 type=248 GM=/storycompleted 8110 [@uid]
+第一章 R1-9B 8113 type=248 GM=/storycompleted 8113 [@uid]
+第一章 R1-11 8115 type=248 GM=/storycompleted 8115 [@uid]
+第二章 R2-1 8117 type=1 GM=/storycompleted 8117 [@uid]
+第二章 R2-2 8119 type=1 GM=/storycompleted 8119 [@uid]
+第二章 R2-2A 8120 type=1 GM=/storycompleted 8120 [@uid]
+第二章 R2-3 8121 type=1 GM=/storycompleted 8121 [@uid]
+第二章 R2-4 8124 type=1 GM=/storycompleted 8124 [@uid]
+第二章 R2-5 8125 type=1 GM=/storycompleted 8125 [@uid]
+第二章 R2-6 8126 type=1 GM=/storycompleted 8126 [@uid]
+第二章 R2-6A 8127 type=1 GM=/storycompleted 8127 [@uid]
+第二章 R2-7 8131 type=1 GM=/storycompleted 8131 [@uid]
+第二章 R2-8 8132 type=1 GM=/storycompleted 8132 [@uid]
+第二章 R2-2 8118 type=248 GM=/storycompleted 8118 [@uid]
+第二章 R2-5 8122 type=248 GM=/storycompleted 8122 [@uid]
+第二章 R2-5A 8123 type=248 GM=/storycompleted 8123 [@uid]
+第二章 R2-8B 8128 type=248 GM=/storycompleted 8128 [@uid]
+第二章 R2-9 8129 type=248 GM=/storycompleted 8129 [@uid]
+第二章 R2-10 8130 type=248 GM=/storycompleted 8130 [@uid]
+第三章 R3-1 8133 type=1 GM=/storycompleted 8133 [@uid]
+第三章 R3-1A 8134 type=1 GM=/storycompleted 8134 [@uid]
+第三章 R3-2 8137 type=1 GM=/storycompleted 8137 [@uid]
+第三章 R3-3 8139 type=1 GM=/storycompleted 8139 [@uid]
+第三章 R3-4 8140 type=1 GM=/storycompleted 8140 [@uid]
+第三章 R3-5 8141 type=1 GM=/storycompleted 8141 [@uid]
+第三章 R3-6 8142 type=1 GM=/storycompleted 8142 [@uid]
+第三章 R3-6A 8146 type=1 GM=/storycompleted 8146 [@uid]
+第三章 R3-7 8147 type=1 GM=/storycompleted 8147 [@uid]
+第三章 R3-8 8148 type=1 GM=/storycompleted 8148 [@uid]
+第三章 R4-1 8150 type=1 GM=/storycompleted 8150 [@uid]
+第三章 R3-2 8135 type=248 GM=/storycompleted 8135 [@uid]
+第三章 R3-3 8136 type=248 GM=/storycompleted 8136 [@uid]
+第三章 R3-4A 8138 type=248 GM=/storycompleted 8138 [@uid]
+第三章 R3-7A 8143 type=248 GM=/storycompleted 8143 [@uid]
+第三章 R3-9 8144 type=248 GM=/storycompleted 8144 [@uid]
+第三章 R3-10 8145 type=248 GM=/storycompleted 8145 [@uid]
+第四章 R4-2 8151 type=1 GM=/storycompleted 8151 [@uid]
+第四章 R4-3 8155 type=1 GM=/storycompleted 8155 [@uid]
+第四章 R4-4 8156 type=1 GM=/storycompleted 8156 [@uid]
+第四章 R4-5 8157 type=1 GM=/storycompleted 8157 [@uid]
+第四章 R4-6 8158 type=1 GM=/storycompleted 8158 [@uid]
+第四章 R4-7 8163 type=1 GM=/storycompleted 8163 [@uid]
+第四章 R4-8 8164 type=1 GM=/storycompleted 8164 [@uid]
+第四章 R4-1 8149 type=248 GM=/storycompleted 8149 [@uid]
+第四章 R4-3A 8152 type=248 GM=/storycompleted 8152 [@uid]
+第四章 R4-3B 8153 type=248 GM=/storycompleted 8153 [@uid]
+第四章 R4-4 8154 type=248 GM=/storycompleted 8154 [@uid]
+第四章 R4-8A 8159 type=248 GM=/storycompleted 8159 [@uid]
+第四章 R4-8B 8160 type=248 GM=/storycompleted 8160 [@uid]
+第四章 R4-8C 8161 type=248 GM=/storycompleted 8161 [@uid]
+第四章 R4-8D 8162 type=248 GM=/storycompleted 8162 [@uid]
+第五章 R5-1 8165 type=1 GM=/storycompleted 8165 [@uid]
+第五章 R5-2 8166 type=1 GM=/storycompleted 8166 [@uid]
+第五章 R5-1A 8167 type=1 GM=/storycompleted 8167 [@uid]
+第五章 R5-3 8168 type=1 GM=/storycompleted 8168 [@uid]
+第五章 R5-2A 8169 type=1 GM=/storycompleted 8169 [@uid]
+第五章 R5-3A 8171 type=1 GM=/storycompleted 8171 [@uid]
+第五章 R5-4 8172 type=1 GM=/storycompleted 8172 [@uid]
+第五章 R5-5 8173 type=1 GM=/storycompleted 8173 [@uid]
+第五章 R5-5A 8174 type=1 GM=/storycompleted 8174 [@uid]
+第五章 R5-5B 8175 type=1 GM=/storycompleted 8175 [@uid]
+第五章 R5-6 8176 type=1 GM=/storycompleted 8176 [@uid]
+第五章 R5-7 8177 type=1 GM=/storycompleted 8177 [@uid]
+第五章 R5-7A 8178 type=1 GM=/storycompleted 8178 [@uid]
+第五章 R5-7B 8179 type=1 GM=/storycompleted 8179 [@uid]
+第五章 R5-8 8180 type=1 GM=/storycompleted 8180 [@uid]
+第五章 R5-4 8170 type=248 GM=/storycompleted 8170 [@uid]
+第六章 R6-1 8181 type=1 GM=/storycompleted 8181 [@uid]
+第六章 R6-1A 8183 type=1 GM=/storycompleted 8183 [@uid]
+第六章 R6-2 8184 type=1 GM=/storycompleted 8184 [@uid]
+第六章 R6-2A 8185 type=1 GM=/storycompleted 8185 [@uid]
+第六章 R6-3 8186 type=1 GM=/storycompleted 8186 [@uid]
+第六章 R6-3A 8187 type=1 GM=/storycompleted 8187 [@uid]
+第六章 R6-4 8188 type=1 GM=/storycompleted 8188 [@uid]
+第六章 R6-5 8189 type=1 GM=/storycompleted 8189 [@uid]
+第六章 R6-5A 8190 type=1 GM=/storycompleted 8190 [@uid]
+第六章 R6-6 8191 type=1 GM=/storycompleted 8191 [@uid]
+第六章 R6-6A 8192 type=1 GM=/storycompleted 8192 [@uid]
+第六章 R6-7 8194 type=1 GM=/storycompleted 8194 [@uid]
+第六章 R6-7A 8195 type=1 GM=/storycompleted 8195 [@uid]
+第六章 R6-8 8196 type=1 GM=/storycompleted 8196 [@uid]
+第六章 R6-2 8182 type=248 GM=/storycompleted 8182 [@uid]
+第六章 R6-8 8193 type=248 GM=/storycompleted 8193 [@uid]
+第七章 R7-1 8197 type=1 GM=/storycompleted 8197 [@uid]
+第七章 R7-2 8198 type=1 GM=/storycompleted 8198 [@uid]
+第七章 R7-1A 8199 type=1 GM=/storycompleted 8199 [@uid]
+第七章 R7-2A 8200 type=1 GM=/storycompleted 8200 [@uid]
+第七章 R7-3 8201 type=1 GM=/storycompleted 8201 [@uid]
+第七章 R7-2B 8202 type=1 GM=/storycompleted 8202 [@uid]
+第七章 R7-4 8204 type=1 GM=/storycompleted 8204 [@uid]
+第七章 R7-5 8205 type=1 GM=/storycompleted 8205 [@uid]
+第七章 R7-5A 8206 type=1 GM=/storycompleted 8206 [@uid]
+第七章 R7-6 8207 type=1 GM=/storycompleted 8207 [@uid]
+第七章 R7-6A 8208 type=1 GM=/storycompleted 8208 [@uid]
+第七章 R7-7 8209 type=1 GM=/storycompleted 8209 [@uid]
+第七章 R7-7A 8210 type=1 GM=/storycompleted 8210 [@uid]
+第七章 R7-8 8212 type=1 GM=/storycompleted 8212 [@uid]
+第七章 R7-4 8203 type=248 GM=/storycompleted 8203 [@uid]
+第七章 R7-9 8211 type=248 GM=/storycompleted 8211 [@uid]
+第八章 R8-1 8213 type=1 GM=/storycompleted 8213 [@uid]
+第八章 R8-2 8214 type=1 GM=/storycompleted 8214 [@uid]
+第八章 R8-2A 8215 type=1 GM=/storycompleted 8215 [@uid]
+第八章 R8-3 8216 type=1 GM=/storycompleted 8216 [@uid]
+第八章 R8-3A 8217 type=1 GM=/storycompleted 8217 [@uid]
+第八章 R8-4 8218 type=1 GM=/storycompleted 8218 [@uid]
+第八章 R8-4A 8219 type=1 GM=/storycompleted 8219 [@uid]
+第八章 R8-5 8220 type=1 GM=/storycompleted 8220 [@uid]
+第八章 R8-6 8221 type=1 GM=/storycompleted 8221 [@uid]
+第八章 R8-6A 8223 type=1 GM=/storycompleted 8223 [@uid]
+第八章 R8-7 8224 type=1 GM=/storycompleted 8224 [@uid]
+第八章 R8-7A 8225 type=1 GM=/storycompleted 8225 [@uid]
+第八章 R8-8 8226 type=1 GM=/storycompleted 8226 [@uid]
+第八章 R8-8A 8227 type=1 GM=/storycompleted 8227 [@uid]
+第八章 R8-9 8228 type=1 GM=/storycompleted 8228 [@uid]
+第八章 R8-7 8222 type=248 GM=/storycompleted 8222 [@uid]
+第九章 R9-1 8229 type=1 GM=/storycompleted 8229 [@uid]
+第九章 R9-2 8230 type=1 GM=/storycompleted 8230 [@uid]
+第九章 R9-1A 8231 type=1 GM=/storycompleted 8231 [@uid]
+第九章 R9-3 8232 type=1 GM=/storycompleted 8232 [@uid]
+第九章 R9-2A 8233 type=1 GM=/storycompleted 8233 [@uid]
+第九章 R9-4 8234 type=1 GM=/storycompleted 8234 [@uid]
+第九章 R9-4A 8235 type=1 GM=/storycompleted 8235 [@uid]
+第九章 R9-5 8236 type=1 GM=/storycompleted 8236 [@uid]
+第九章 R9-6 8237 type=1 GM=/storycompleted 8237 [@uid]
+第九章 R9-7 8238 type=1 GM=/storycompleted 8238 [@uid]
+第九章 R9-6A 8239 type=1 GM=/storycompleted 8239 [@uid]
+第九章 R9-8 8240 type=1 GM=/storycompleted 8240 [@uid]
+第九章 R9-7A 8241 type=1 GM=/storycompleted 8241 [@uid]
+第九章 R9-9 8242 type=1 GM=/storycompleted 8242 [@uid]
+第九章 R9-8A 8243 type=1 GM=/storycompleted 8243 [@uid]
+第九章 R9-10 8244 type=1 GM=/storycompleted 8244 [@uid]
+第十章 R10-1 8245 type=1 GM=/storycompleted 8245 [@uid]
+第十章 R10-2 8246 type=1 GM=/storycompleted 8246 [@uid]
+第十章 R10-1A 8247 type=1 GM=/storycompleted 8247 [@uid]
+第十章 R10-3 8248 type=1 GM=/storycompleted 8248 [@uid]
+第十章 R10-3A 8249 type=1 GM=/storycompleted 8249 [@uid]
+第十章 R10-4 8250 type=1 GM=/storycompleted 8250 [@uid]
+第十章 R10-3B 8251 type=1 GM=/storycompleted 8251 [@uid]
+第十章 R10-5 8252 type=1 GM=/storycompleted 8252 [@uid]
+第十章 R10-6 8253 type=1 GM=/storycompleted 8253 [@uid]
+第十章 R10-7 8254 type=1 GM=/storycompleted 8254 [@uid]
+第十章 R10-6A 8255 type=1 GM=/storycompleted 8255 [@uid]
+第十章 R10-8 8256 type=1 GM=/storycompleted 8256 [@uid]
+第十章 R10-7A 8257 type=1 GM=/storycompleted 8257 [@uid]
+第十章 R10-9 8258 type=1 GM=/storycompleted 8258 [@uid]
+第十章 R10-8A 8259 type=1 GM=/storycompleted 8259 [@uid]
+第十章 R10-10 8260 type=1 GM=/storycompleted 8260 [@uid]
+第十章 R12-8A 8289 type=1 GM=/storycompleted 8289 [@uid]
+第十一章 R11-1 8261 type=1 GM=/storycompleted 8261 [@uid]
+第十一章 R11-2 8262 type=1 GM=/storycompleted 8262 [@uid]
+第十一章 R11-1A 8263 type=1 GM=/storycompleted 8263 [@uid]
+第十一章 R11-2A 8265 type=1 GM=/storycompleted 8265 [@uid]
+第十一章 R11-3 8266 type=1 GM=/storycompleted 8266 [@uid]
+第十一章 R11-3A 8267 type=1 GM=/storycompleted 8267 [@uid]
+第十一章 R11-4 8268 type=1 GM=/storycompleted 8268 [@uid]
+第十一章 R11-5 8269 type=1 GM=/storycompleted 8269 [@uid]
+第十一章 R11-6 8270 type=1 GM=/storycompleted 8270 [@uid]
+第十一章 R11-4A 8271 type=1 GM=/storycompleted 8271 [@uid]
+第十一章 R11-7 8272 type=1 GM=/storycompleted 8272 [@uid]
+第十一章 R11-6A 8273 type=1 GM=/storycompleted 8273 [@uid]
+第十一章 R11-8 8274 type=1 GM=/storycompleted 8274 [@uid]
+第十一章 R11-8A 8275 type=1 GM=/storycompleted 8275 [@uid]
+第十一章 R11-9 8276 type=1 GM=/storycompleted 8276 [@uid]
+第十一章 R11-3 8264 type=248 GM=/storycompleted 8264 [@uid]
+第十二章 R12-1 8277 type=1 GM=/storycompleted 8277 [@uid]
+第十二章 R12-2 8278 type=1 GM=/storycompleted 8278 [@uid]
+第十二章 R12-2A 8279 type=1 GM=/storycompleted 8279 [@uid]
+第十二章 R12-3 8280 type=1 GM=/storycompleted 8280 [@uid]
+第十二章 R12-3A 8281 type=1 GM=/storycompleted 8281 [@uid]
+第十二章 R12-4 8282 type=1 GM=/storycompleted 8282 [@uid]
+第十二章 R12-4A 8283 type=1 GM=/storycompleted 8283 [@uid]
+第十二章 R12-5 8284 type=1 GM=/storycompleted 8284 [@uid]
+第十二章 R12-6 8285 type=1 GM=/storycompleted 8285 [@uid]
+第十二章 R12-7 8286 type=1 GM=/storycompleted 8286 [@uid]
+第十二章 R12-7A 8287 type=1 GM=/storycompleted 8287 [@uid]
+第十二章 R12-8 8288 type=1 GM=/storycompleted 8288 [@uid]
+第十二章 R12-9 8290 type=1 GM=/storycompleted 8290 [@uid]
+第十二章 R12-9A 8291 type=1 GM=/storycompleted 8291 [@uid]
+第十二章 R12-10 8292 type=1 GM=/storycompleted 8292 [@uid]
+第十二章 R13-1 8294 type=1 GM=/storycompleted 8294 [@uid]
+第十二章 R13-2 8295 type=1 GM=/storycompleted 8295 [@uid]
+第十二章 R13-3 8296 type=1 GM=/storycompleted 8296 [@uid]
+第十二章 R13-4 8297 type=1 GM=/storycompleted 8297 [@uid]
+第十二章 孤独守护者 8298 type=1 GM=/storycompleted 8298 [@uid]
+第十二章 深罪救世者 8299 type=1 GM=/storycompleted 8299 [@uid]
+第十二章 迷失追寻者 8300 type=1 GM=/storycompleted 8300 [@uid]
+第十二章 R13-5 8302 type=1 GM=/storycompleted 8302 [@uid]
+第十二章 R13-6 8303 type=1 GM=/storycompleted 8303 [@uid]
+第十二章 命运 8304 type=1 GM=/storycompleted 8304 [@uid]
+第十二章 希望 8305 type=1 GM=/storycompleted 8305 [@uid]
+第十二章 爱 8306 type=1 GM=/storycompleted 8306 [@uid]
+第十二章 决意 8307 type=1 GM=/storycompleted 8307 [@uid]
+第十二章 R13-7 8308 type=1 GM=/storycompleted 8308 [@uid]
+第十二章 R13-8 8309 type=1 GM=/storycompleted 8309 [@uid]
+第十二章 R13-9 8310 type=1 GM=/storycompleted 8310 [@uid]
+第十二章 R14-1 8312 type=1 GM=/storycompleted 8312 [@uid]
+第十二章 R14-2 8313 type=1 GM=/storycompleted 8313 [@uid]
+第十二章 R14-3 8314 type=1 GM=/storycompleted 8314 [@uid]
+第十二章 R14-4 8315 type=1 GM=/storycompleted 8315 [@uid]
+第十二章 R14-5 8316 type=1 GM=/storycompleted 8316 [@uid]
+第十二章 R14-6 8317 type=1 GM=/storycompleted 8317 [@uid]
+第十二章 R14-6A 8318 type=1 GM=/storycompleted 8318 [@uid]
+第十二章 R14-7 8319 type=1 GM=/storycompleted 8319 [@uid]
+第十二章 R14-8 8320 type=1 GM=/storycompleted 8320 [@uid]
+第十二章 R14-9 8322 type=1 GM=/storycompleted 8322 [@uid]
+第十二章 R14-10 8323 type=1 GM=/storycompleted 8323 [@uid]
+第十二章 R14-11 8324 type=1 GM=/storycompleted 8324 [@uid]
+第十二章 R14-12 8325 type=1 GM=/storycompleted 8325 [@uid]
+第十二章 R14-13 8326 type=1 GM=/storycompleted 8326 [@uid]
+第十二章 R14-14 8327 type=1 GM=/storycompleted 8327 [@uid]
+第十二章 R14-15 8328 type=1 GM=/storycompleted 8328 [@uid]
+第十二章 R14-16 8329 type=1 GM=/storycompleted 8329 [@uid]
+第十二章 R14-17 8331 type=1 GM=/storycompleted 8331 [@uid]
+第十二章 R14-18 8332 type=1 GM=/storycompleted 8332 [@uid]
+第十二章 R14-19 8333 type=1 GM=/storycompleted 8333 [@uid]
+第十二章 R14-20 8334 type=1 GM=/storycompleted 8334 [@uid]
+第十二章 R14-21 8335 type=1 GM=/storycompleted 8335 [@uid]
+第十二章 R15-1 8337 type=1 GM=/storycompleted 8337 [@uid]
+第十二章 R15-2 8338 type=1 GM=/storycompleted 8338 [@uid]
+第十二章 R15-3 8339 type=1 GM=/storycompleted 8339 [@uid]
+第十二章 R15-4 8340 type=1 GM=/storycompleted 8340 [@uid]
+第十二章 R15-5 8342 type=1 GM=/storycompleted 8342 [@uid]
+第十二章 R15-6 8343 type=1 GM=/storycompleted 8343 [@uid]
+第十二章 R15-8 8344 type=1 GM=/storycompleted 8344 [@uid]
+第十二章 R15-7 8368 type=1 GM=/storycompleted 8368 [@uid]
+第十二章 R15-9 8346 type=1 GM=/storycompleted 8346 [@uid]
+第十二章 R15-10 8348 type=1 GM=/storycompleted 8348 [@uid]
+第十二章 R15-11 8349 type=1 GM=/storycompleted 8349 [@uid]
+第十二章 R15-12 8350 type=1 GM=/storycompleted 8350 [@uid]
+第十二章 R15-13 8363 type=1 GM=/storycompleted 8363 [@uid]
+第十二章 R15-14 8364 type=1 GM=/storycompleted 8364 [@uid]
+第十二章 R15-15 8366 type=1 GM=/storycompleted 8366 [@uid]
+第十二章 R15-16 8367 type=1 GM=/storycompleted 8367 [@uid]
+第十二章 R15-17 8369 type=1 GM=/storycompleted 8369 [@uid]
+第十二章 R15-18 8399 type=1 GM=/storycompleted 8399 [@uid]
+第十二章 BONUS-1 8293 type=248 GM=/storycompleted 8293 [@uid]
+第十二章 BONUS-1 8301 type=248 GM=/storycompleted 8301 [@uid]
+第十二章 BONUS-2 8311 type=248 GM=/storycompleted 8311 [@uid]
 
 
 [崩坏学园篇章节目录]
-newstorycompleted&uid=<UID>&id=<章节菜单ID>：整章完成关卡、挑战触发器、评分与章节任务（含发奖）。
-newstorycompleted&uid=<UID>&id=<章节菜单ID>&level=<关卡ID>：只完成指定关卡（可逗号分隔多个），任务推进与手打通关同款。
+GM=/newstorycompleted <章节菜单ID> [@uid]：整章完成关卡、挑战触发器、评分与章节任务（含发奖）。
+GM=/newstorycompleted <章节菜单ID> <关卡ID> [@uid]：只完成指定关卡（可逗号分隔多个），任务推进与手打通关同款。
 type：1=主线 3=支线/番外；storycompleted 无法推进本目录关卡（不属于普通剧情资源图）。
 章节总数：18
-chapter	2	今我来思	type=3	season=10104	stage=PRX1	levels=9	range=402001-402009	GM=newstorycompleted&uid=<UID>&id=2
-level	402001	九天之上	GM=newstorycompleted&uid=<UID>&id=2&level=402001
-level	402002	汝乃何人	GM=newstorycompleted&uid=<UID>&id=2&level=402002
-level	402003	无言之善	GM=newstorycompleted&uid=<UID>&id=2&level=402003
-level	402004	破碎真我	GM=newstorycompleted&uid=<UID>&id=2&level=402004
-level	402005	山之御座	GM=newstorycompleted&uid=<UID>&id=2&level=402005
-level	402006	一昼之花	GM=newstorycompleted&uid=<UID>&id=2&level=402006
-level	402007	EX-1	GM=newstorycompleted&uid=<UID>&id=2&level=402007
-level	402008	EX-2	GM=newstorycompleted&uid=<UID>&id=2&level=402008
-level	402009	EX-3	GM=newstorycompleted&uid=<UID>&id=2&level=402009
-chapter	3	昔我往矣	type=3	season=10201	stage=PRX2	levels=15	range=402010-402024	GM=newstorycompleted&uid=<UID>&id=3
-level	402010	尘埃弃子	GM=newstorycompleted&uid=<UID>&id=3&level=402010
-level	402011	烈焰魔咒	GM=newstorycompleted&uid=<UID>&id=3&level=402011
-level	402012	无枷之囚	GM=newstorycompleted&uid=<UID>&id=3&level=402012
-level	402013	间章其一	GM=newstorycompleted&uid=<UID>&id=3&level=402013
-level	402014	故乡不识	GM=newstorycompleted&uid=<UID>&id=3&level=402014
-level	402015	间章其二	GM=newstorycompleted&uid=<UID>&id=3&level=402015
-level	402016	凝结心火	GM=newstorycompleted&uid=<UID>&id=3&level=402016
-level	402017	间章其三	GM=newstorycompleted&uid=<UID>&id=3&level=402017
-level	402018	黄雀游戏	GM=newstorycompleted&uid=<UID>&id=3&level=402018
-level	402019	心间藏实	GM=newstorycompleted&uid=<UID>&id=3&level=402019
-level	402020	钢之玫瑰	GM=newstorycompleted&uid=<UID>&id=3&level=402020
-level	402021	间章其四	GM=newstorycompleted&uid=<UID>&id=3&level=402021
-level	402022	彼苍者天	GM=newstorycompleted&uid=<UID>&id=3&level=402022
-level	402023	尘世猎场	GM=newstorycompleted&uid=<UID>&id=3&level=402023
-level	402024	间章其末	GM=newstorycompleted&uid=<UID>&id=3&level=402024
-chapter	4	再会长空	type=1	season=10444	stage=RX0	levels=20	range=601001-601020	GM=newstorycompleted&uid=<UID>&id=4
-level	601001	序	GM=newstorycompleted&uid=<UID>&id=4&level=601001
-level	601002	序.2	GM=newstorycompleted&uid=<UID>&id=4&level=601002
-level	601003	配送超时	GM=newstorycompleted&uid=<UID>&id=4&level=601003
-level	601004	EP1.2	GM=newstorycompleted&uid=<UID>&id=4&level=601004
-level	601005	EP1.3	GM=newstorycompleted&uid=<UID>&id=4&level=601005
-level	601006	EP1.4	GM=newstorycompleted&uid=<UID>&id=4&level=601006
-level	601007	EP1.5	GM=newstorycompleted&uid=<UID>&id=4&level=601007
-level	601008	不你谁啊	GM=newstorycompleted&uid=<UID>&id=4&level=601008
-level	601009	EP2.2	GM=newstorycompleted&uid=<UID>&id=4&level=601009
-level	601010	能和解吗	GM=newstorycompleted&uid=<UID>&id=4&level=601010
-level	601011	EP3.2	GM=newstorycompleted&uid=<UID>&id=4&level=601011
-level	601012	EP3.3	GM=newstorycompleted&uid=<UID>&id=4&level=601012
-level	601013	EP3.4	GM=newstorycompleted&uid=<UID>&id=4&level=601013
-level	601014	EP3.5	GM=newstorycompleted&uid=<UID>&id=4&level=601014
-level	601015	进局子咯	GM=newstorycompleted&uid=<UID>&id=4&level=601015
-level	601016	EP4.2	GM=newstorycompleted&uid=<UID>&id=4&level=601016
-level	601017	EP4.3	GM=newstorycompleted&uid=<UID>&id=4&level=601017
-level	601018	猪突猛进	GM=newstorycompleted&uid=<UID>&id=4&level=601018
-level	601019	EP5.2	GM=newstorycompleted&uid=<UID>&id=4&level=601019
-level	601020	尾声	GM=newstorycompleted&uid=<UID>&id=4&level=601020
-chapter	5	枪火教习	type=1	season=10445	stage=RX1	levels=42	range=601021-601062	GM=newstorycompleted&uid=<UID>&id=5
-level	601021	序	GM=newstorycompleted&uid=<UID>&id=5&level=601021
-level	601022	随便逛逛	GM=newstorycompleted&uid=<UID>&id=5&level=601022
-level	601023	EP1.2	GM=newstorycompleted&uid=<UID>&id=5&level=601023
-level	601024	EP1.3	GM=newstorycompleted&uid=<UID>&id=5&level=601024
-level	601025	特地逛逛	GM=newstorycompleted&uid=<UID>&id=5&level=601025
-level	601026	EP2.2	GM=newstorycompleted&uid=<UID>&id=5&level=601026
-level	601027	上网逛逛	GM=newstorycompleted&uid=<UID>&id=5&level=601027
-level	601028	EP3.2	GM=newstorycompleted&uid=<UID>&id=5&level=601028
-level	601029	EP3.3	GM=newstorycompleted&uid=<UID>&id=5&level=601029
-level	601030	EP3.4	GM=newstorycompleted&uid=<UID>&id=5&level=601030
-level	601031	第二学园	GM=newstorycompleted&uid=<UID>&id=5&level=601031
-level	601032	飙戏达人	GM=newstorycompleted&uid=<UID>&id=5&level=601032
-level	601033	面包捕手	GM=newstorycompleted&uid=<UID>&id=5&level=601033
-level	601034	格斗大师	GM=newstorycompleted&uid=<UID>&id=5&level=601034
-level	601035	找猫专家	GM=newstorycompleted&uid=<UID>&id=5&level=601035
-level	601036	逢考必过	GM=newstorycompleted&uid=<UID>&id=5&level=601036
-level	601037	EP4.2	GM=newstorycompleted&uid=<UID>&id=5&level=601037
-level	601038	EP4.3	GM=newstorycompleted&uid=<UID>&id=5&level=601038
-level	601039	EP4.4	GM=newstorycompleted&uid=<UID>&id=5&level=601039
-level	601040	EP4.5	GM=newstorycompleted&uid=<UID>&id=5&level=601040
-level	601041	师恩难忘	GM=newstorycompleted&uid=<UID>&id=5&level=601041
-level	601042	EP5.2	GM=newstorycompleted&uid=<UID>&id=5&level=601042
-level	601043	桃李不言	GM=newstorycompleted&uid=<UID>&id=5&level=601043
-level	601044	EP6.2	GM=newstorycompleted&uid=<UID>&id=5&level=601044
-level	601045	长空探索	GM=newstorycompleted&uid=<UID>&id=5&level=601045
-level	601046	配送准时	GM=newstorycompleted&uid=<UID>&id=5&level=601046
-level	601047	纸巾赠送	GM=newstorycompleted&uid=<UID>&id=5&level=601047
-level	601048	杂鱼群演	GM=newstorycompleted&uid=<UID>&id=5&level=601048
-level	601049	怪兽实况	GM=newstorycompleted&uid=<UID>&id=5&level=601049
-level	601050	枪火教习	GM=newstorycompleted&uid=<UID>&id=5&level=601050
-level	601051	EP7.2	GM=newstorycompleted&uid=<UID>&id=5&level=601051
-level	601052	EP7.3	GM=newstorycompleted&uid=<UID>&id=5&level=601052
-level	601053	EP7.4	GM=newstorycompleted&uid=<UID>&id=5&level=601053
-level	601054	白垩骑士	GM=newstorycompleted&uid=<UID>&id=5&level=601054
-level	601055	EP8.2	GM=newstorycompleted&uid=<UID>&id=5&level=601055
-level	601056	狩罪魔	GM=newstorycompleted&uid=<UID>&id=5&level=601056
-level	601057	EP9.2	GM=newstorycompleted&uid=<UID>&id=5&level=601057
-level	601058	幻想大剑	GM=newstorycompleted&uid=<UID>&id=5&level=601058
-level	601059	EP10.2	GM=newstorycompleted&uid=<UID>&id=5&level=601059
-level	601060	EP10.3	GM=newstorycompleted&uid=<UID>&id=5&level=601060
-level	601061	尾声	GM=newstorycompleted&uid=<UID>&id=5&level=601061
-level	601062	SP	GM=newstorycompleted&uid=<UID>&id=5&level=601062
-chapter	7	生死一叹	type=3	season=10501	stage=BRX105	levels=16	range=402025-402040	GM=newstorycompleted&uid=<UID>&id=7
-level	402025	1-1	GM=newstorycompleted&uid=<UID>&id=7&level=402025
-level	402026	1-2	GM=newstorycompleted&uid=<UID>&id=7&level=402026
-level	402027	1-3	GM=newstorycompleted&uid=<UID>&id=7&level=402027
-level	402028	1-4	GM=newstorycompleted&uid=<UID>&id=7&level=402028
-level	402029	1-5	GM=newstorycompleted&uid=<UID>&id=7&level=402029
-level	402030	2-1	GM=newstorycompleted&uid=<UID>&id=7&level=402030
-level	402031	2-2	GM=newstorycompleted&uid=<UID>&id=7&level=402031
-level	402032	2-3	GM=newstorycompleted&uid=<UID>&id=7&level=402032
-level	402033	2-4	GM=newstorycompleted&uid=<UID>&id=7&level=402033
-level	402034	2-5	GM=newstorycompleted&uid=<UID>&id=7&level=402034
-level	402035	3-1	GM=newstorycompleted&uid=<UID>&id=7&level=402035
-level	402036	3-2	GM=newstorycompleted&uid=<UID>&id=7&level=402036
-level	402037	3-3	GM=newstorycompleted&uid=<UID>&id=7&level=402037
-level	402038	3-4	GM=newstorycompleted&uid=<UID>&id=7&level=402038
-level	402039	3-5	GM=newstorycompleted&uid=<UID>&id=7&level=402039
-level	402040	3-6	GM=newstorycompleted&uid=<UID>&id=7&level=402040
-chapter	8	学园杯	type=3	season=10601	stage=BRX106	levels=17	range=402041-402057	GM=newstorycompleted&uid=<UID>&id=8
-level	402041	1-1	GM=newstorycompleted&uid=<UID>&id=8&level=402041
-level	402042	1-2	GM=newstorycompleted&uid=<UID>&id=8&level=402042
-level	402043	1-3	GM=newstorycompleted&uid=<UID>&id=8&level=402043
-level	402044	2-1	GM=newstorycompleted&uid=<UID>&id=8&level=402044
-level	402045	2-2	GM=newstorycompleted&uid=<UID>&id=8&level=402045
-level	402046	2-3	GM=newstorycompleted&uid=<UID>&id=8&level=402046
-level	402047	2-4	GM=newstorycompleted&uid=<UID>&id=8&level=402047
-level	402048	3-1	GM=newstorycompleted&uid=<UID>&id=8&level=402048
-level	402049	3-2	GM=newstorycompleted&uid=<UID>&id=8&level=402049
-level	402050	3-3	GM=newstorycompleted&uid=<UID>&id=8&level=402050
-level	402051	3-4	GM=newstorycompleted&uid=<UID>&id=8&level=402051
-level	402052	3-5	GM=newstorycompleted&uid=<UID>&id=8&level=402052
-level	402053	4-1	GM=newstorycompleted&uid=<UID>&id=8&level=402053
-level	402054	4-2	GM=newstorycompleted&uid=<UID>&id=8&level=402054
-level	402055	4-3	GM=newstorycompleted&uid=<UID>&id=8&level=402055
-level	402056	4-4	GM=newstorycompleted&uid=<UID>&id=8&level=402056
-level	402057	4-5	GM=newstorycompleted&uid=<UID>&id=8&level=402057
-chapter	9	萝莉问题	type=3	season=10707	stage=BRX107	levels=18	range=402058-402075	GM=newstorycompleted&uid=<UID>&id=9
-level	402058	1-1	GM=newstorycompleted&uid=<UID>&id=9&level=402058
-level	402059	1-2	GM=newstorycompleted&uid=<UID>&id=9&level=402059
-level	402060	1-3	GM=newstorycompleted&uid=<UID>&id=9&level=402060
-level	402061	1-4	GM=newstorycompleted&uid=<UID>&id=9&level=402061
-level	402062	1-5	GM=newstorycompleted&uid=<UID>&id=9&level=402062
-level	402063	1-6	GM=newstorycompleted&uid=<UID>&id=9&level=402063
-level	402064	2-1	GM=newstorycompleted&uid=<UID>&id=9&level=402064
-level	402065	2-2	GM=newstorycompleted&uid=<UID>&id=9&level=402065
-level	402066	2-3	GM=newstorycompleted&uid=<UID>&id=9&level=402066
-level	402067	2-4	GM=newstorycompleted&uid=<UID>&id=9&level=402067
-level	402068	3-1	GM=newstorycompleted&uid=<UID>&id=9&level=402068
-level	402069	3-2	GM=newstorycompleted&uid=<UID>&id=9&level=402069
-level	402070	3-3	GM=newstorycompleted&uid=<UID>&id=9&level=402070
-level	402071	3-4	GM=newstorycompleted&uid=<UID>&id=9&level=402071
-level	402072	3-5	GM=newstorycompleted&uid=<UID>&id=9&level=402072
-level	402073	EX-1	GM=newstorycompleted&uid=<UID>&id=9&level=402073
-level	402074	EX-2	GM=newstorycompleted&uid=<UID>&id=9&level=402074
-level	402075	EX-3	GM=newstorycompleted&uid=<UID>&id=9&level=402075
-chapter	10	焚城为诗	type=1	season=11001	stage=RX2	levels=83	range=601063-601161	GM=newstorycompleted&uid=<UID>&id=10
-level	601063	序	GM=newstorycompleted&uid=<UID>&id=10&level=601063
-level	601064	EP1.1	GM=newstorycompleted&uid=<UID>&id=10&level=601064
-level	601065	EP1.2	GM=newstorycompleted&uid=<UID>&id=10&level=601065
-level	601066	EP1.3	GM=newstorycompleted&uid=<UID>&id=10&level=601066
-level	601067	EP1.4	GM=newstorycompleted&uid=<UID>&id=10&level=601067
-level	601068	EP1.5	GM=newstorycompleted&uid=<UID>&id=10&level=601068
-level	601069	EP2.1	GM=newstorycompleted&uid=<UID>&id=10&level=601069
-level	601070	EP2.2	GM=newstorycompleted&uid=<UID>&id=10&level=601070
-level	601071	EP2.3	GM=newstorycompleted&uid=<UID>&id=10&level=601071
-level	601072	EP2.4	GM=newstorycompleted&uid=<UID>&id=10&level=601072
-level	601075	EP2.5	GM=newstorycompleted&uid=<UID>&id=10&level=601075
-level	601076	EP2.6	GM=newstorycompleted&uid=<UID>&id=10&level=601076
-level	601077	EP3-K	GM=newstorycompleted&uid=<UID>&id=10&level=601077
-level	601078	EP3-A	GM=newstorycompleted&uid=<UID>&id=10&level=601078
-level	601079	间章其一	GM=newstorycompleted&uid=<UID>&id=10&level=601079
-level	601080	EP4-K1	GM=newstorycompleted&uid=<UID>&id=10&level=601080
-level	601081	EP4-K2	GM=newstorycompleted&uid=<UID>&id=10&level=601081
-level	601082	EP4-K3	GM=newstorycompleted&uid=<UID>&id=10&level=601082
-level	601083	EP5-K1	GM=newstorycompleted&uid=<UID>&id=10&level=601083
-level	601084	EP5-K2	GM=newstorycompleted&uid=<UID>&id=10&level=601084
-level	601085	EP5-K3	GM=newstorycompleted&uid=<UID>&id=10&level=601085
-level	601086	EP6-K1	GM=newstorycompleted&uid=<UID>&id=10&level=601086
-level	601087	EP6-K2	GM=newstorycompleted&uid=<UID>&id=10&level=601087
-level	601088	EP7-K1	GM=newstorycompleted&uid=<UID>&id=10&level=601088
-level	601089	EP7-K2	GM=newstorycompleted&uid=<UID>&id=10&level=601089
-level	601090	间章其二	GM=newstorycompleted&uid=<UID>&id=10&level=601090
-level	601091	EP8-K1	GM=newstorycompleted&uid=<UID>&id=10&level=601091
-level	601092	EP8-K2	GM=newstorycompleted&uid=<UID>&id=10&level=601092
-level	601093	EP8-K3	GM=newstorycompleted&uid=<UID>&id=10&level=601093
-level	601094	EP8-K4	GM=newstorycompleted&uid=<UID>&id=10&level=601094
-level	601095	EP8-K5	GM=newstorycompleted&uid=<UID>&id=10&level=601095
-level	601096	EP9-K1	GM=newstorycompleted&uid=<UID>&id=10&level=601096
-level	601097	EP9-K2	GM=newstorycompleted&uid=<UID>&id=10&level=601097
-level	601098	EP4-A	GM=newstorycompleted&uid=<UID>&id=10&level=601098
-level	601099	EP5-A1	GM=newstorycompleted&uid=<UID>&id=10&level=601099
-level	601100	EP5-A2	GM=newstorycompleted&uid=<UID>&id=10&level=601100
-level	601101	EP6-A1	GM=newstorycompleted&uid=<UID>&id=10&level=601101
-level	601102	EP6-A2	GM=newstorycompleted&uid=<UID>&id=10&level=601102
-level	601103	EP6-A3	GM=newstorycompleted&uid=<UID>&id=10&level=601103
-level	601104	EP7-A	GM=newstorycompleted&uid=<UID>&id=10&level=601104
-level	601105	EP8-A1	GM=newstorycompleted&uid=<UID>&id=10&level=601105
-level	601106	EP8-A2	GM=newstorycompleted&uid=<UID>&id=10&level=601106
-level	601107	EP8-A3	GM=newstorycompleted&uid=<UID>&id=10&level=601107
-level	601108	EP8-A4	GM=newstorycompleted&uid=<UID>&id=10&level=601108
-level	601109	EP9-A1	GM=newstorycompleted&uid=<UID>&id=10&level=601109
-level	601110	EP9-A2	GM=newstorycompleted&uid=<UID>&id=10&level=601110
-level	601111	间章其三	GM=newstorycompleted&uid=<UID>&id=10&level=601111
-level	601126	EP10-K1	GM=newstorycompleted&uid=<UID>&id=10&level=601126
-level	601127	EP10-K2	GM=newstorycompleted&uid=<UID>&id=10&level=601127
-level	601128	EP10-K3	GM=newstorycompleted&uid=<UID>&id=10&level=601128
-level	601129	EP10-A	GM=newstorycompleted&uid=<UID>&id=10&level=601129
-level	601130	EP11-K1	GM=newstorycompleted&uid=<UID>&id=10&level=601130
-level	601131	EP11-K2	GM=newstorycompleted&uid=<UID>&id=10&level=601131
-level	601132	EP11-K3	GM=newstorycompleted&uid=<UID>&id=10&level=601132
-level	601133	EP12.1	GM=newstorycompleted&uid=<UID>&id=10&level=601133
-level	601134	EP12.2	GM=newstorycompleted&uid=<UID>&id=10&level=601134
-level	601135	EP12.3	GM=newstorycompleted&uid=<UID>&id=10&level=601135
-level	601136	EP13.1	GM=newstorycompleted&uid=<UID>&id=10&level=601136
-level	601137	EP13.2	GM=newstorycompleted&uid=<UID>&id=10&level=601137
-level	601138	EP13.3	GM=newstorycompleted&uid=<UID>&id=10&level=601138
-level	601139	EP13.4	GM=newstorycompleted&uid=<UID>&id=10&level=601139
-level	601140	EP13.5	GM=newstorycompleted&uid=<UID>&id=10&level=601140
-level	601141	EP14.1	GM=newstorycompleted&uid=<UID>&id=10&level=601141
-level	601142	EP14.2	GM=newstorycompleted&uid=<UID>&id=10&level=601142
-level	601143	EP14.3	GM=newstorycompleted&uid=<UID>&id=10&level=601143
-level	601144	EP15	GM=newstorycompleted&uid=<UID>&id=10&level=601144
-level	601145	EP16.1	GM=newstorycompleted&uid=<UID>&id=10&level=601145
-level	601146	EP16.2	GM=newstorycompleted&uid=<UID>&id=10&level=601146
-level	601147	EP16.3	GM=newstorycompleted&uid=<UID>&id=10&level=601147
-level	601148	EP17.1	GM=newstorycompleted&uid=<UID>&id=10&level=601148
-level	601149	EP17.2	GM=newstorycompleted&uid=<UID>&id=10&level=601149
-level	601150	EP17.3	GM=newstorycompleted&uid=<UID>&id=10&level=601150
-level	601151	EP17.4	GM=newstorycompleted&uid=<UID>&id=10&level=601151
-level	601152	EP18.1	GM=newstorycompleted&uid=<UID>&id=10&level=601152
-level	601153	EP18.2	GM=newstorycompleted&uid=<UID>&id=10&level=601153
-level	601154	EP19.1	GM=newstorycompleted&uid=<UID>&id=10&level=601154
-level	601155	EP19.2	GM=newstorycompleted&uid=<UID>&id=10&level=601155
-level	601156	EP19.3	GM=newstorycompleted&uid=<UID>&id=10&level=601156
-level	601157	EP19.4	GM=newstorycompleted&uid=<UID>&id=10&level=601157
-level	601158	尾声其一	GM=newstorycompleted&uid=<UID>&id=10&level=601158
-level	601159	尾声其二	GM=newstorycompleted&uid=<UID>&id=10&level=601159
-level	601160	尾声其三	GM=newstorycompleted&uid=<UID>&id=10&level=601160
-level	601161	SP	GM=newstorycompleted&uid=<UID>&id=10&level=601161
-chapter	12	风和嫉妒	type=3	season=11301	stage=BRX113	levels=23	range=402076-402098	GM=newstorycompleted&uid=<UID>&id=12
-level	402076	1-1	GM=newstorycompleted&uid=<UID>&id=12&level=402076
-level	402077	1-2	GM=newstorycompleted&uid=<UID>&id=12&level=402077
-level	402078	1-3	GM=newstorycompleted&uid=<UID>&id=12&level=402078
-level	402079	1-4	GM=newstorycompleted&uid=<UID>&id=12&level=402079
-level	402080	1-5	GM=newstorycompleted&uid=<UID>&id=12&level=402080
-level	402081	1-6	GM=newstorycompleted&uid=<UID>&id=12&level=402081
-level	402082	2-1	GM=newstorycompleted&uid=<UID>&id=12&level=402082
-level	402083	2-2	GM=newstorycompleted&uid=<UID>&id=12&level=402083
-level	402084	2-3	GM=newstorycompleted&uid=<UID>&id=12&level=402084
-level	402085	2-4	GM=newstorycompleted&uid=<UID>&id=12&level=402085
-level	402086	2-5	GM=newstorycompleted&uid=<UID>&id=12&level=402086
-level	402087	2-6	GM=newstorycompleted&uid=<UID>&id=12&level=402087
-level	402088	2-7	GM=newstorycompleted&uid=<UID>&id=12&level=402088
-level	402089	3-1	GM=newstorycompleted&uid=<UID>&id=12&level=402089
-level	402090	3-2	GM=newstorycompleted&uid=<UID>&id=12&level=402090
-level	402091	3-3	GM=newstorycompleted&uid=<UID>&id=12&level=402091
-level	402092	3-4	GM=newstorycompleted&uid=<UID>&id=12&level=402092
-level	402093	3-5	GM=newstorycompleted&uid=<UID>&id=12&level=402093
-level	402094	3-6	GM=newstorycompleted&uid=<UID>&id=12&level=402094
-level	402095	EX1	GM=newstorycompleted&uid=<UID>&id=12&level=402095
-level	402096	EX2	GM=newstorycompleted&uid=<UID>&id=12&level=402096
-level	402097	EX3	GM=newstorycompleted&uid=<UID>&id=12&level=402097
-level	402098	EX4	GM=newstorycompleted&uid=<UID>&id=12&level=402098
-chapter	13	心械绚烂之地	type=3	season=11401	stage=BRX114	levels=20	range=402099-402118	GM=newstorycompleted&uid=<UID>&id=13
-level	402099	0	GM=newstorycompleted&uid=<UID>&id=13&level=402099
-level	402100	0	GM=newstorycompleted&uid=<UID>&id=13&level=402100
-level	402101	0	GM=newstorycompleted&uid=<UID>&id=13&level=402101
-level	402102	0	GM=newstorycompleted&uid=<UID>&id=13&level=402102
-level	402103	0	GM=newstorycompleted&uid=<UID>&id=13&level=402103
-level	402104	0	GM=newstorycompleted&uid=<UID>&id=13&level=402104
-level	402105	0	GM=newstorycompleted&uid=<UID>&id=13&level=402105
-level	402106	0	GM=newstorycompleted&uid=<UID>&id=13&level=402106
-level	402107	0	GM=newstorycompleted&uid=<UID>&id=13&level=402107
-level	402108	0	GM=newstorycompleted&uid=<UID>&id=13&level=402108
-level	402109	0	GM=newstorycompleted&uid=<UID>&id=13&level=402109
-level	402110	0	GM=newstorycompleted&uid=<UID>&id=13&level=402110
-level	402111	0	GM=newstorycompleted&uid=<UID>&id=13&level=402111
-level	402112	0	GM=newstorycompleted&uid=<UID>&id=13&level=402112
-level	402113	0	GM=newstorycompleted&uid=<UID>&id=13&level=402113
-level	402114	0	GM=newstorycompleted&uid=<UID>&id=13&level=402114
-level	402115	0	GM=newstorycompleted&uid=<UID>&id=13&level=402115
-level	402116	0	GM=newstorycompleted&uid=<UID>&id=13&level=402116
-level	402117	0	GM=newstorycompleted&uid=<UID>&id=13&level=402117
-level	402118	0	GM=newstorycompleted&uid=<UID>&id=13&level=402118
-chapter	14	深空回忆	type=3	season=11601	stage=BRX116	levels=10	range=402119-402128	GM=newstorycompleted&uid=<UID>&id=14
-level	402119	游戏之始	GM=newstorycompleted&uid=<UID>&id=14&level=402119
-level	402120	虚拟初逢	GM=newstorycompleted&uid=<UID>&id=14&level=402120
-level	402121	腕表规则	GM=newstorycompleted&uid=<UID>&id=14&level=402121
-level	402122	第一次行动	GM=newstorycompleted&uid=<UID>&id=14&level=402122
-level	402123	第一名死者	GM=newstorycompleted&uid=<UID>&id=14&level=402123
-level	402124	第二次行动	GM=newstorycompleted&uid=<UID>&id=14&level=402124
-level	402125	第二名死者	GM=newstorycompleted&uid=<UID>&id=14&level=402125
-level	402126	第三次行动	GM=newstorycompleted&uid=<UID>&id=14&level=402126
-level	402127	虚构推理	GM=newstorycompleted&uid=<UID>&id=14&level=402127
-level	402128	往复时空	GM=newstorycompleted&uid=<UID>&id=14&level=402128
-chapter	15	L的肖像	type=1	season=12001	stage=RX3	levels=112	range=601162-601273	GM=newstorycompleted&uid=<UID>&id=15
-level	601162	无解之结	GM=newstorycompleted&uid=<UID>&id=15&level=601162
-level	601163	崩帝结社	GM=newstorycompleted&uid=<UID>&id=15&level=601163
-level	601164	EP1.2	GM=newstorycompleted&uid=<UID>&id=15&level=601164
-level	601165	EP1.3	GM=newstorycompleted&uid=<UID>&id=15&level=601165
-level	601166	EP1.4	GM=newstorycompleted&uid=<UID>&id=15&level=601166
-level	601167	EP1.5	GM=newstorycompleted&uid=<UID>&id=15&level=601167
-level	601168	EP1.6	GM=newstorycompleted&uid=<UID>&id=15&level=601168
-level	601169	泡影之旅	GM=newstorycompleted&uid=<UID>&id=15&level=601169
-level	601170	EP2.2	GM=newstorycompleted&uid=<UID>&id=15&level=601170
-level	601171	EP2.3	GM=newstorycompleted&uid=<UID>&id=15&level=601171
-level	601172	EP2.4	GM=newstorycompleted&uid=<UID>&id=15&level=601172
-level	601173	众流归海	GM=newstorycompleted&uid=<UID>&id=15&level=601173
-level	601174	EP3.2	GM=newstorycompleted&uid=<UID>&id=15&level=601174
-level	601175	EP3.3	GM=newstorycompleted&uid=<UID>&id=15&level=601175
-level	601176	EP3.4	GM=newstorycompleted&uid=<UID>&id=15&level=601176
-level	601177	EP3.5	GM=newstorycompleted&uid=<UID>&id=15&level=601177
-level	601178	EP3.6	GM=newstorycompleted&uid=<UID>&id=15&level=601178
-level	601179	EP3.7	GM=newstorycompleted&uid=<UID>&id=15&level=601179
-level	601180	施刑者	GM=newstorycompleted&uid=<UID>&id=15&level=601180
-level	601181	从头开始	GM=newstorycompleted&uid=<UID>&id=15&level=601181
-level	601182	EP4.2	GM=newstorycompleted&uid=<UID>&id=15&level=601182
-level	601183	EP4.3	GM=newstorycompleted&uid=<UID>&id=15&level=601183
-level	601184	EP4.4	GM=newstorycompleted&uid=<UID>&id=15&level=601184
-level	601185	EP4.5	GM=newstorycompleted&uid=<UID>&id=15&level=601185
-level	601186	EP4.6	GM=newstorycompleted&uid=<UID>&id=15&level=601186
-level	601187	EP4.7	GM=newstorycompleted&uid=<UID>&id=15&level=601187
-level	601188	EP4.8	GM=newstorycompleted&uid=<UID>&id=15&level=601188
-level	601189	EP4.9	GM=newstorycompleted&uid=<UID>&id=15&level=601189
-level	601190	EP4.10	GM=newstorycompleted&uid=<UID>&id=15&level=601190
-level	601191	EP4.11	GM=newstorycompleted&uid=<UID>&id=15&level=601191
-level	601192	EP4.12	GM=newstorycompleted&uid=<UID>&id=15&level=601192
-level	601193	EP4.13	GM=newstorycompleted&uid=<UID>&id=15&level=601193
-level	601194	蛛丝马迹	GM=newstorycompleted&uid=<UID>&id=15&level=601194
-level	601195	EP5.2	GM=newstorycompleted&uid=<UID>&id=15&level=601195
-level	601196	怂恿者	GM=newstorycompleted&uid=<UID>&id=15&level=601196
-level	601197	SP1	GM=newstorycompleted&uid=<UID>&id=15&level=601197
-level	601198	暴雨已至	GM=newstorycompleted&uid=<UID>&id=15&level=601198
-level	601199	EP6.2	GM=newstorycompleted&uid=<UID>&id=15&level=601199
-level	601200	EP6.3	GM=newstorycompleted&uid=<UID>&id=15&level=601200
-level	601201	EP6.4	GM=newstorycompleted&uid=<UID>&id=15&level=601201
-level	601202	EP6.5	GM=newstorycompleted&uid=<UID>&id=15&level=601202
-level	601203	银晖之暗	GM=newstorycompleted&uid=<UID>&id=15&level=601203
-level	601204	EP7.2	GM=newstorycompleted&uid=<UID>&id=15&level=601204
-level	601205	EP7.3	GM=newstorycompleted&uid=<UID>&id=15&level=601205
-level	601206	SP2	GM=newstorycompleted&uid=<UID>&id=15&level=601206
-level	601207	助纣者	GM=newstorycompleted&uid=<UID>&id=15&level=601207
-level	601208	百虑一致	GM=newstorycompleted&uid=<UID>&id=15&level=601208
-level	601209	EP8.2	GM=newstorycompleted&uid=<UID>&id=15&level=601209
-level	601210	EP8.3	GM=newstorycompleted&uid=<UID>&id=15&level=601210
-level	601211	EP8.4	GM=newstorycompleted&uid=<UID>&id=15&level=601211
-level	601212	EP8.5	GM=newstorycompleted&uid=<UID>&id=15&level=601212
-level	601213	巫树传说	GM=newstorycompleted&uid=<UID>&id=15&level=601213
-level	601214	SP3	GM=newstorycompleted&uid=<UID>&id=15&level=601214
-level	601215	EP9.2	GM=newstorycompleted&uid=<UID>&id=15&level=601215
-level	601216	EP9.3	GM=newstorycompleted&uid=<UID>&id=15&level=601216
-level	601217	EP9.4	GM=newstorycompleted&uid=<UID>&id=15&level=601217
-level	601218	亲临其境	GM=newstorycompleted&uid=<UID>&id=15&level=601218
-level	601219	坚甲历兵	GM=newstorycompleted&uid=<UID>&id=15&level=601219
-level	601220	EP11.1	GM=newstorycompleted&uid=<UID>&id=15&level=601220
-level	601221	EP11.2	GM=newstorycompleted&uid=<UID>&id=15&level=601221
-level	601222	洞见症结	GM=newstorycompleted&uid=<UID>&id=15&level=601222
-level	601223	EP12.2	GM=newstorycompleted&uid=<UID>&id=15&level=601223
-level	601224	断编残简	GM=newstorycompleted&uid=<UID>&id=15&level=601224
-level	601225	拉丝缇·I	GM=newstorycompleted&uid=<UID>&id=15&level=601225
-level	601226	拉丝缇·II	GM=newstorycompleted&uid=<UID>&id=15&level=601226
-level	601227	拉丝缇·III	GM=newstorycompleted&uid=<UID>&id=15&level=601227
-level	601228	巫树动乱	GM=newstorycompleted&uid=<UID>&id=15&level=601228
-level	601229	EP13.2	GM=newstorycompleted&uid=<UID>&id=15&level=601229
-level	601230	五子皆黑	GM=newstorycompleted&uid=<UID>&id=15&level=601230
-level	601231	EP14.2	GM=newstorycompleted&uid=<UID>&id=15&level=601231
-level	601232	EP14.3	GM=newstorycompleted&uid=<UID>&id=15&level=601232
-level	601233	累卵之危	GM=newstorycompleted&uid=<UID>&id=15&level=601233
-level	601234	EP15.2	GM=newstorycompleted&uid=<UID>&id=15&level=601234
-level	601235	EP15.3	GM=newstorycompleted&uid=<UID>&id=15&level=601235
-level	601236	魔弹归来	GM=newstorycompleted&uid=<UID>&id=15&level=601236
-level	601237	EP16.2	GM=newstorycompleted&uid=<UID>&id=15&level=601237
-level	601238	EP16.3	GM=newstorycompleted&uid=<UID>&id=15&level=601238
-level	601239	弃如敝屣	GM=newstorycompleted&uid=<UID>&id=15&level=601239
-level	601240	EP17.2	GM=newstorycompleted&uid=<UID>&id=15&level=601240
-level	601241	烈火真金	GM=newstorycompleted&uid=<UID>&id=15&level=601241
-level	601242	欧格文·街	GM=newstorycompleted&uid=<UID>&id=15&level=601242
-level	601243	欧格文·北	GM=newstorycompleted&uid=<UID>&id=15&level=601243
-level	601244	欧格文·南	GM=newstorycompleted&uid=<UID>&id=15&level=601244
-level	601245	EP18.5	GM=newstorycompleted&uid=<UID>&id=15&level=601245
-level	601246	中立之力	GM=newstorycompleted&uid=<UID>&id=15&level=601246
-level	601247	混乱之力	GM=newstorycompleted&uid=<UID>&id=15&level=601247
-level	601248	武装之力	GM=newstorycompleted&uid=<UID>&id=15&level=601248
-level	601249	守序之力	GM=newstorycompleted&uid=<UID>&id=15&level=601249
-level	601250	EP18.10	GM=newstorycompleted&uid=<UID>&id=15&level=601250
-level	601251	新星初啼	GM=newstorycompleted&uid=<UID>&id=15&level=601251
-level	601252	EP19.2	GM=newstorycompleted&uid=<UID>&id=15&level=601252
-level	601253	拉丝缇·IV	GM=newstorycompleted&uid=<UID>&id=15&level=601253
-level	601254	背城一战	GM=newstorycompleted&uid=<UID>&id=15&level=601254
-level	601255	EP20.2	GM=newstorycompleted&uid=<UID>&id=15&level=601255
-level	601256	跳帮接战	GM=newstorycompleted&uid=<UID>&id=15&level=601256
-level	601257	绯华骑士	GM=newstorycompleted&uid=<UID>&id=15&level=601257
-level	601258	小总裁	GM=newstorycompleted&uid=<UID>&id=15&level=601258
-level	601259	纹面修女	GM=newstorycompleted&uid=<UID>&id=15&level=601259
-level	601260	碧华骑士	GM=newstorycompleted&uid=<UID>&id=15&level=601260
-level	601261	兵神再临	GM=newstorycompleted&uid=<UID>&id=15&level=601261
-level	601262	EP22.2	GM=newstorycompleted&uid=<UID>&id=15&level=601262
-level	601263	EP22.3	GM=newstorycompleted&uid=<UID>&id=15&level=601263
-level	601264	EP22.4	GM=newstorycompleted&uid=<UID>&id=15&level=601264
-level	601265	EP22.5	GM=newstorycompleted&uid=<UID>&id=15&level=601265
-level	601266	EP22.6	GM=newstorycompleted&uid=<UID>&id=15&level=601266
-level	601267	与我同在	GM=newstorycompleted&uid=<UID>&id=15&level=601267
-level	601268	EP23.2	GM=newstorycompleted&uid=<UID>&id=15&level=601268
-level	601269	EP23.3	GM=newstorycompleted&uid=<UID>&id=15&level=601269
-level	601270	EP23.4	GM=newstorycompleted&uid=<UID>&id=15&level=601270
-level	601271	EP23.5	GM=newstorycompleted&uid=<UID>&id=15&level=601271
-level	601272	归终之时	GM=newstorycompleted&uid=<UID>&id=15&level=601272
-level	601273	SP4	GM=newstorycompleted&uid=<UID>&id=15&level=601273
-chapter	17	灰烬之雪	type=3	season=12313	stage=BRX122	levels=13	range=402129-402141	GM=newstorycompleted&uid=<UID>&id=17
-level	402129	1-1	GM=newstorycompleted&uid=<UID>&id=17&level=402129
-level	402130	1-2	GM=newstorycompleted&uid=<UID>&id=17&level=402130
-level	402131	1-3	GM=newstorycompleted&uid=<UID>&id=17&level=402131
-level	402132	1-4	GM=newstorycompleted&uid=<UID>&id=17&level=402132
-level	402133	2-1	GM=newstorycompleted&uid=<UID>&id=17&level=402133
-level	402134	2-2	GM=newstorycompleted&uid=<UID>&id=17&level=402134
-level	402135	2-3	GM=newstorycompleted&uid=<UID>&id=17&level=402135
-level	402136	2-4	GM=newstorycompleted&uid=<UID>&id=17&level=402136
-level	402137	3-1	GM=newstorycompleted&uid=<UID>&id=17&level=402137
-level	402138	3-2	GM=newstorycompleted&uid=<UID>&id=17&level=402138
-level	402139	3-3	GM=newstorycompleted&uid=<UID>&id=17&level=402139
-level	402140	3-4	GM=newstorycompleted&uid=<UID>&id=17&level=402140
-level	402141	3-5	GM=newstorycompleted&uid=<UID>&id=17&level=402141
-chapter	19	少女日常的宿孽	type=3	season=12314	stage=BRX123	levels=15	range=402142-402156	GM=newstorycompleted&uid=<UID>&id=19
-level	402142	1-1	GM=newstorycompleted&uid=<UID>&id=19&level=402142
-level	402143	1-2	GM=newstorycompleted&uid=<UID>&id=19&level=402143
-level	402144	1-3	GM=newstorycompleted&uid=<UID>&id=19&level=402144
-level	402145	1-4	GM=newstorycompleted&uid=<UID>&id=19&level=402145
-level	402146	1-5	GM=newstorycompleted&uid=<UID>&id=19&level=402146
-level	402147	2-1	GM=newstorycompleted&uid=<UID>&id=19&level=402147
-level	402148	2-2	GM=newstorycompleted&uid=<UID>&id=19&level=402148
-level	402149	2-3	GM=newstorycompleted&uid=<UID>&id=19&level=402149
-level	402150	2-4	GM=newstorycompleted&uid=<UID>&id=19&level=402150
-level	402151	2-5	GM=newstorycompleted&uid=<UID>&id=19&level=402151
-level	402152	3-1	GM=newstorycompleted&uid=<UID>&id=19&level=402152
-level	402153	3-2	GM=newstorycompleted&uid=<UID>&id=19&level=402153
-level	402154	3-3	GM=newstorycompleted&uid=<UID>&id=19&level=402154
-level	402155	3-4	GM=newstorycompleted&uid=<UID>&id=19&level=402155
-level	402156	3-5	GM=newstorycompleted&uid=<UID>&id=19&level=402156
-chapter	20	梦醒时分的缪斯	type=3	season=12401	stage=BRX124	levels=11	range=402157-402167	GM=newstorycompleted&uid=<UID>&id=20
-level	402157	1-1	GM=newstorycompleted&uid=<UID>&id=20&level=402157
-level	402158	1-2	GM=newstorycompleted&uid=<UID>&id=20&level=402158
-level	402159	1-3	GM=newstorycompleted&uid=<UID>&id=20&level=402159
-level	402160	1-4	GM=newstorycompleted&uid=<UID>&id=20&level=402160
-level	402161	1-5	GM=newstorycompleted&uid=<UID>&id=20&level=402161
-level	402162	2-1	GM=newstorycompleted&uid=<UID>&id=20&level=402162
-level	402163	2-2	GM=newstorycompleted&uid=<UID>&id=20&level=402163
-level	402164	2-3	GM=newstorycompleted&uid=<UID>&id=20&level=402164
-level	402165	2-4	GM=newstorycompleted&uid=<UID>&id=20&level=402165
-level	402166	2-5	GM=newstorycompleted&uid=<UID>&id=20&level=402166
-level	402167	2-6	GM=newstorycompleted&uid=<UID>&id=20&level=402167
-chapter	21	祈愿绘空之晨	type=3	season=12559	stage=BRX125	levels=12	range=402168-402179	GM=newstorycompleted&uid=<UID>&id=21
-level	402168	1-1	GM=newstorycompleted&uid=<UID>&id=21&level=402168
-level	402169	1-2	GM=newstorycompleted&uid=<UID>&id=21&level=402169
-level	402170	1-3	GM=newstorycompleted&uid=<UID>&id=21&level=402170
-level	402171	1-4	GM=newstorycompleted&uid=<UID>&id=21&level=402171
-level	402172	1-5	GM=newstorycompleted&uid=<UID>&id=21&level=402172
-level	402173	1-6	GM=newstorycompleted&uid=<UID>&id=21&level=402173
-level	402174	2-1	GM=newstorycompleted&uid=<UID>&id=21&level=402174
-level	402175	2-2	GM=newstorycompleted&uid=<UID>&id=21&level=402175
-level	402176	2-3	GM=newstorycompleted&uid=<UID>&id=21&level=402176
-level	402177	2-4	GM=newstorycompleted&uid=<UID>&id=21&level=402177
-level	402178	2-5	GM=newstorycompleted&uid=<UID>&id=21&level=402178
-level	402179	2-6	GM=newstorycompleted&uid=<UID>&id=21&level=402179
-chapter	22	星灯的假期	type=3	season=12601	stage=BRX126	levels=13	range=402180-402194	GM=newstorycompleted&uid=<UID>&id=22
-level	402180	1-1	GM=newstorycompleted&uid=<UID>&id=22&level=402180
-level	402181	1-2	GM=newstorycompleted&uid=<UID>&id=22&level=402181
-level	402182	1-3	GM=newstorycompleted&uid=<UID>&id=22&level=402182
-level	402183	2-1	GM=newstorycompleted&uid=<UID>&id=22&level=402183
-level	402184	2-2	GM=newstorycompleted&uid=<UID>&id=22&level=402184
-level	402185	2-3	GM=newstorycompleted&uid=<UID>&id=22&level=402185
-level	402186	2-4	GM=newstorycompleted&uid=<UID>&id=22&level=402186
-level	402189	3-1	GM=newstorycompleted&uid=<UID>&id=22&level=402189
-level	402190	3-2	GM=newstorycompleted&uid=<UID>&id=22&level=402190
-level	402191	3-3	GM=newstorycompleted&uid=<UID>&id=22&level=402191
-level	402192	3-4	GM=newstorycompleted&uid=<UID>&id=22&level=402192
-level	402193	3-5	GM=newstorycompleted&uid=<UID>&id=22&level=402193
-level	402194	3-6	GM=newstorycompleted&uid=<UID>&id=22&level=402194
-chapter	23	乌合之心	type=1	season=13001	stage=RX4	levels=42	range=601279-601321	GM=newstorycompleted&uid=<UID>&id=23
-level	601279	极乐之行	GM=newstorycompleted&uid=<UID>&id=23&level=601279
-level	601280	EP1.2	GM=newstorycompleted&uid=<UID>&id=23&level=601280
-level	601281	EP1.3	GM=newstorycompleted&uid=<UID>&id=23&level=601281
-level	601282	EP1.4	GM=newstorycompleted&uid=<UID>&id=23&level=601282
-level	601283	EP1.5	GM=newstorycompleted&uid=<UID>&id=23&level=601283
-level	601284	EP1.6	GM=newstorycompleted&uid=<UID>&id=23&level=601284
-level	601285	EP1.7	GM=newstorycompleted&uid=<UID>&id=23&level=601285
-level	601286	相继而至	GM=newstorycompleted&uid=<UID>&id=23&level=601286
-level	601287	EP2.2	GM=newstorycompleted&uid=<UID>&id=23&level=601287
-level	601288	天各一方	GM=newstorycompleted&uid=<UID>&id=23&level=601288
-level	601289	EP3.2	GM=newstorycompleted&uid=<UID>&id=23&level=601289
-level	601290	公元2017	GM=newstorycompleted&uid=<UID>&id=23&level=601290
-level	601291	同源异流	GM=newstorycompleted&uid=<UID>&id=23&level=601291
-level	601292	EP4.2	GM=newstorycompleted&uid=<UID>&id=23&level=601292
-level	601293	EP4.3	GM=newstorycompleted&uid=<UID>&id=23&level=601293
-level	601294	狂欢角斗	GM=newstorycompleted&uid=<UID>&id=23&level=601294
-level	601295	EP5.2	GM=newstorycompleted&uid=<UID>&id=23&level=601295
-level	601296	EP5.3	GM=newstorycompleted&uid=<UID>&id=23&level=601296
-level	601297	EP5.4	GM=newstorycompleted&uid=<UID>&id=23&level=601297
-level	601298	无上者·一	GM=newstorycompleted&uid=<UID>&id=23&level=601298
-level	601299	霓虹之外·一	GM=newstorycompleted&uid=<UID>&id=23&level=601299
-level	601300	无上者·二	GM=newstorycompleted&uid=<UID>&id=23&level=601300
-level	601301	EP6.2	GM=newstorycompleted&uid=<UID>&id=23&level=601301
-level	601302	EP6.3	GM=newstorycompleted&uid=<UID>&id=23&level=601302
-level	601303	EP6.4	GM=newstorycompleted&uid=<UID>&id=23&level=601303
-level	601304	相须而行	GM=newstorycompleted&uid=<UID>&id=23&level=601304
-level	601305	EP7.2	GM=newstorycompleted&uid=<UID>&id=23&level=601305
-level	601306	斩碎黑夜	GM=newstorycompleted&uid=<UID>&id=23&level=601306
-level	601307	EP8.2	GM=newstorycompleted&uid=<UID>&id=23&level=601307
-level	601308	EP8.3	GM=newstorycompleted&uid=<UID>&id=23&level=601308
-level	601309	EP8.4	GM=newstorycompleted&uid=<UID>&id=23&level=601309
-level	601310	允执其中	GM=newstorycompleted&uid=<UID>&id=23&level=601310
-level	601311	EP9.2	GM=newstorycompleted&uid=<UID>&id=23&level=601311
-level	601312	EP9.3	GM=newstorycompleted&uid=<UID>&id=23&level=601312
-level	601313	原委已明	GM=newstorycompleted&uid=<UID>&id=23&level=601313
-level	601314	EP10.2	GM=newstorycompleted&uid=<UID>&id=23&level=601314
-level	601315	EP10.3	GM=newstorycompleted&uid=<UID>&id=23&level=601315
-level	601316	霓虹之外·二	GM=newstorycompleted&uid=<UID>&id=23&level=601316
-level	601317	斗技再开	GM=newstorycompleted&uid=<UID>&id=23&level=601317
-level	601318	无上者·三	GM=newstorycompleted&uid=<UID>&id=23&level=601318
-level	601320	霓虹之外·一	GM=newstorycompleted&uid=<UID>&id=23&level=601320
+chapter	2	今我来思	type=3	season=10104	stage=PRX1	levels=9	range=402001-402009	GM=/newstorycompleted 2
+level	402001	九天之上	GM=/newstorycompleted 2 402001
+level	402002	汝乃何人	GM=/newstorycompleted 2 402002
+level	402003	无言之善	GM=/newstorycompleted 2 402003
+level	402004	破碎真我	GM=/newstorycompleted 2 402004
+level	402005	山之御座	GM=/newstorycompleted 2 402005
+level	402006	一昼之花	GM=/newstorycompleted 2 402006
+level	402007	EX-1	GM=/newstorycompleted 2 402007
+level	402008	EX-2	GM=/newstorycompleted 2 402008
+level	402009	EX-3	GM=/newstorycompleted 2 402009
+chapter	3	昔我往矣	type=3	season=10201	stage=PRX2	levels=15	range=402010-402024	GM=/newstorycompleted 3
+level	402010	尘埃弃子	GM=/newstorycompleted 3 402010
+level	402011	烈焰魔咒	GM=/newstorycompleted 3 402011
+level	402012	无枷之囚	GM=/newstorycompleted 3 402012
+level	402013	间章其一	GM=/newstorycompleted 3 402013
+level	402014	故乡不识	GM=/newstorycompleted 3 402014
+level	402015	间章其二	GM=/newstorycompleted 3 402015
+level	402016	凝结心火	GM=/newstorycompleted 3 402016
+level	402017	间章其三	GM=/newstorycompleted 3 402017
+level	402018	黄雀游戏	GM=/newstorycompleted 3 402018
+level	402019	心间藏实	GM=/newstorycompleted 3 402019
+level	402020	钢之玫瑰	GM=/newstorycompleted 3 402020
+level	402021	间章其四	GM=/newstorycompleted 3 402021
+level	402022	彼苍者天	GM=/newstorycompleted 3 402022
+level	402023	尘世猎场	GM=/newstorycompleted 3 402023
+level	402024	间章其末	GM=/newstorycompleted 3 402024
+chapter	4	再会长空	type=1	season=10444	stage=RX0	levels=20	range=601001-601020	GM=/newstorycompleted 4
+level	601001	序	GM=/newstorycompleted 4 601001
+level	601002	序.2	GM=/newstorycompleted 4 601002
+level	601003	配送超时	GM=/newstorycompleted 4 601003
+level	601004	EP1.2	GM=/newstorycompleted 4 601004
+level	601005	EP1.3	GM=/newstorycompleted 4 601005
+level	601006	EP1.4	GM=/newstorycompleted 4 601006
+level	601007	EP1.5	GM=/newstorycompleted 4 601007
+level	601008	不你谁啊	GM=/newstorycompleted 4 601008
+level	601009	EP2.2	GM=/newstorycompleted 4 601009
+level	601010	能和解吗	GM=/newstorycompleted 4 601010
+level	601011	EP3.2	GM=/newstorycompleted 4 601011
+level	601012	EP3.3	GM=/newstorycompleted 4 601012
+level	601013	EP3.4	GM=/newstorycompleted 4 601013
+level	601014	EP3.5	GM=/newstorycompleted 4 601014
+level	601015	进局子咯	GM=/newstorycompleted 4 601015
+level	601016	EP4.2	GM=/newstorycompleted 4 601016
+level	601017	EP4.3	GM=/newstorycompleted 4 601017
+level	601018	猪突猛进	GM=/newstorycompleted 4 601018
+level	601019	EP5.2	GM=/newstorycompleted 4 601019
+level	601020	尾声	GM=/newstorycompleted 4 601020
+chapter	5	枪火教习	type=1	season=10445	stage=RX1	levels=42	range=601021-601062	GM=/newstorycompleted 5
+level	601021	序	GM=/newstorycompleted 5 601021
+level	601022	随便逛逛	GM=/newstorycompleted 5 601022
+level	601023	EP1.2	GM=/newstorycompleted 5 601023
+level	601024	EP1.3	GM=/newstorycompleted 5 601024
+level	601025	特地逛逛	GM=/newstorycompleted 5 601025
+level	601026	EP2.2	GM=/newstorycompleted 5 601026
+level	601027	上网逛逛	GM=/newstorycompleted 5 601027
+level	601028	EP3.2	GM=/newstorycompleted 5 601028
+level	601029	EP3.3	GM=/newstorycompleted 5 601029
+level	601030	EP3.4	GM=/newstorycompleted 5 601030
+level	601031	第二学园	GM=/newstorycompleted 5 601031
+level	601032	飙戏达人	GM=/newstorycompleted 5 601032
+level	601033	面包捕手	GM=/newstorycompleted 5 601033
+level	601034	格斗大师	GM=/newstorycompleted 5 601034
+level	601035	找猫专家	GM=/newstorycompleted 5 601035
+level	601036	逢考必过	GM=/newstorycompleted 5 601036
+level	601037	EP4.2	GM=/newstorycompleted 5 601037
+level	601038	EP4.3	GM=/newstorycompleted 5 601038
+level	601039	EP4.4	GM=/newstorycompleted 5 601039
+level	601040	EP4.5	GM=/newstorycompleted 5 601040
+level	601041	师恩难忘	GM=/newstorycompleted 5 601041
+level	601042	EP5.2	GM=/newstorycompleted 5 601042
+level	601043	桃李不言	GM=/newstorycompleted 5 601043
+level	601044	EP6.2	GM=/newstorycompleted 5 601044
+level	601045	长空探索	GM=/newstorycompleted 5 601045
+level	601046	配送准时	GM=/newstorycompleted 5 601046
+level	601047	纸巾赠送	GM=/newstorycompleted 5 601047
+level	601048	杂鱼群演	GM=/newstorycompleted 5 601048
+level	601049	怪兽实况	GM=/newstorycompleted 5 601049
+level	601050	枪火教习	GM=/newstorycompleted 5 601050
+level	601051	EP7.2	GM=/newstorycompleted 5 601051
+level	601052	EP7.3	GM=/newstorycompleted 5 601052
+level	601053	EP7.4	GM=/newstorycompleted 5 601053
+level	601054	白垩骑士	GM=/newstorycompleted 5 601054
+level	601055	EP8.2	GM=/newstorycompleted 5 601055
+level	601056	狩罪魔	GM=/newstorycompleted 5 601056
+level	601057	EP9.2	GM=/newstorycompleted 5 601057
+level	601058	幻想大剑	GM=/newstorycompleted 5 601058
+level	601059	EP10.2	GM=/newstorycompleted 5 601059
+level	601060	EP10.3	GM=/newstorycompleted 5 601060
+level	601061	尾声	GM=/newstorycompleted 5 601061
+level	601062	SP	GM=/newstorycompleted 5 601062
+chapter	7	生死一叹	type=3	season=10501	stage=BRX105	levels=16	range=402025-402040	GM=/newstorycompleted 7
+level	402025	1-1	GM=/newstorycompleted 7 402025
+level	402026	1-2	GM=/newstorycompleted 7 402026
+level	402027	1-3	GM=/newstorycompleted 7 402027
+level	402028	1-4	GM=/newstorycompleted 7 402028
+level	402029	1-5	GM=/newstorycompleted 7 402029
+level	402030	2-1	GM=/newstorycompleted 7 402030
+level	402031	2-2	GM=/newstorycompleted 7 402031
+level	402032	2-3	GM=/newstorycompleted 7 402032
+level	402033	2-4	GM=/newstorycompleted 7 402033
+level	402034	2-5	GM=/newstorycompleted 7 402034
+level	402035	3-1	GM=/newstorycompleted 7 402035
+level	402036	3-2	GM=/newstorycompleted 7 402036
+level	402037	3-3	GM=/newstorycompleted 7 402037
+level	402038	3-4	GM=/newstorycompleted 7 402038
+level	402039	3-5	GM=/newstorycompleted 7 402039
+level	402040	3-6	GM=/newstorycompleted 7 402040
+chapter	8	学园杯	type=3	season=10601	stage=BRX106	levels=17	range=402041-402057	GM=/newstorycompleted 8
+level	402041	1-1	GM=/newstorycompleted 8 402041
+level	402042	1-2	GM=/newstorycompleted 8 402042
+level	402043	1-3	GM=/newstorycompleted 8 402043
+level	402044	2-1	GM=/newstorycompleted 8 402044
+level	402045	2-2	GM=/newstorycompleted 8 402045
+level	402046	2-3	GM=/newstorycompleted 8 402046
+level	402047	2-4	GM=/newstorycompleted 8 402047
+level	402048	3-1	GM=/newstorycompleted 8 402048
+level	402049	3-2	GM=/newstorycompleted 8 402049
+level	402050	3-3	GM=/newstorycompleted 8 402050
+level	402051	3-4	GM=/newstorycompleted 8 402051
+level	402052	3-5	GM=/newstorycompleted 8 402052
+level	402053	4-1	GM=/newstorycompleted 8 402053
+level	402054	4-2	GM=/newstorycompleted 8 402054
+level	402055	4-3	GM=/newstorycompleted 8 402055
+level	402056	4-4	GM=/newstorycompleted 8 402056
+level	402057	4-5	GM=/newstorycompleted 8 402057
+chapter	9	萝莉问题	type=3	season=10707	stage=BRX107	levels=18	range=402058-402075	GM=/newstorycompleted 9
+level	402058	1-1	GM=/newstorycompleted 9 402058
+level	402059	1-2	GM=/newstorycompleted 9 402059
+level	402060	1-3	GM=/newstorycompleted 9 402060
+level	402061	1-4	GM=/newstorycompleted 9 402061
+level	402062	1-5	GM=/newstorycompleted 9 402062
+level	402063	1-6	GM=/newstorycompleted 9 402063
+level	402064	2-1	GM=/newstorycompleted 9 402064
+level	402065	2-2	GM=/newstorycompleted 9 402065
+level	402066	2-3	GM=/newstorycompleted 9 402066
+level	402067	2-4	GM=/newstorycompleted 9 402067
+level	402068	3-1	GM=/newstorycompleted 9 402068
+level	402069	3-2	GM=/newstorycompleted 9 402069
+level	402070	3-3	GM=/newstorycompleted 9 402070
+level	402071	3-4	GM=/newstorycompleted 9 402071
+level	402072	3-5	GM=/newstorycompleted 9 402072
+level	402073	EX-1	GM=/newstorycompleted 9 402073
+level	402074	EX-2	GM=/newstorycompleted 9 402074
+level	402075	EX-3	GM=/newstorycompleted 9 402075
+chapter	10	焚城为诗	type=1	season=11001	stage=RX2	levels=83	range=601063-601161	GM=/newstorycompleted 10
+level	601063	序	GM=/newstorycompleted 10 601063
+level	601064	EP1.1	GM=/newstorycompleted 10 601064
+level	601065	EP1.2	GM=/newstorycompleted 10 601065
+level	601066	EP1.3	GM=/newstorycompleted 10 601066
+level	601067	EP1.4	GM=/newstorycompleted 10 601067
+level	601068	EP1.5	GM=/newstorycompleted 10 601068
+level	601069	EP2.1	GM=/newstorycompleted 10 601069
+level	601070	EP2.2	GM=/newstorycompleted 10 601070
+level	601071	EP2.3	GM=/newstorycompleted 10 601071
+level	601072	EP2.4	GM=/newstorycompleted 10 601072
+level	601075	EP2.5	GM=/newstorycompleted 10 601075
+level	601076	EP2.6	GM=/newstorycompleted 10 601076
+level	601077	EP3-K	GM=/newstorycompleted 10 601077
+level	601078	EP3-A	GM=/newstorycompleted 10 601078
+level	601079	间章其一	GM=/newstorycompleted 10 601079
+level	601080	EP4-K1	GM=/newstorycompleted 10 601080
+level	601081	EP4-K2	GM=/newstorycompleted 10 601081
+level	601082	EP4-K3	GM=/newstorycompleted 10 601082
+level	601083	EP5-K1	GM=/newstorycompleted 10 601083
+level	601084	EP5-K2	GM=/newstorycompleted 10 601084
+level	601085	EP5-K3	GM=/newstorycompleted 10 601085
+level	601086	EP6-K1	GM=/newstorycompleted 10 601086
+level	601087	EP6-K2	GM=/newstorycompleted 10 601087
+level	601088	EP7-K1	GM=/newstorycompleted 10 601088
+level	601089	EP7-K2	GM=/newstorycompleted 10 601089
+level	601090	间章其二	GM=/newstorycompleted 10 601090
+level	601091	EP8-K1	GM=/newstorycompleted 10 601091
+level	601092	EP8-K2	GM=/newstorycompleted 10 601092
+level	601093	EP8-K3	GM=/newstorycompleted 10 601093
+level	601094	EP8-K4	GM=/newstorycompleted 10 601094
+level	601095	EP8-K5	GM=/newstorycompleted 10 601095
+level	601096	EP9-K1	GM=/newstorycompleted 10 601096
+level	601097	EP9-K2	GM=/newstorycompleted 10 601097
+level	601098	EP4-A	GM=/newstorycompleted 10 601098
+level	601099	EP5-A1	GM=/newstorycompleted 10 601099
+level	601100	EP5-A2	GM=/newstorycompleted 10 601100
+level	601101	EP6-A1	GM=/newstorycompleted 10 601101
+level	601102	EP6-A2	GM=/newstorycompleted 10 601102
+level	601103	EP6-A3	GM=/newstorycompleted 10 601103
+level	601104	EP7-A	GM=/newstorycompleted 10 601104
+level	601105	EP8-A1	GM=/newstorycompleted 10 601105
+level	601106	EP8-A2	GM=/newstorycompleted 10 601106
+level	601107	EP8-A3	GM=/newstorycompleted 10 601107
+level	601108	EP8-A4	GM=/newstorycompleted 10 601108
+level	601109	EP9-A1	GM=/newstorycompleted 10 601109
+level	601110	EP9-A2	GM=/newstorycompleted 10 601110
+level	601111	间章其三	GM=/newstorycompleted 10 601111
+level	601126	EP10-K1	GM=/newstorycompleted 10 601126
+level	601127	EP10-K2	GM=/newstorycompleted 10 601127
+level	601128	EP10-K3	GM=/newstorycompleted 10 601128
+level	601129	EP10-A	GM=/newstorycompleted 10 601129
+level	601130	EP11-K1	GM=/newstorycompleted 10 601130
+level	601131	EP11-K2	GM=/newstorycompleted 10 601131
+level	601132	EP11-K3	GM=/newstorycompleted 10 601132
+level	601133	EP12.1	GM=/newstorycompleted 10 601133
+level	601134	EP12.2	GM=/newstorycompleted 10 601134
+level	601135	EP12.3	GM=/newstorycompleted 10 601135
+level	601136	EP13.1	GM=/newstorycompleted 10 601136
+level	601137	EP13.2	GM=/newstorycompleted 10 601137
+level	601138	EP13.3	GM=/newstorycompleted 10 601138
+level	601139	EP13.4	GM=/newstorycompleted 10 601139
+level	601140	EP13.5	GM=/newstorycompleted 10 601140
+level	601141	EP14.1	GM=/newstorycompleted 10 601141
+level	601142	EP14.2	GM=/newstorycompleted 10 601142
+level	601143	EP14.3	GM=/newstorycompleted 10 601143
+level	601144	EP15	GM=/newstorycompleted 10 601144
+level	601145	EP16.1	GM=/newstorycompleted 10 601145
+level	601146	EP16.2	GM=/newstorycompleted 10 601146
+level	601147	EP16.3	GM=/newstorycompleted 10 601147
+level	601148	EP17.1	GM=/newstorycompleted 10 601148
+level	601149	EP17.2	GM=/newstorycompleted 10 601149
+level	601150	EP17.3	GM=/newstorycompleted 10 601150
+level	601151	EP17.4	GM=/newstorycompleted 10 601151
+level	601152	EP18.1	GM=/newstorycompleted 10 601152
+level	601153	EP18.2	GM=/newstorycompleted 10 601153
+level	601154	EP19.1	GM=/newstorycompleted 10 601154
+level	601155	EP19.2	GM=/newstorycompleted 10 601155
+level	601156	EP19.3	GM=/newstorycompleted 10 601156
+level	601157	EP19.4	GM=/newstorycompleted 10 601157
+level	601158	尾声其一	GM=/newstorycompleted 10 601158
+level	601159	尾声其二	GM=/newstorycompleted 10 601159
+level	601160	尾声其三	GM=/newstorycompleted 10 601160
+level	601161	SP	GM=/newstorycompleted 10 601161
+chapter	12	风和嫉妒	type=3	season=11301	stage=BRX113	levels=23	range=402076-402098	GM=/newstorycompleted 12
+level	402076	1-1	GM=/newstorycompleted 12 402076
+level	402077	1-2	GM=/newstorycompleted 12 402077
+level	402078	1-3	GM=/newstorycompleted 12 402078
+level	402079	1-4	GM=/newstorycompleted 12 402079
+level	402080	1-5	GM=/newstorycompleted 12 402080
+level	402081	1-6	GM=/newstorycompleted 12 402081
+level	402082	2-1	GM=/newstorycompleted 12 402082
+level	402083	2-2	GM=/newstorycompleted 12 402083
+level	402084	2-3	GM=/newstorycompleted 12 402084
+level	402085	2-4	GM=/newstorycompleted 12 402085
+level	402086	2-5	GM=/newstorycompleted 12 402086
+level	402087	2-6	GM=/newstorycompleted 12 402087
+level	402088	2-7	GM=/newstorycompleted 12 402088
+level	402089	3-1	GM=/newstorycompleted 12 402089
+level	402090	3-2	GM=/newstorycompleted 12 402090
+level	402091	3-3	GM=/newstorycompleted 12 402091
+level	402092	3-4	GM=/newstorycompleted 12 402092
+level	402093	3-5	GM=/newstorycompleted 12 402093
+level	402094	3-6	GM=/newstorycompleted 12 402094
+level	402095	EX1	GM=/newstorycompleted 12 402095
+level	402096	EX2	GM=/newstorycompleted 12 402096
+level	402097	EX3	GM=/newstorycompleted 12 402097
+level	402098	EX4	GM=/newstorycompleted 12 402098
+chapter	13	心械绚烂之地	type=3	season=11401	stage=BRX114	levels=20	range=402099-402118	GM=/newstorycompleted 13
+level	402099	0	GM=/newstorycompleted 13 402099
+level	402100	0	GM=/newstorycompleted 13 402100
+level	402101	0	GM=/newstorycompleted 13 402101
+level	402102	0	GM=/newstorycompleted 13 402102
+level	402103	0	GM=/newstorycompleted 13 402103
+level	402104	0	GM=/newstorycompleted 13 402104
+level	402105	0	GM=/newstorycompleted 13 402105
+level	402106	0	GM=/newstorycompleted 13 402106
+level	402107	0	GM=/newstorycompleted 13 402107
+level	402108	0	GM=/newstorycompleted 13 402108
+level	402109	0	GM=/newstorycompleted 13 402109
+level	402110	0	GM=/newstorycompleted 13 402110
+level	402111	0	GM=/newstorycompleted 13 402111
+level	402112	0	GM=/newstorycompleted 13 402112
+level	402113	0	GM=/newstorycompleted 13 402113
+level	402114	0	GM=/newstorycompleted 13 402114
+level	402115	0	GM=/newstorycompleted 13 402115
+level	402116	0	GM=/newstorycompleted 13 402116
+level	402117	0	GM=/newstorycompleted 13 402117
+level	402118	0	GM=/newstorycompleted 13 402118
+chapter	14	深空回忆	type=3	season=11601	stage=BRX116	levels=10	range=402119-402128	GM=/newstorycompleted 14
+level	402119	游戏之始	GM=/newstorycompleted 14 402119
+level	402120	虚拟初逢	GM=/newstorycompleted 14 402120
+level	402121	腕表规则	GM=/newstorycompleted 14 402121
+level	402122	第一次行动	GM=/newstorycompleted 14 402122
+level	402123	第一名死者	GM=/newstorycompleted 14 402123
+level	402124	第二次行动	GM=/newstorycompleted 14 402124
+level	402125	第二名死者	GM=/newstorycompleted 14 402125
+level	402126	第三次行动	GM=/newstorycompleted 14 402126
+level	402127	虚构推理	GM=/newstorycompleted 14 402127
+level	402128	往复时空	GM=/newstorycompleted 14 402128
+chapter	15	L的肖像	type=1	season=12001	stage=RX3	levels=112	range=601162-601273	GM=/newstorycompleted 15
+level	601162	无解之结	GM=/newstorycompleted 15 601162
+level	601163	崩帝结社	GM=/newstorycompleted 15 601163
+level	601164	EP1.2	GM=/newstorycompleted 15 601164
+level	601165	EP1.3	GM=/newstorycompleted 15 601165
+level	601166	EP1.4	GM=/newstorycompleted 15 601166
+level	601167	EP1.5	GM=/newstorycompleted 15 601167
+level	601168	EP1.6	GM=/newstorycompleted 15 601168
+level	601169	泡影之旅	GM=/newstorycompleted 15 601169
+level	601170	EP2.2	GM=/newstorycompleted 15 601170
+level	601171	EP2.3	GM=/newstorycompleted 15 601171
+level	601172	EP2.4	GM=/newstorycompleted 15 601172
+level	601173	众流归海	GM=/newstorycompleted 15 601173
+level	601174	EP3.2	GM=/newstorycompleted 15 601174
+level	601175	EP3.3	GM=/newstorycompleted 15 601175
+level	601176	EP3.4	GM=/newstorycompleted 15 601176
+level	601177	EP3.5	GM=/newstorycompleted 15 601177
+level	601178	EP3.6	GM=/newstorycompleted 15 601178
+level	601179	EP3.7	GM=/newstorycompleted 15 601179
+level	601180	施刑者	GM=/newstorycompleted 15 601180
+level	601181	从头开始	GM=/newstorycompleted 15 601181
+level	601182	EP4.2	GM=/newstorycompleted 15 601182
+level	601183	EP4.3	GM=/newstorycompleted 15 601183
+level	601184	EP4.4	GM=/newstorycompleted 15 601184
+level	601185	EP4.5	GM=/newstorycompleted 15 601185
+level	601186	EP4.6	GM=/newstorycompleted 15 601186
+level	601187	EP4.7	GM=/newstorycompleted 15 601187
+level	601188	EP4.8	GM=/newstorycompleted 15 601188
+level	601189	EP4.9	GM=/newstorycompleted 15 601189
+level	601190	EP4.10	GM=/newstorycompleted 15 601190
+level	601191	EP4.11	GM=/newstorycompleted 15 601191
+level	601192	EP4.12	GM=/newstorycompleted 15 601192
+level	601193	EP4.13	GM=/newstorycompleted 15 601193
+level	601194	蛛丝马迹	GM=/newstorycompleted 15 601194
+level	601195	EP5.2	GM=/newstorycompleted 15 601195
+level	601196	怂恿者	GM=/newstorycompleted 15 601196
+level	601197	SP1	GM=/newstorycompleted 15 601197
+level	601198	暴雨已至	GM=/newstorycompleted 15 601198
+level	601199	EP6.2	GM=/newstorycompleted 15 601199
+level	601200	EP6.3	GM=/newstorycompleted 15 601200
+level	601201	EP6.4	GM=/newstorycompleted 15 601201
+level	601202	EP6.5	GM=/newstorycompleted 15 601202
+level	601203	银晖之暗	GM=/newstorycompleted 15 601203
+level	601204	EP7.2	GM=/newstorycompleted 15 601204
+level	601205	EP7.3	GM=/newstorycompleted 15 601205
+level	601206	SP2	GM=/newstorycompleted 15 601206
+level	601207	助纣者	GM=/newstorycompleted 15 601207
+level	601208	百虑一致	GM=/newstorycompleted 15 601208
+level	601209	EP8.2	GM=/newstorycompleted 15 601209
+level	601210	EP8.3	GM=/newstorycompleted 15 601210
+level	601211	EP8.4	GM=/newstorycompleted 15 601211
+level	601212	EP8.5	GM=/newstorycompleted 15 601212
+level	601213	巫树传说	GM=/newstorycompleted 15 601213
+level	601214	SP3	GM=/newstorycompleted 15 601214
+level	601215	EP9.2	GM=/newstorycompleted 15 601215
+level	601216	EP9.3	GM=/newstorycompleted 15 601216
+level	601217	EP9.4	GM=/newstorycompleted 15 601217
+level	601218	亲临其境	GM=/newstorycompleted 15 601218
+level	601219	坚甲历兵	GM=/newstorycompleted 15 601219
+level	601220	EP11.1	GM=/newstorycompleted 15 601220
+level	601221	EP11.2	GM=/newstorycompleted 15 601221
+level	601222	洞见症结	GM=/newstorycompleted 15 601222
+level	601223	EP12.2	GM=/newstorycompleted 15 601223
+level	601224	断编残简	GM=/newstorycompleted 15 601224
+level	601225	拉丝缇·I	GM=/newstorycompleted 15 601225
+level	601226	拉丝缇·II	GM=/newstorycompleted 15 601226
+level	601227	拉丝缇·III	GM=/newstorycompleted 15 601227
+level	601228	巫树动乱	GM=/newstorycompleted 15 601228
+level	601229	EP13.2	GM=/newstorycompleted 15 601229
+level	601230	五子皆黑	GM=/newstorycompleted 15 601230
+level	601231	EP14.2	GM=/newstorycompleted 15 601231
+level	601232	EP14.3	GM=/newstorycompleted 15 601232
+level	601233	累卵之危	GM=/newstorycompleted 15 601233
+level	601234	EP15.2	GM=/newstorycompleted 15 601234
+level	601235	EP15.3	GM=/newstorycompleted 15 601235
+level	601236	魔弹归来	GM=/newstorycompleted 15 601236
+level	601237	EP16.2	GM=/newstorycompleted 15 601237
+level	601238	EP16.3	GM=/newstorycompleted 15 601238
+level	601239	弃如敝屣	GM=/newstorycompleted 15 601239
+level	601240	EP17.2	GM=/newstorycompleted 15 601240
+level	601241	烈火真金	GM=/newstorycompleted 15 601241
+level	601242	欧格文·街	GM=/newstorycompleted 15 601242
+level	601243	欧格文·北	GM=/newstorycompleted 15 601243
+level	601244	欧格文·南	GM=/newstorycompleted 15 601244
+level	601245	EP18.5	GM=/newstorycompleted 15 601245
+level	601246	中立之力	GM=/newstorycompleted 15 601246
+level	601247	混乱之力	GM=/newstorycompleted 15 601247
+level	601248	武装之力	GM=/newstorycompleted 15 601248
+level	601249	守序之力	GM=/newstorycompleted 15 601249
+level	601250	EP18.10	GM=/newstorycompleted 15 601250
+level	601251	新星初啼	GM=/newstorycompleted 15 601251
+level	601252	EP19.2	GM=/newstorycompleted 15 601252
+level	601253	拉丝缇·IV	GM=/newstorycompleted 15 601253
+level	601254	背城一战	GM=/newstorycompleted 15 601254
+level	601255	EP20.2	GM=/newstorycompleted 15 601255
+level	601256	跳帮接战	GM=/newstorycompleted 15 601256
+level	601257	绯华骑士	GM=/newstorycompleted 15 601257
+level	601258	小总裁	GM=/newstorycompleted 15 601258
+level	601259	纹面修女	GM=/newstorycompleted 15 601259
+level	601260	碧华骑士	GM=/newstorycompleted 15 601260
+level	601261	兵神再临	GM=/newstorycompleted 15 601261
+level	601262	EP22.2	GM=/newstorycompleted 15 601262
+level	601263	EP22.3	GM=/newstorycompleted 15 601263
+level	601264	EP22.4	GM=/newstorycompleted 15 601264
+level	601265	EP22.5	GM=/newstorycompleted 15 601265
+level	601266	EP22.6	GM=/newstorycompleted 15 601266
+level	601267	与我同在	GM=/newstorycompleted 15 601267
+level	601268	EP23.2	GM=/newstorycompleted 15 601268
+level	601269	EP23.3	GM=/newstorycompleted 15 601269
+level	601270	EP23.4	GM=/newstorycompleted 15 601270
+level	601271	EP23.5	GM=/newstorycompleted 15 601271
+level	601272	归终之时	GM=/newstorycompleted 15 601272
+level	601273	SP4	GM=/newstorycompleted 15 601273
+chapter	17	灰烬之雪	type=3	season=12313	stage=BRX122	levels=13	range=402129-402141	GM=/newstorycompleted 17
+level	402129	1-1	GM=/newstorycompleted 17 402129
+level	402130	1-2	GM=/newstorycompleted 17 402130
+level	402131	1-3	GM=/newstorycompleted 17 402131
+level	402132	1-4	GM=/newstorycompleted 17 402132
+level	402133	2-1	GM=/newstorycompleted 17 402133
+level	402134	2-2	GM=/newstorycompleted 17 402134
+level	402135	2-3	GM=/newstorycompleted 17 402135
+level	402136	2-4	GM=/newstorycompleted 17 402136
+level	402137	3-1	GM=/newstorycompleted 17 402137
+level	402138	3-2	GM=/newstorycompleted 17 402138
+level	402139	3-3	GM=/newstorycompleted 17 402139
+level	402140	3-4	GM=/newstorycompleted 17 402140
+level	402141	3-5	GM=/newstorycompleted 17 402141
+chapter	19	少女日常的宿孽	type=3	season=12314	stage=BRX123	levels=15	range=402142-402156	GM=/newstorycompleted 19
+level	402142	1-1	GM=/newstorycompleted 19 402142
+level	402143	1-2	GM=/newstorycompleted 19 402143
+level	402144	1-3	GM=/newstorycompleted 19 402144
+level	402145	1-4	GM=/newstorycompleted 19 402145
+level	402146	1-5	GM=/newstorycompleted 19 402146
+level	402147	2-1	GM=/newstorycompleted 19 402147
+level	402148	2-2	GM=/newstorycompleted 19 402148
+level	402149	2-3	GM=/newstorycompleted 19 402149
+level	402150	2-4	GM=/newstorycompleted 19 402150
+level	402151	2-5	GM=/newstorycompleted 19 402151
+level	402152	3-1	GM=/newstorycompleted 19 402152
+level	402153	3-2	GM=/newstorycompleted 19 402153
+level	402154	3-3	GM=/newstorycompleted 19 402154
+level	402155	3-4	GM=/newstorycompleted 19 402155
+level	402156	3-5	GM=/newstorycompleted 19 402156
+chapter	20	梦醒时分的缪斯	type=3	season=12401	stage=BRX124	levels=11	range=402157-402167	GM=/newstorycompleted 20
+level	402157	1-1	GM=/newstorycompleted 20 402157
+level	402158	1-2	GM=/newstorycompleted 20 402158
+level	402159	1-3	GM=/newstorycompleted 20 402159
+level	402160	1-4	GM=/newstorycompleted 20 402160
+level	402161	1-5	GM=/newstorycompleted 20 402161
+level	402162	2-1	GM=/newstorycompleted 20 402162
+level	402163	2-2	GM=/newstorycompleted 20 402163
+level	402164	2-3	GM=/newstorycompleted 20 402164
+level	402165	2-4	GM=/newstorycompleted 20 402165
+level	402166	2-5	GM=/newstorycompleted 20 402166
+level	402167	2-6	GM=/newstorycompleted 20 402167
+chapter	21	祈愿绘空之晨	type=3	season=12559	stage=BRX125	levels=12	range=402168-402179	GM=/newstorycompleted 21
+level	402168	1-1	GM=/newstorycompleted 21 402168
+level	402169	1-2	GM=/newstorycompleted 21 402169
+level	402170	1-3	GM=/newstorycompleted 21 402170
+level	402171	1-4	GM=/newstorycompleted 21 402171
+level	402172	1-5	GM=/newstorycompleted 21 402172
+level	402173	1-6	GM=/newstorycompleted 21 402173
+level	402174	2-1	GM=/newstorycompleted 21 402174
+level	402175	2-2	GM=/newstorycompleted 21 402175
+level	402176	2-3	GM=/newstorycompleted 21 402176
+level	402177	2-4	GM=/newstorycompleted 21 402177
+level	402178	2-5	GM=/newstorycompleted 21 402178
+level	402179	2-6	GM=/newstorycompleted 21 402179
+chapter	22	星灯的假期	type=3	season=12601	stage=BRX126	levels=13	range=402180-402194	GM=/newstorycompleted 22
+level	402180	1-1	GM=/newstorycompleted 22 402180
+level	402181	1-2	GM=/newstorycompleted 22 402181
+level	402182	1-3	GM=/newstorycompleted 22 402182
+level	402183	2-1	GM=/newstorycompleted 22 402183
+level	402184	2-2	GM=/newstorycompleted 22 402184
+level	402185	2-3	GM=/newstorycompleted 22 402185
+level	402186	2-4	GM=/newstorycompleted 22 402186
+level	402189	3-1	GM=/newstorycompleted 22 402189
+level	402190	3-2	GM=/newstorycompleted 22 402190
+level	402191	3-3	GM=/newstorycompleted 22 402191
+level	402192	3-4	GM=/newstorycompleted 22 402192
+level	402193	3-5	GM=/newstorycompleted 22 402193
+level	402194	3-6	GM=/newstorycompleted 22 402194
+chapter	23	乌合之心	type=1	season=13001	stage=RX4	levels=42	range=601279-601321	GM=/newstorycompleted 23
+level	601279	极乐之行	GM=/newstorycompleted 23 601279
+level	601280	EP1.2	GM=/newstorycompleted 23 601280
+level	601281	EP1.3	GM=/newstorycompleted 23 601281
+level	601282	EP1.4	GM=/newstorycompleted 23 601282
+level	601283	EP1.5	GM=/newstorycompleted 23 601283
+level	601284	EP1.6	GM=/newstorycompleted 23 601284
+level	601285	EP1.7	GM=/newstorycompleted 23 601285
+level	601286	相继而至	GM=/newstorycompleted 23 601286
+level	601287	EP2.2	GM=/newstorycompleted 23 601287
+level	601288	天各一方	GM=/newstorycompleted 23 601288
+level	601289	EP3.2	GM=/newstorycompleted 23 601289
+level	601290	公元2017	GM=/newstorycompleted 23 601290
+level	601291	同源异流	GM=/newstorycompleted 23 601291
+level	601292	EP4.2	GM=/newstorycompleted 23 601292
+level	601293	EP4.3	GM=/newstorycompleted 23 601293
+level	601294	狂欢角斗	GM=/newstorycompleted 23 601294
+level	601295	EP5.2	GM=/newstorycompleted 23 601295
+level	601296	EP5.3	GM=/newstorycompleted 23 601296
+level	601297	EP5.4	GM=/newstorycompleted 23 601297
+level	601298	无上者·一	GM=/newstorycompleted 23 601298
+level	601299	霓虹之外·一	GM=/newstorycompleted 23 601299
+level	601300	无上者·二	GM=/newstorycompleted 23 601300
+level	601301	EP6.2	GM=/newstorycompleted 23 601301
+level	601302	EP6.3	GM=/newstorycompleted 23 601302
+level	601303	EP6.4	GM=/newstorycompleted 23 601303
+level	601304	相须而行	GM=/newstorycompleted 23 601304
+level	601305	EP7.2	GM=/newstorycompleted 23 601305
+level	601306	斩碎黑夜	GM=/newstorycompleted 23 601306
+level	601307	EP8.2	GM=/newstorycompleted 23 601307
+level	601308	EP8.3	GM=/newstorycompleted 23 601308
+level	601309	EP8.4	GM=/newstorycompleted 23 601309
+level	601310	允执其中	GM=/newstorycompleted 23 601310
+level	601311	EP9.2	GM=/newstorycompleted 23 601311
+level	601312	EP9.3	GM=/newstorycompleted 23 601312
+level	601313	原委已明	GM=/newstorycompleted 23 601313
+level	601314	EP10.2	GM=/newstorycompleted 23 601314
+level	601315	EP10.3	GM=/newstorycompleted 23 601315
+level	601316	霓虹之外·二	GM=/newstorycompleted 23 601316
+level	601317	斗技再开	GM=/newstorycompleted 23 601317
+level	601318	无上者·三	GM=/newstorycompleted 23 601318
+level	601320	霓虹之外·一	GM=/newstorycompleted 23 601320

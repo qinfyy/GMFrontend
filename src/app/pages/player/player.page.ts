@@ -1,6 +1,6 @@
 /**
  * 玩家设置页（setlevel）。
- * 命令行：/setlevel <等级> [@uid]
+ * 命令行：/setlevel <等级> [@uid]，服务端也接受 /setlevel lv<等级> [@uid]。
  */
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';

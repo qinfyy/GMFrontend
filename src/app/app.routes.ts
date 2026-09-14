@@ -28,6 +28,11 @@ export const routes: Routes = [
         title: '玩家设置 - BH2 GM',
     },
     {
+        path: 'moderation',
+        loadComponent: () => import('./pages/moderation/moderation.page').then(m => m.ModerationPage),
+        title: '玩家管理 - BH2 GM',
+    },
+    {
         path: 'story',
         loadComponent: () => import('./pages/story/story.page').then(m => m.StoryPage),
         title: '剧情 / 九霄 - BH2 GM',
