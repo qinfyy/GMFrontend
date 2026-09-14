@@ -22,11 +22,11 @@ type Tab = 'kick' | 'ban';
 
 /** 踢人模式：值与服务端 ExecuteKick 的 mode 一致 */
 const KICK_MODES = [
-    { value: 'rc', label: 'rc — 弹框提示后登出回登录页（可自定义正文）' },
-    { value: 'aa', label: 'aa — 防沉迷弹窗（正文可自定义，标题客户端固定）' },
-    { value: 'kr', label: 'kr — 礼貌请求登出（文案固定）' },
-    { value: 're', label: 're — ReLogin（客户端只清数据，游戏内不登出）' },
-    { value: 'ns', label: 'ns — 停服维护包（直接断开连接）' },
+    { value: 'rc', label: 'rc: RegistryCloseReadPacket。弹框显示消息，确认后登出回登录页。' },
+    { value: 'aa', label: 'aa: AntiAddictionNotifyPacket。可自定义，确认后登出回登录页。' },
+	{ value: 'ns', label: 'ns: NotifyStopServerReadPacket。断开连接，该方法会崩溃。' },
+    { value: 'kr', label: 'kr: KindlyRequirePlayerToLogoutPacket。防沉迷，确认后回登录页。' },
+    { value: 're', label: 're: ReLoginPacket。客户端只清空数据，游戏内不登出，该方法会NRE。' },
 ];
 
 @Component({
