@@ -1,5 +1,18 @@
 # DEVLOG
 
+## 2026-09-17 01:30
+
+- **动作**：同步上游 GM 新增的 `windy` 命令、`emblem` / `petchip` 两类物品，并把 help 页分区白名单改为动态枚举。
+- **变更**：
+  - 新增 `src/app/pages/windy/windy.page.ts`：`/windy <脚本路径> [@uid]` 脚本热更（目标必须在线，二次确认）；路由 `/windy` + 侧导航「脚本热更」
+  - `pages/give` 新增「萌章」（emblem）与「使魔碎片」（petchip）两个 Tab，均接受 x数量与装备参数
+  - `pages/giveall` 同步新增两个类别，并把 `all` 的提示改成「6 类装备 + 开放看板」
+  - **`KNOWN_SECTIONS` 硬编码白名单 → 动态枚举**：新增 `HandbookService.sectionNames()`，返回「有数据行的分区」；help 页据此渲染侧栏。上游的装备分区是按 `EquipmentTableBase` 的 TypeId 动态生成的（1=weapon/2=costume/3=badge/5=role/6=emblem/9=petchip），硬编码必然过期——这次就漏了 2 个分区
+  - console 命令速查补 `windy`；同步 `public/Handbook.txt`（9340 行）；更新 CLAUDE.md / STATE.md / FEATURES.md / START.md
+- **上游变化**：命令集 14 → 15 条（`OtherCommands.Windy`，`RequireTarget` + `RequireTargetOnline`，经 `PlayerLoginPacket.ChunkData` 下发 Lua 并触发客户端重初始化）；`GiveItem` 新增 `emblem`（typeId 6）与 `petchip`（typeId 9），两者与 weapon/costume/badge 同路径；Handbook 新增 `[emblem]` `[petchip]` 两个分区。HTTP 响应外壳未变。
+- **验证**：`yarn build` 通过；10 条路由全部 200；对运行中的服务器实测 `/help` 解析出 15 条命令，`/windy login.lua @999999999` → 400「目标玩家 … 不存在或不在线」，`/give emblem 5001 x2 lv80 r5 @999999999`、`/giveall petchip @999999999`、`/giveall all @999999999` → 404 `player_not_found`，`/give nosuchtype 1` → 400 类型校验；Handbook 离线解析 `sectionNames()` 得 19 个分区（3 个纯说明区正确排除）、9082 条、1421 条 GM 全部以 `/` 开头、name 污染 0。
+- **插曲**：中途上游把 `Sv/Handbook.txt` 删掉了（它是启动时由 `GameMasterHandbookGenerator.Generate(contentRootPath)` 重建的），启动一次服务端即恢复；已把这点写进 CLAUDE.md 的陷阱清单。
+
 ## 2026-09-14 20:40
 
 - **动作**：同步上游 GM 新增的 `kick` / `ban` 命令，并跟进 Handbook GM 模板全面改为命令行写法。

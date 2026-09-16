@@ -1,5 +1,5 @@
 BH2 GM Handbook
-生成时间：2026-09-14 20:23:11
+生成时间：2026-09-17 01:17:55
 =================
 
 请求：GET /api/gm?content="/命令 [参数...]" 或在游戏内私聊发送 /命令
@@ -14,10 +14,11 @@ give（别名：g、item）：单件发放，只接受显式 ID。
     /give <type> <id> [x数量] [lv等级] [r星级] [p升格] [s技能] [i亲密度] [t圣痕] [pt限解度] [bl基础等级|ml精通等级] [@uid]
   - 支持通过 @uid 指定目标玩家，游戏内聊天发送时默认目标为当前玩家。
   - x数量（或 *数量）省略时按 1 处理。
-  - 单参数 ID 时自动推断类别（支持武器、服装、徽章、角色、材料、货币、皮肤、看板、限解）。
+  - 单参数 ID 时自动推断类别（支持武器、服装、徽章、萌章、使魔碎片、角色、材料、货币、皮肤、看板、限解）。
   - Wallet CoinType 必须存在于 RewardData Type=30；数字 239 与 hcoin 等价，数字 5 与 bhcoin 等价。完整货币 ID 见 Handbook 的 [currency] 分区。
   - 在线发放钱包货币会下发该货币的 462 增量；金币与友情点没有线缆 coin_type，改推包 57 快照。
-  - 装备、服装、徽章和角色每份都会创建独立 UID，已拥有同 MetaId 也会照发新的一份。
+  - badge 是背包里的徽章装备，资源表名是 PassiveSkillDataV3（徽章效果即被动技能）；emblem 是学生证上的萌章（EmblemData）。两者是互不相干的系统，ID 不要互推。
+  - 武器、服装、徽章、萌章、使魔碎片与角色每份都会创建独立 UID，已拥有同 MetaId 也会照发新的一份。
   - potential 发放 RoleV2 限解道具：id=common 是账号通用的训练组件，id=<角色 ID> 是该角色专属的限解特装。合法角色 ID 见 Handbook 的 [potential] 分区。
   - skin 发放角色皮肤；皮肤 ID 与适用角色见 Handbook 的 [skin] 分区，重复发放幂等。
   - 限解道具不是背包物品，而是角色潜能数据里的计数，发放后经 9809 GetRolePotentialRsp 同步；限解度上限由 RoleDuplicateData 决定（当前资源为 4）。
@@ -39,6 +40,7 @@ giveall（别名：ga）：按类别批量补齐当前资源里的物品。
     /giveall [type] [x数量] [lv等级] [r星级] [p升格] [s技能] [i亲密度] [t圣痕] [pt限解度] [bl基础等级|ml精通等级] [@uid]
   - type 省略按 all 处理，覆盖全部可发放装备类型和 IsOpen=1 的看板。
   - 装备类别按 MetaId 去重跳过已拥有的条目，重复执行为零增量，因此不接受 amount。
+  - all 覆盖 weapon、costume、badge、emblem、petchip、role 六类装备，另加开放看板；material、currency、skin、potential 需显式指定类别。
   - material 与 currency 按数量累加，没有「已拥有」的概念，必须显式指定 amount（如 x100）。
   - giveall currency 保持只给水晶和金币各 amount；活动 Wallet 货币请按 Handbook 的数字 CoinType 使用 give 单独发放。
   - giveall skin 按当前资源补齐全部标准角色皮肤；按 SkinID 去重，重复执行为零增量，不接受 amount 或装备参数。
@@ -78,10 +80,10 @@ setlevel（别名：level）：设置玩家等级。
 kick：踢出指定在线玩家：退回登录页或显示维护页。
     /kick [rc|aa|kr|re|ns] [消息...] [@uid]
   - 支持通过 @uid 指定目标玩家；不加则踢出发送者自己。
-  - rc: RegistryCloseReadPacket。弹框显示“消息”，确认后登出回登录页。
-  - aa: AntiAddictionNotifyPacket。正文可自定义，标题由客户端固定，确认后同样登出。
+  - rc: RegistryCloseReadPacket。弹框显示消息，确认后登出回登录页。
+  - aa: AntiAddictionNotifyPacket。可自定义，确认后登出回登录页。
   - ns: NotifyStopServerReadPacket。断开连接，该方法会崩溃。
-  - kr: KindlyRequirePlayerToLogoutPacket。文案固定，确认后回登录页。
+  - kr: KindlyRequirePlayerToLogoutPacket。防沉迷，确认后回登录页。
   - re: ReLoginPacket。客户端只清空数据，游戏内不登出，该方法会NRE。
 
 ban：封禁/解封玩家账号。
@@ -89,6 +91,10 @@ ban：封禁/解封玩家账号。
   - 支持通过 @uid 指定目标玩家；不加则作用于发送者自己，离线玩家也可操作。
   - t 为结束时间，格式 yyyyMMddHHmm；省略默认封禁 1 天。
   - r 为封禁理由，省略用默认文案；理由不能含空格。
+
+windy：把 Lua 脚本立刻下发给在线客户端执行。
+    /windy <服务器脚本路径> [@uid]
+  - 查找顺序：ServerData/windseed → ServerData → 服务器运行目录 → 绝对路径。
 
 storycompleted（别名：sc）：完成普通剧情指定关卡及其全部资源前置（同章节在它之前的关卡），并逐关执行确定性首通结算。
     /storycompleted <终点关卡> [@uid]
@@ -168,10 +174,12 @@ help（别名：h）：列出全部 GM 命令的用法与说明，或查看指�
 currency：货币；give 按 id 发放基础货币或 RewardData Type=30 的 Wallet CoinType，giveall currency x<数量> 同时增加水晶和金币。
 material：堆叠材料；give 按 MetaId 发放，giveall material x<数量> 为当前资源中的每种材料累加。
 weapon / costume / badge / role：武器、服装、徽章和标准角色装备；give 需要 MetaId，giveall 按资源补齐未拥有的 MetaId。
+emblem：萌章（EmblemData），挂在学生证上的装饰收藏，MetaId 区间 5001-5999；与背包里的 badge 徽章装备是两套系统。
+petchip：使魔碎片（PetChipData），使魔进化与升阶的素材，MetaId 区间 8001-8999。
 potential：RoleV2 限解训练组件或角色限解特装；仅支持 give，不属于背包材料，合法 ID 见 [potential]。
 skin：标准角色皮肤；give 按 SkinID 发放，giveall skin 补齐全部资源皮肤，合法 ID 和中文名称见 [skin]。
 partner：开放看板；give 按 PosterID 发放，giveall partner 补齐全部 IsOpen=1 看板。
-all：仅限 giveall，包含全部可发放装备和开放看板，不隐式包含 skin、potential、material 或 currency。
+all：仅限 giveall，包含 weapon、costume、badge、emblem、petchip、role 六类装备和开放看板，不隐式包含 skin、potential、material 或 currency。
 
 返回码：200 成功，400 参数、命令或凭据格式错误（invalid_request），401 缺少凭据或令牌无效（invalid_token），404 玩家不存在，500 存储失败。
 
@@ -4998,6 +5006,642 @@ role	4023	蒂亚拉
 role	4024	红理惠
 role	4025	布洛妮娅
 role	4026	煌嵐
+
+[emblem]
+emblem	5001	元素大师·序
+emblem	5002	元素大师·破
+emblem	5003	元素大师·急
+emblem	5004	元素大师·灭
+emblem	5005	时空旅者·序
+emblem	5006	时空旅者·破
+emblem	5007	时空旅者·急
+emblem	5008	时空旅者·灭
+emblem	5009	吼姆系召唤者
+emblem	5010	吼姆系幻术师
+emblem	5011	八重烂漫·恋
+emblem	5012	约定之子·序
+emblem	5013	约定之子·破
+emblem	5014	约定之子·急
+emblem	5015	约定之子·灭
+emblem	5016	失却之主·序
+emblem	5017	失却之主·破
+emblem	5018	失却之主·急
+emblem	5019	失却之主·灭
+emblem	5020	羁旅归人·序
+emblem	5021	羁旅归人·破
+emblem	5022	羁旅归人·急
+emblem	5023	羁旅归人·灭
+emblem	5024	八重樱应援团
+emblem	5025	姬子应援团
+emblem	5026	里世界引路人
+emblem	5027	希儿应援团
+emblem	5028	旧日回忆·灭
+emblem	5029	旧日回忆·序
+emblem	5030	旧日回忆·破
+emblem	5031	旧日回忆·急
+emblem	5032	梦境旅人·解
+emblem	5033	梦境旅人·礼
+emblem	5034	梦境旅人·煌
+emblem	5035	梦境旅人·华
+emblem	5036	原罪之印·解
+emblem	5037	原罪之印·礼
+emblem	5038	原罪之印·煌
+emblem	5039	原罪之印·华
+emblem	5040	火线追踪·解
+emblem	5041	火线追踪·礼
+emblem	5042	火线追踪·煌
+emblem	5043	火线追踪·华
+emblem	5044	雷之雏羽·解
+emblem	5045	雷之雏羽·礼
+emblem	5046	雷之雏羽·煌
+emblem	5047	雷之雏羽·华
+emblem	5048	父爱如山·解
+emblem	5049	父爱如山·礼
+emblem	5050	父爱如山·煌
+emblem	5051	父爱如山·华
+emblem	5052	时忘之人·解
+emblem	5053	时忘之人·礼
+emblem	5054	时忘之人·煌
+emblem	5055	时忘之人·华
+emblem	5056	秘宝猎手·初
+emblem	5057	秘宝猎手·真
+emblem	5058	秘宝猎手·极
+emblem	5059	秘宝猎手·奥
+emblem	5060	秘宝猎手·绝
+emblem	5061	夺宝奇兵·初
+emblem	5062	夺宝奇兵·真
+emblem	5063	夺宝奇兵·极
+emblem	5064	夺宝奇兵·奥
+emblem	5065	夺宝奇兵·绝
+emblem	5066	超高校级的保健委员
+emblem	5067	超高校级的幸运
+emblem	5068	前·超高校级的幸运
+emblem	5069	超高校级的侦探
+emblem	5070	MONOKUMA
+emblem	5071	预备学科
+emblem	5072	超高校级的女仆
+emblem	5073	美味梦幻绚烂糖果
+emblem	5074	OCIN
+emblem	5075	秘制火腿
+emblem	5076	艾薇娅的谢礼
+emblem	5077	天魔粉丝团
+emblem	5078	北欧粉丝团
+emblem	5079	变色龙II型携带者
+emblem	5080	芽衣的守护人
+emblem	5081	心像缎带
+emblem	5082	起始与终焉
+emblem	5083	虚无空间·序
+emblem	5084	虚无空间·破
+emblem	5085	虚无空间·立
+emblem	5086	斯坦因·初心者
+emblem	5087	斯坦因·勇者
+emblem	5088	斯坦因·王者
+emblem	5089	迷海之幕·暮
+emblem	5090	迷海之幕·弥
+emblem	5091	迷海之幕·黯
+emblem	5092	迷海之幕·晓
+emblem	5093	原初之遗·暮
+emblem	5094	原初之遗·弥
+emblem	5095	原初之遗·黯
+emblem	5096	原初之遗·晓
+emblem	5097	终末之兽·暮
+emblem	5098	终末之兽·弥
+emblem	5099	终末之兽·黯
+emblem	5100	终末之兽·晓
+emblem	5101	轮回之负·暮
+emblem	5102	轮回之负·弥
+emblem	5103	轮回之负·黯
+emblem	5104	轮回之负·晓
+emblem	5105	归墟之幻·暮
+emblem	5106	归墟之幻·弥
+emblem	5107	归墟之幻·黯
+emblem	5108	归墟之幻·晓
+emblem	5109	休伯利安应援团
+emblem	5110	月光王座应援团
+emblem	5111	炼金术士之证
+emblem	5112	古神凝视·表
+emblem	5113	古神凝视·里
+emblem	5114	零时的启示
+emblem	5115	同构·静蓝
+emblem	5116	同构·暮紫
+emblem	5117	同构·赤血
+emblem	5118	逐火之蛾
+emblem	5119	灰蛾部队
+emblem	5120	斯坦因·咸者
+emblem	5121	逐火之旅
+emblem	5122	崩坏前线
+emblem	5123	希露的秘藏
+emblem	5124	希露的梦想
+emblem	5125	荣耀之印
+emblem	5126	奇迹之印
+emblem	5127	斯坦因·求升
+emblem	5128	斯坦因·都要
+emblem	5129	与你一起的MFM
+emblem	5130	闇の军势
+emblem	5131	闪耀星光之证
+emblem	5132	新晋up主
+emblem	5133	萌萌新
+emblem	5134	4th Anniv
+emblem	5135	One For All
+emblem	5136	绮罗雨华
+emblem	5137	斯坦因·嗨星
+emblem	5138	耀夜舞萤
+emblem	5139	赋格乐律
+emblem	5140	天魔绅士
+emblem	5141	虹镜冰花
+emblem	5142	救恩圣约
+emblem	5143	时间游戏
+emblem	5144	凯撒沙拉
+emblem	5145	甜蜜魔法
+emblem	5146	璀璨星龙
+emblem	5147	窥视轮回之人
+emblem	5148	幻海·青花鱼
+emblem	5149	无凭灾厄·启
+emblem	5150	无凭灾厄·默
+emblem	5151	无凭灾厄·结
+emblem	5152	无凭灾厄·承
+emblem	5153	回首黎明·启
+emblem	5154	回首黎明·默
+emblem	5155	回首黎明·结
+emblem	5156	回首黎明·承
+emblem	5157	宿命争端·启
+emblem	5158	宿命争端·默
+emblem	5159	宿命争端·结
+emblem	5160	宿命争端·承
+emblem	5161	终末序曲·启
+emblem	5162	终末序曲·默
+emblem	5163	终末序曲·结
+emblem	5164	终末序曲·承
+emblem	5165	英雄丰碑·启
+emblem	5166	英雄丰碑·默
+emblem	5167	英雄丰碑·结
+emblem	5168	英雄丰碑·承
+emblem	5169	博士一生推
+emblem	5170	斯坦因·斯坦因
+emblem	5171	炽翎
+emblem	5172	月光骑士
+emblem	5173	黑核侵蚀
+emblem	5174	雾月镇魂歌
+emblem	5175	泠然月华
+emblem	5176	骑兵誓约
+emblem	5177	征途号角
+emblem	5178	精灵笑靥
+emblem	5179	魔神低语
+emblem	5180	符华·长尾蓝鹊
+emblem	5181	5周年的星愿
+emblem	5182	犹大收藏少女
+emblem	5183	超同步100%
+emblem	5184	甜蜜的滋味
+emblem	5185	斯坦因·AWSL
+emblem	5186	协作之证
+emblem	5187	荣誉之证
+emblem	5188	银之森的妖精公主
+emblem	5189	冰之国的魔女
+emblem	5190	七色的灵刃使
+emblem	5191	日轮的巫女
+emblem	5192	嗜战恶魔
+emblem	5193	爆破艺术
+emblem	5194	暗黑童谣
+emblem	5195	禁忌炼金
+emblem	5196	机械狂热
+emblem	5197	神秘代码
+emblem	5198	羽化之痕
+emblem	5199	构造纹章
+emblem	5200	初辉之星
+emblem	5201	华灿之星
+emblem	5202	灼耀之星
+emblem	5203	最恶精灵
+emblem	5204	炎之精灵
+emblem	5205	天宫女王
+emblem	5206	兔子玩偶
+emblem	5207	折纸Master
+emblem	5208	深海幻想
+emblem	5209	迷幻海光
+emblem	5210	全知符文
+emblem	5211	紫耀之都的女神
+emblem	5212	把你妮普妮普掉哟~
+emblem	5213	当然有朋友啦！
+emblem	5214	黑土边域的女神
+emblem	5215	守望未来之人
+emblem	5216	心之绘色
+emblem	5217	斯坦因·朴实无华
+emblem	5218	绵眠之意
+emblem	5219	鲜血盛宴
+emblem	5220	暮夜轮舞
+emblem	5221	蔷薇秘密
+emblem	5222	反转因果
+emblem	5223	不灭之冕
+emblem	5224	猫猫祟祟
+emblem	5225	美味电波
+emblem	5226	一日一菓
+emblem	5227	龙之勇者
+emblem	5228	英勇星芒
+emblem	5229	璀璨星芒
+emblem	5230	超凡星芒
+emblem	5231	一夜暴富
+emblem	5232	魔王之冠
+emblem	5233	盏中醉狐
+emblem	5234	6th·梦想之钥
+emblem	5235	超高校级的游戏玩家
+emblem	5236	超高校级的绝望
+emblem	5237	超高校级的希望
+emblem	5238	团之呼吸
+emblem	5239	斯坦因·爱河
+emblem	5240	喵味小鱼骨
+emblem	5241	琉璃万嬅
+emblem	5242	白露之滨的女神
+emblem	5243	绿茵箱庭的女神
+emblem	5244	人生目标作家出道
+emblem	5245	要一起品尝红茶吗
+emblem	5246	塑心之型·序
+emblem	5247	塑心之型·承
+emblem	5248	塑心之型·间
+emblem	5249	塑心之型·归
+emblem	5250	零时特快
+emblem	5251	深海璀星
+emblem	5252	按件计酬
+emblem	5253	吉运飞鸢
+emblem	5254	光子纠缠
+emblem	5255	野性之主
+emblem	5256	资本永不眠
+emblem	5257	勇气之章
+emblem	5258	荣耀之章
+emblem	5259	卓冠之章
+emblem	5260	斯坦因·希望没事
+emblem	5261	复合装甲
+emblem	5262	机械幻想
+emblem	5263	观察之镜
+emblem	5264	永恒之海
+emblem	5265	Shellman
+emblem	5266	红阁渊
+emblem	5267	闪耀的进化
+emblem	5268	执着的约定
+emblem	5269	永远的守护
+emblem	5270	和煦的挂念
+emblem	5271	坚定的梦想
+emblem	5272	法贝菈之意
+emblem	5273	九霄的树莓慕斯
+emblem	5274	德丽莎的红丝绒
+emblem	5275	符华的甜草莓派
+emblem	5276	布洛妮娅的纸杯蛋糕
+emblem	5277	琪亚娜的薄荷冰激凌
+emblem	5278	承教之理·序
+emblem	5279	承教之理·承
+emblem	5280	承教之理·间
+emblem	5281	承教之理·归
+emblem	5282	纯净永恒
+emblem	5283	天使重构
+emblem	5284	悠静时光
+emblem	5285	感谢有你
+emblem	5286	斯坦因·电光掣动
+emblem	5287	米游兔
+emblem	5288	探索迷宫之人
+emblem	5289	贺正新年
+emblem	5290	光之继承
+emblem	5291	艺术星辰
+emblem	5292	锁链制裁
+emblem	5293	春日邂逅
+emblem	5294	叛神冠冕
+emblem	5295	娱乐使命
+emblem	5296	自由之风
+emblem	5297	面包女武神
+emblem	5298	战争之徽
+emblem	5299	巴比伦小金人
+emblem	5300	玩偶陷阱
+emblem	5301	银星勋徽
+emblem	5302	赤翼勋徽
+emblem	5303	冠冕勋徽
+emblem	5304	GoldenShoot
+emblem	5305	心相正位·序
+emblem	5306	心相正位·承
+emblem	5307	心相正位·间
+emblem	5308	心相正位·归
+emblem	5309	治愈风吕
+emblem	5310	7th·七色之虹
+emblem	5311	德丽莎·枕间秘藏
+emblem	5312	斯坦因·河里
+emblem	5313	夏时光车厢
+emblem	5314	凝聚的信仰
+emblem	5315	晴朗海滩
+emblem	5316	陌土倦梦
+emblem	5317	夏日特调
+emblem	5318	岸边小憩
+emblem	5319	碧海探索
+emblem	5320	海岛红线
+emblem	5321	玫瑰特饮
+emblem	5322	大地之怒
+emblem	5323	关卡设计大师
+emblem	5324	极空审判者
+emblem	5325	无定型龙卷
+emblem	5326	艾拉·苍墟之影
+emblem	5327	勇士之勋
+emblem	5328	熠耀之勋
+emblem	5329	超卓之勋
+emblem	5330	斯坦因·最强形状
+emblem	5331	无限信息
+emblem	5332	心室对弈
+emblem	5333	恶作剧把戏
+emblem	5334	歌姬月形
+emblem	5335	恋色折纸
+emblem	5336	我很可爱！
+emblem	5337	枪槊既现
+emblem	5338	西琳·回转乐园
+emblem	5339	辉火·隽雨漫听
+emblem	5340	引念之刻·序
+emblem	5341	引念之刻·承
+emblem	5342	引念之刻·间
+emblem	5343	引念之刻·归
+emblem	5344	斯坦因·王者之争
+emblem	5345	纯白轰击
+emblem	5346	洞察之心
+emblem	5347	乾坤法环
+emblem	5348	勇者攻略
+emblem	5349	英勇之印
+emblem	5350	不屈之印
+emblem	5351	荣耀之印
+emblem	5352	星灵祝福
+emblem	5353	阿赖耶识·心湖微漾
+emblem	5354	小圆灵魂宝石
+emblem	5355	小焰灵魂宝石
+emblem	5356	沙耶香灵魂宝石
+emblem	5357	杏子灵魂宝石
+emblem	5358	麻美灵魂宝石
+emblem	5359	守护誓约
+emblem	5360	闺中秘话
+emblem	5361	未来之诗
+emblem	5362	游园假日
+emblem	5363	鸢火明世
+emblem	5364	海滩急务
+emblem	5365	卓越之勋
+emblem	5366	勇毅之勋
+emblem	5367	坚韧之勋
+emblem	5368	逐梦影世界
+emblem	5369	虚能幻海·初
+emblem	5370	虚能幻海·极
+emblem	5371	天魔团建特辑
+emblem	5372	希露·小小心愿
+emblem	5373	普西芬妮·银之论断
+emblem	5374	希儿·谧夜晚纱
+emblem	5375	圣夜迷藏
+emblem	5376	专业写手的尊严
+emblem	5377	文案的入门技巧
+emblem	5378	懒洋洋的工作日
+emblem	5379	眠兔反应
+emblem	5380	赤焰幻海·炽
+emblem	5381	卓越之翼
+emblem	5382	勇士之翼
+emblem	5383	守护之翼
+emblem	5384	执笔绘镜
+emblem	5385	9th·坠向星途
+emblem	5386	谜解午后
+emblem	5387	勇气呼唤
+emblem	5388	幕布后的秘密
+emblem	5389	阿尔忒弥斯·梦幻岛仙子
+emblem	5390	纹章·重返美梦
+emblem	5391	星光约定
+emblem	5392	往昔微热
+emblem	5393	温凉一梦
+emblem	5394	夏日蜜谈
+emblem	5395	魔王的迎接
+emblem	5396	誓约之剑
+emblem	5397	勇毅之剑
+emblem	5398	坚守之剑
+emblem	5399	九霄·崩坏学园长
+emblem	5400	眠龙魂摆
+emblem	5401	新长空好市民
+emblem	5402	法兰秀秀应援扇
+emblem	5403	废怯·红叶Magical
+emblem	5404	红贽·绯染Bloody
+emblem	5405	战术科六期新生
+emblem	5406	战术科新生代表
+emblem	5407	幽巡搜检
+emblem	5408	看护家政
+emblem	5409	玄学牵引
+emblem	5410	迷星腾龙
+emblem	5411	10th·献上爱的花束
+emblem	5412	火热之星
+emblem	5413	温柔之星
+emblem	5414	理智之星
+emblem	5415	满溢之恋
+emblem	5416	纯粹之恋
+emblem	5417	憧憬之恋
+emblem	5418	雪之真忱
+emblem	5419	雪之存眷
+emblem	5420	雪之深眠
+emblem	5421	空之秉穗
+emblem	5422	空之憩夜
+emblem	5423	社团战萌章3
+emblem	5424	靛之金曦
+emblem	5425	靛之静澜
+emblem	5426	社团战萌章3
+emblem	5427	炜丽之傲
+emblem	5428	凝默之傲
+emblem	5429	社团战萌章3
+emblem	5430	社团战萌章1
+emblem	5431	社团战萌章2
+emblem	5432	社团战萌章3
+emblem	5433	社团战萌章1
+emblem	5434	社团战萌章2
+emblem	5435	社团战萌章3
+emblem	5436	社团战萌章1
+emblem	5437	社团战萌章2
+emblem	5438	社团战萌章3
+emblem	5439	社团战萌章1
+emblem	5440	社团战萌章2
+emblem	5441	社团战萌章3
+emblem	5442	社团战萌章1
+emblem	5443	社团战萌章2
+emblem	5444	社团战萌章3
+emblem	5445	社团战萌章1
+emblem	5446	社团战萌章2
+emblem	5447	社团战萌章3
+emblem	5448	社团战萌章1
+emblem	5449	社团战萌章2
+emblem	5450	社团战萌章3
+emblem	5451	社团战萌章1
+emblem	5452	社团战萌章2
+emblem	5453	社团战萌章3
+emblem	5454	社团战萌章1
+emblem	5455	社团战萌章2
+emblem	5456	社团战萌章3
+emblem	5457	社团战萌章1
+emblem	5458	社团战萌章2
+emblem	5459	社团战萌章3
+emblem	5460	社团战萌章1
+emblem	5461	社团战萌章2
+emblem	5462	社团战萌章3
+emblem	5463	社团战萌章1
+emblem	5464	社团战萌章2
+emblem	5465	社团战萌章3
+emblem	5466	社团战萌章1
+emblem	5467	社团战萌章2
+emblem	5468	社团战萌章3
+emblem	5469	社团战萌章1
+emblem	5470	社团战萌章2
+emblem	5471	社团战萌章3
+emblem	5472	社团战萌章1
+emblem	5473	社团战萌章2
+emblem	5474	社团战萌章3
+emblem	5475	学园重逢
+emblem	5476	群星之证
+emblem	5477	命运魔法
+emblem	5478	均衡之仪
+emblem	5479	普通的小学生
+emblem	5480	天生的魔法少女
+emblem	5481	柯罗伊·永觅之音
+emblem	5482	耀夜姬·光辉之夜
+emblem	5483	今天喝点什么呢
+emblem	5484	不要生病哦
+emblem	5485	变成怪兽吧
+emblem	5486	彼界龙息
+emblem	5487	迷星叫
+emblem	5488	影色舞
+emblem	5489	无路矢
+emblem	5490	雾周途
+emblem	5491	MEME·煌嵐
+emblem	5492	MEME·一色幻
+emblem	5493	MEME·拉妮艾特
+emblem	5494	MEME·冰室蓝
+emblem	5495	格赫罗斯的凝视
+emblem	5496	与你的四季·2024
+emblem	5497	11th·流光瞬息
+emblem	5498	双生之焰
+emblem	5499	我将成为二次元
+emblem	5500	深渊之钥
+emblem	5501	灵魂交织
+emblem	5502	古堡梦魇
+emblem	5503	捣蛋僵尸
+emblem	5504	相伴的旅程·2025
+emblem	5505	12th·赴约结忆
+emblem	5506	刀盾契约
+emblem	5507	戏言法师
+emblem	5508	星河皇后
+emblem	5509	绯红骑士
+emblem	5510	圆舞仙星
+emblem	5511	幻海萌章
+
+[petchip]
+petchip	8001	狸猫之道
+petchip	8002	芙蕾雅之梦
+petchip	8003	量子核心
+petchip	8004	魔神结晶
+petchip	8005	源初虹石
+petchip	8006	遗迹之心
+petchip	8007	负罪之羽
+petchip	8008	喰时之卵
+petchip	8009	断章伪典
+petchip	8010	暖暖缎带
+petchip	8011	共轭之羽
+petchip	8012	杀生血玉
+petchip	8013	八齿红玉
+petchip	8014	石化之瞳
+petchip	8015	真夏冰晶
+petchip	8016	陨星之尘
+petchip	8017	V制式核心
+petchip	8018	太阳骑士的吊坠
+petchip	8019	自转齿轮
+petchip	8020	Hana
+petchip	8021	发卡播放器
+petchip	8022	兔耳金平糖
+petchip	8023	miHoYo超级手机
+petchip	8024	幽光鞘翅
+petchip	8025	紫苑风瞳
+petchip	8026	猫眼魔药
+petchip	8027	绯炎绘马
+petchip	8028	翠星羽片
+petchip	8029	骑士烙印
+petchip	8030	特技厨师之证
+petchip	8031	希望苏生程序
+petchip	8032	黑白熊AI Core
+petchip	8033	星象轮盘
+petchip	8034	水银子弹
+petchip	8035	灵依娘的本体
+petchip	8036	圣诞花环
+petchip	8037	女仆特制巧克力(无毒)
+petchip	8038	薛定谔铃铛
+petchip	8039	深海欠片
+petchip	8040	樱桃与泪石
+petchip	8041	雨之石
+petchip	8042	夕雾之约
+petchip	8043	憧憬之羽
+petchip	8044	熊印软糖
+petchip	8045	恪心碎甲
+petchip	8046	罪之石
+petchip	8047	幻想构造
+petchip	8048	永夜之石
+petchip	8049	蝠翼南瓜糖
+petchip	8051	荣誉碎片
+petchip	8052	虹之嵌片
+petchip	8053	破产基金
+petchip	8054	剧毒皇冠
+petchip	8055	吼姆钥匙扣
+petchip	8056	救世主异闻录
+petchip	8057	星彩音符
+petchip	8058	毛茸茸幼崽
+petchip	8059	心之钥
+petchip	8060	天魔之翼
+petchip	8061	构造之灵
+petchip	8062	深海化石
+petchip	8063	胡萝卜发卡
+petchip	8064	发条小鸟
+petchip	8065	部落图腾
+petchip	8066	罪之匙
+petchip	8067	月光晶片
+petchip	8068	精密运算器
+petchip	8069	焚火之源
+petchip	8070	兔叽变身器
+petchip	8071	雪色发饰
+petchip	8072	枫色发卡
+petchip	8073	机装启动器
+petchip	8074	狸猫金币
+petchip	8075	专业护目镜
+petchip	8076	可爱糖心
+petchip	8077	冰淇淋魔杖
+petchip	8078	金蔷薇
+petchip	8079	双生果实
+petchip	8080	灵结晶·纯白
+petchip	8081	堕落之实
+petchip	8082	肉垫玻璃球
+petchip	8083	秋葵零食袋
+petchip	8084	星芽
+petchip	8085	黑色脑波控制仪
+petchip	8086	幻彩之翅
+petchip	8087	银丝伞菇
+petchip	8088	黯花摇铃
+petchip	8089	可疑的试做药
+petchip	8090	灵火地契
+petchip	8091	猫咪主粮罐
+petchip	8092	蛉翅
+petchip	8093	霜糖云朵
+petchip	8094	灼热龙蛋
+petchip	8095	史书的硬件
+petchip	8096	恶之花蔓
+petchip	8097	完璧之匙
+petchip	8098	派送核心
+petchip	8099	神秘腕足
+petchip	8100	小熊发卡
+petchip	8101	蔷薇十字誓约
+petchip	8102	圣诞特制巧克力
+petchip	8103	羊脂球
+petchip	8104	樱花饭团
+petchip	8105	鸟笼封印之匙
+petchip	8106	GM code
+petchip	8107	零解析齿轮
+petchip	8108	备用身体
+petchip	8109	百江渚灵魂宝石
+petchip	8110	替身之叶
+petchip	8111	神乐御守
+petchip	8112	甜味制造机
+petchip	8113	誓约捧花
+petchip	8114	拼接齿轮
+petchip	8115	Franchouchou☆☆
+petchip	8116	万用勺子
+petchip	8117	礼装核心·红宝石
+petchip	8118	礼装核心·蓝宝石
+petchip	8119	SPACE吉他拨片
+petchip	8120	眠兔饼干
+petchip	8121	惑星异象
+petchip	8122	胜利之帜
 
 [material]
 material	9001	青团

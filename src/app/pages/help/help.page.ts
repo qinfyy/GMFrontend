@@ -15,18 +15,6 @@ import { HandbookEntry, HandbookService } from '../../core/handbook.service';
 
 const ALL_SECTIONS = '全部分区';
 
-const KNOWN_SECTIONS = [
-    'currency', 'weapon', 'costume', 'badge', 'role', 'material', 'potential',
-    'role-develop', 'skin', 'partner',
-    '九霄任务目录（逐火之蛾主玩法）',
-    'kyusyoUnlockLevel 九霄关卡目录（逐火之蛾出击）',
-    'kyusyoAchievement 九霄成就目录（逐火之蛾探索）',
-    'ZeroDLC（逐火之蛾 Roguelike 战斗 DLC）内容目录',
-    '传承篇',
-    '新生篇',
-    '崩坏学园篇章节目录',
-] as const;
-
 interface FilteredEntry {
     entry: HandbookEntry;
     matchId: string;
@@ -457,11 +445,12 @@ export class HelpPage {
 
     /**
      * 跨分区扁平目录。纯 computed：无手动缓存，handbook.loaded() 或 _sections 任一变化即重算。
+     * 分区名由 HandbookService 动态枚举（上游按装备 TypeId 生成），不做硬编码白名单。
      */
     private readonly sectionsByName = computed<Map<string, HandbookEntry[]>>(() => {
         if (!this.handbook.loaded()) return new Map();
         const result = new Map<string, HandbookEntry[]>();
-        for (const name of KNOWN_SECTIONS) {
+        for (const name of this.handbook.sectionNames()) {
             const entries = this.handbook.section(name);
             if (entries.length) {
                 result.set(name, entries);

@@ -2,6 +2,7 @@
  * 单件发放页（give）。类型 Tab + Handbook 选择器 + 数量 + 装备/养成参数。
  * 命令行：/give <type> <id> [x数量] [lv.. r.. s.. p.. i.. t.. pt.. bl..|ml..] [@uid]
  * 注意：skin / partner 是唯一收藏，服务端不接受 x数量。
+ * 装备型类别（weapon/costume/badge/emblem/petchip/role）接受数量与装备参数。
  */
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -175,8 +176,10 @@ export class GivePage {
         { type: 'material', label: '材料', section: 'material', hasAmount: true, hint: '背包堆叠材料，按 MetaId 发放。' },
         { type: 'weapon', label: '装备武器', section: 'weapon', hasAmount: true, hint: '每份创建独立实体，支持 lv/r/s/p/i 参数。' },
         { type: 'costume', label: '服装', section: 'costume', hasAmount: true, hint: '服装类装备实体。' },
-        { type: 'badge', label: '徽章', section: 'badge', hasAmount: true, hint: '徽章类装备实体。' },
+        { type: 'badge', label: '徽章', section: 'badge', hasAmount: true, hint: '背包里的徽章装备（PassiveSkillDataV3，效果即被动技能）。' },
         { type: 'role', label: '角色', section: 'role', hasAmount: true, hint: '发放新角色，已拥有同 MetaId 也会照发新的一份；支持 t/pt/bl/ml 养成参数。' },
+        { type: 'emblem', label: '萌章', section: 'emblem', hasAmount: true, hint: '学生证上的萌章（EmblemData，ID 区间 5001-5999）；与背包里的「徽章」是两套系统，ID 不要互推。' },
+        { type: 'petchip', label: '使魔碎片', section: 'petchip', hasAmount: true, hint: '使魔进化与升阶素材（PetChipData，ID 区间 8001-8999）。' },
         { type: 'potential', label: '限解道具', section: 'potential', hasAmount: true, hint: 'id=common 是账号通用训练组件；id=<角色ID> 是该角色专属限解特装。需先拥有该角色。' },
         { type: 'skin', label: '皮肤', section: 'skin', hasAmount: false, hint: '重复发放幂等；单次只能发放一个 ID，不接受数量。' },
         { type: 'partner', label: '看板', section: 'partner', hasAmount: false, hint: '看板是唯一收藏，不接受数量。' },
@@ -197,7 +200,7 @@ export class GivePage {
 
     /** 装备参数只在装备型 Tab 下展示（货币/材料/skin/partner/potential 不需要） */
     protected hasEquipmentAttrs(): boolean {
-        return ['weapon', 'costume', 'badge', 'role'].includes(this.current().type);
+        return ['weapon', 'costume', 'badge', 'emblem', 'petchip', 'role'].includes(this.current().type);
     }
 
     /** 条目 ID 必填 */

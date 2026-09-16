@@ -33,6 +33,11 @@ export const routes: Routes = [
         title: '玩家管理 - BH2 GM',
     },
     {
+        path: 'windy',
+        loadComponent: () => import('./pages/windy/windy.page').then(m => m.WindyPage),
+        title: '脚本热更 - BH2 GM',
+    },
+    {
         path: 'story',
         loadComponent: () => import('./pages/story/story.page').then(m => m.StoryPage),
         title: '剧情 / 九霄 - BH2 GM',

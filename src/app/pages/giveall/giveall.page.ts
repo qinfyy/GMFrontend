@@ -143,11 +143,13 @@ export class GiveAllPage {
     protected readonly exec = pageExecutor();
 
     protected readonly tabs: TypeTab[] = [
-        { type: 'all', label: '全部', requiresAmount: false, hint: '覆盖全部可发放装备类型和 IsOpen=1 的看板（不含 skin/potential）。' },
+        { type: 'all', label: '全部', requiresAmount: false, hint: '覆盖 weapon / costume / badge / emblem / petchip / role 六类装备，另加开放看板；不含 skin、potential、material、currency。' },
         { type: 'weapon', label: '武器', requiresAmount: false, hint: '' },
         { type: 'costume', label: '服装', requiresAmount: false, hint: '' },
-        { type: 'badge', label: '徽章', requiresAmount: false, hint: '' },
+        { type: 'badge', label: '徽章', requiresAmount: false, hint: '背包里的徽章装备（PassiveSkillDataV3）。' },
         { type: 'role', label: '角色', requiresAmount: false, hint: '' },
+        { type: 'emblem', label: '萌章', requiresAmount: false, hint: '学生证上的萌章（EmblemData），与「徽章」是两套系统。' },
+        { type: 'petchip', label: '使魔碎片', requiresAmount: false, hint: '使魔进化与升阶素材（PetChipData）。' },
         { type: 'partner', label: '看板', requiresAmount: false, hint: '按 PosterID 去重补齐，不接受数量。' },
         { type: 'skin', label: '皮肤', requiresAmount: false, hint: '按当前资源补齐全部标准角色皮肤，不接受数量或装备参数。' },
         { type: 'material', label: '材料', requiresAmount: true, hint: '按数量累加，没有「已拥有」概念，必须显式指定 x数量。' },
@@ -161,7 +163,7 @@ export class GiveAllPage {
     protected readonly equip: Record<string, string | number> = {};
 
     protected hasEquipmentAttrs(): boolean {
-        return ['all', 'weapon', 'costume', 'badge', 'role'].includes(this.current().type);
+        return ['all', 'weapon', 'costume', 'badge', 'emblem', 'petchip', 'role'].includes(this.current().type);
     }
 
     /** material / currency 必须给数量，其余类别直接可发 */

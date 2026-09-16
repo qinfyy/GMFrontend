@@ -261,6 +261,7 @@ export class App {
         { path: '/role', label: '角色养成', hint: 'role：设置已拥有角色的养成属性' },
         { path: '/player', label: '玩家设置', hint: 'setlevel：设置玩家等级' },
         { path: '/moderation', label: '玩家管理', hint: 'kick / ban：踢下线与封禁解封' },
+        { path: '/windy', label: '脚本热更', hint: 'windy：向在线客户端下发 Lua 脚本' },
         { path: '/story', label: '剧情 / 九霄', hint: '普通剧情推进 + 九霄任务/关卡/成就' },
         { path: '/account', label: '账号管理', hint: 'account：账号增删改 + 强制登录' },
         { path: '/help', label: '命令手册', hint: 'help 与 Handbook 分区浏览' },

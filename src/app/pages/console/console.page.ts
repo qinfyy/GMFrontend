@@ -166,7 +166,7 @@ export class ConsolePage {
     protected readonly helpFailed = signal(false);
 
     protected readonly knownLabels = signal([
-        'give', 'giveall', 'role', 'setlevel', 'kick', 'ban',
+        'give', 'giveall', 'role', 'setlevel', 'kick', 'ban', 'windy',
         'storycompleted', 'newstorycompleted', 'kyusyoTaskCompleted',
         'kyusyoLevel', 'kyusyoUnlockLevel', 'kyusyoAchievement', 'account', 'help',
     ]);

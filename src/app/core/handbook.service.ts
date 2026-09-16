@@ -49,6 +49,21 @@ export class HandbookService {
         return this._sections().get(name) ?? [];
     }
 
+    /**
+     * 全部「有数据行」的分区名，按文件出现顺序。
+     *
+     * 分区名由服务端按装备 TypeId 动态生成（weapon / costume / badge / role / emblem / petchip …），
+     * 上游新增装备类型就会多出一个分区，因此这里不做白名单，直接枚举。
+     * 纯说明区（命令 / 类型说明 / 剧情关卡目录）没有任何 tab 数据行，天然被排除。
+     */
+    sectionNames(): string[] {
+        const names: string[] = [];
+        for (const [name, entries] of this._sections()) {
+            if (entries.length > 0) names.push(name);
+        }
+        return names;
+    }
+
     /** 应用启动时调用一次；失败不阻塞 UI，降级为仅控制台模式 */
     async load(): Promise<void> {
         try {

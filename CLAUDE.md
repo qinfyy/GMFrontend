@@ -23,12 +23,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```
 src/app/
-├── app.ts / app.routes.ts    # 骨架（Header 主题切换 + 设置抽屉 + 侧导航）；8 页懒加载路由
+├── app.ts / app.routes.ts    # 骨架（Header 主题切换 + 设置抽屉 + 侧导航）；10 页懒加载路由
 ├── core/
 │   ├── command-line.ts       # 命令行构造助手：cmdLine/arg/mod/xAmount/flag
 │   ├── gm-api.service.ts     # GET /api/gm 封装：content 传参、Bearer 鉴权、help 文本解析
 │   ├── settings.store.ts     # localStorage：baseUrl / apiKey / recentUids
-│   ├── handbook.service.ts   # 解析 public/Handbook.txt + GM 模板归一化
+│   ├── handbook.service.ts   # 解析 public/Handbook.txt + GM 命令模板解析
 │   └── theme.service.ts      # 明亮/黑暗/跟随系统，写 <html data-theme>
 ├── shared/
 │   ├── command-bar.ts        # 命令行实时预览（黑框横滑）+ 一键复制命令 + 危险操作二次确认
@@ -37,26 +37,34 @@ src/app/
 │   │                         #   输入：section / typeFilter / filterOf / extraOf / toggleable
 │   │                         #   选中值是 entry.id 字符串，model() 双向绑定
 │   └── page-executor.ts      # 各页共用的执行状态机（run/build 命令行 + @uid 记忆）
-└── pages/                    # console / give / giveall / role / player / story / account / help
+└── pages/                    # console / give / giveall / role / player /
+                              #   moderation / windy / story / account / help
 ```
 
 数据流：页面表单 → `preview()` 拼命令行 → `pageExecutor().run(() => preview())` → `GmApiService.execute(content)` → ResultPanel 展示 messages。
 
 **约定**：每个页面只写一个 `preview(): string`，`send()` 直接 `exec.run(() => this.preview())`，保证「预览的就是执行的」，避免两份拼装逻辑漂移。表单用普通方法而非 `computed`（Angular 默认变更检测会在事件后重算模板表达式），只有真的依赖 signal 时才用 `computed`。
 
-**命名约定**：`player` 页 = `setlevel`（改等级），`moderation` 页 = `kick` + `ban`（踢人与封禁），两者不要混。
+**命名约定**：`player` 页 = `setlevel`（改等级），`moderation` 页 = `kick` + `ban`（踢人与封禁），`windy` 页 = 下发 Lua 脚本。三者不要混。
 
 ## 上游协议（GM API）
 
 - 唯一端点 `GET /api/gm?content=<整条 GM 命令行>`，命令行形如 `/give weapon 1001 x2 lv80 r5 @10001`
 - **位置参数 + 通用修饰符 + `-flag` + `@uid` 全部空格分隔**，前缀斜杠可省略；服务端 `CommandContext` 负责分词
 - 鉴权：ApiKey 非空时 `Authorization: Bearer <key>` 头（也支持 `access_token` 查询参数）
-- 命令集 14 条（2026-09-14 同步）：`give / giveall / role / setlevel / kick / ban / storycompleted(sc) / newstorycompleted(nsc) / kyusyoTaskCompleted(ktc) / kyusyoLevel(kl) / kyusyoUnlockLevel(kul) / kyusyoAchievement(ka) / account / help`
+- 命令集 15 条（2026-09-17 同步）：`give / giveall / role / setlevel / kick / ban / windy / storycompleted(sc) / newstorycompleted(nsc) / kyusyoTaskCompleted(ktc) / kyusyoLevel(kl) / kyusyoUnlockLevel(kul) / kyusyoAchievement(ka) / account / help`
 - 权威定义在 `D:\Il2Cpp\bh2\Sv\GameMaster\*.cs` 的 `GameMasterCommandRegistry.Commands`，或直接 `curl "http://localhost:21000/api/gm?content=%2Fhelp"`
 
 ### 修饰符一览（服务端 CommandContext.TryParseModifier）
 
 `x<数量>`（或 `*数量`）、`lv<等级>`、`r<星级>`、`s<技能>`（= `sk`）、`p<升格>`、`i<亲密度>`、`t<圣痕>`、`pt<限解度>`、`bl<基础等级>`、`ml<精通等级>`、`-flag`、`@uid`。
+
+**`Args` 与 `PositionalArgs` 的区别（易踩）**：服务端把命令名之后的 token 分成两份——
+
+- `Args`：只剔除纯元信息（`@uid` 与 `-flag`），**保留数值型修饰符**
+- `PositionalArgs`：再剔除全部修饰符，`GetArg(n)` / `RequireArg(n)` 都基于它
+
+所以「按位取参」的命令（give/giveall/role/kick/ban/story…）里，**正文中不能出现 `x1` / `lv80` / `r5` / `t99` / `-flag` / `@…` 形态的片段**，否则会被静默剔除。`/ban` 正是靠 `Args` 保留 `t<结束时间>` 与 `r<理由>`（两者都不是纯数字，不会命中通用修饰符）。`moderation.page.ts` 的 `warning()` 会在发送前拦下这些输入。
 
 ### 响应外壳（当前版本）
 
@@ -72,7 +80,7 @@ src/app/
 
 ## Handbook.txt 格式（parser 支持两种数据行）
 
-文件在 `public/Handbook.txt`（8696 行，17 个分区），fetch 路径就是 `Handbook.txt`（无子目录）。
+文件在 `public/Handbook.txt`（9340 行，19 个分区），fetch 路径就是 `Handbook.txt`（无子目录）。
 
 1. **括号分区头**：`[currency]`；裸标题 + 下划线行（`崩坏学园篇章节目录` + `------`）也识别为分区头
 2. **tab 分隔行**（传统分区）：`currency <TAB> hcoin <TAB> 水晶 <TAB> alias=239 <TAB> GM=...`
@@ -82,6 +90,8 @@ src/app/
 
 解析后 `HandbookEntry = { section, type, id, name, attrs }`。
 
+**分区名是动态的，不要硬编码**：装备分区由服务端按 `EquipmentTableBase` 的 TypeId 分组生成（1=weapon、2=costume、3=badge、5=role、6=emblem、9=petchip），上游加一种装备就多一个分区。`HandbookService.sectionNames()` 直接枚举「有数据行的分区」（按文件顺序），help 页据此渲染侧栏——**纯说明区（`命令` / `类型说明` / `剧情关卡目录`）没有任何 tab 数据行，天然被排除**。
+
 **GM 模板**：2026-09-14 起上游已把全部模板改成命令行写法（`/cmd <位置参数> [x数量] [lv..] [-flag] [@uid]`），旧的 `cmd&uid=..&k=v` 查询串已彻底移除，因此 `handbook.service` 只按命令行解析（`parseGmTemplate`），**不再保留旧格式兼容层**。
 
 **空格分隔行的 `GM=` 必须整段切出来**：`GM=` 的值本身含空格且总是行尾字段，若按空格无脑切列，值会被切碎并污染 `name`（曾导致「第一章 L1-1 8351 [@uid]」这种脏 name）。`parseAttrs` 先用 `/(?:^|\s)GM=(.*)$/` 单独取出。
@@ -90,19 +100,20 @@ src/app/
 
 - **响应外壳只认当前版**：`{success, errorDescription, messages}`。上游重构期间试过 `result` 包裹、`retcode`、`error` 等写法，已按要求全部移除兼容分支——上游若再改字段，直接改 `GmResponse` 接口与 `toGmError`
 - **help 格式改过两次**：列表模式曾把「命令行 + 多条用法」打包进一条 message（内部 `\r\n`），后来又去掉了缩进。解析前先按换行摊平、所有正则带 `^\s*`，两版都能吃——改格式时先看 `OtherCommands.ExecuteHelp`
+- **`Handbook.txt` 会被上游删掉重建**：它是 `Sv.exe` 启动时由 `GameMasterHandbookGenerator.Generate(contentRootPath)` 写到 `Sv/Handbook.txt` 的。若文件不存在，启动一次服务端即可重建（约 25 秒）
 - **ngModel 不能绑 signal**：`[(ngModel)]="query"` 会把 signal 覆写成字符串，静默失效。用 `[value]="query()" (input)="query.set($event)"` 或 `[ngModel]="query()" (ngModelChange)="..."`
 - **无依赖的 `computed` 永不更新**：`computed(() => this.plainField > 0)` 没有 signal 依赖，只算一次就缓存。表单派生值用普通方法
 - **不要手动缓存 `handbook.section()`**：加载是异步的，提前缓存会留下空 Map（已踩过导致搜索全空）。一律用 `computed` 派生
-- **KNOWN_SECTIONS 必须与 Handbook.txt 分区名逐字匹配**（含全角括号）；上游改分区名就要同步
 - **help 页表格是虚拟滚动**：固定行高 34px + spacer 占位 + translateY 定位，只渲染可见窗口 ± 10 overscan。改动行高要同步改 `ROW_H` 与 CSS 里的 `height: 34px`
 - **`account create` 按位置解析**：命令行模式无法表达「只给手机号创建」，用户名必须占位（上游限制）
+- **位置参数里不能混修饰符形态的片段**：`Args` 保留数值型修饰符、`PositionalArgs` 不保留，所以 kick 的提示正文、ban 的理由、windy 的脚本路径里出现 `x1`/`lv80`/`r5`/`t99`/`-x`/`@…` 会被服务端静默剔除（ban 理由含空格则直接 400「未识别的参数」）
 - **端口 4200 被占**：`netstat -ano | grep :4200` 查 PID，`cmd //c "taskkill /F /PID <pid>"` 杀（Bash 下直接 taskkill /F 会被路径转义坑）
 
 ## 同步上游的工作流
 
 当 `D:\Il2Cpp\bh2\Sv\GameMaster\*.cs` 或 Handbook 变动：
-1. `cp /d/Il2Cpp/bh2/Sv/Handbook.txt public/Handbook.txt`
-2. 核对 `GameMasterCommandRegistry.Commands` → 更新对应页面、`console.page.ts` 的静态命令清单、`help.page.ts` 的 KNOWN_SECTIONS
+1. `cp /d/Il2Cpp/bh2/Sv/Handbook.txt public/Handbook.txt`（文件缺失就先启动一次服务端重建）
+2. 核对 `GameMasterCommandRegistry.Commands` → 更新对应页面与 `console.page.ts` 的静态命令清单；Handbook 侧栏是动态的，**新增分区无需改代码**，但新增**物品类别**要在 give/giveall 的 tabs 里补一项
 3. `yarn build` 验证 + curl 测错误路径（如 `content=/kyusyoTaskCompleted` 缺参应返回 400 中文提示）
 
 ### 起真实服务器做端到端验证
@@ -120,6 +131,6 @@ kill %1
 ## 约定
 
 - UI：白底 + Arco 蓝 #165DFF + 14px 系统字体栈；表单用 commuse 模式（右对齐 label 120–160px + 弹性 input），样式见 `src/styles.css` 的 CSS Token
-- 危险操作（giveall all/material/currency、ktc all、nsc 整章、account delete）用 `--color-error` + command-bar 二次确认
+- 危险操作（giveall all/material/currency、ktc all、nsc 整章、account delete、kick、ban、windy）用 `--color-error` + command-bar 二次确认
 - 代码 4 空格缩进（.prettierrc 已锁）
 - 全部中文交互与文档
